@@ -16,17 +16,23 @@ Updated: 2026-10-11
 - ROS-style grayscale map loading with source/licence metadata
 - Shared metric obstacle inflation
 - Repository demo map and end-to-end loading/planning test
+- Rear-axle-referenced vehicle geometry
+- Exact constant-steering bicycle-model primitive rollout
+- Configurable forward/reverse and steering primitive sets
+- Oriented rectangular footprint collision checks along full primitives
+- Hybrid A* `(x, y, yaw)` search, goal-pose test, and path reconstruction
+- Three-planner development comparison on the demo map
 
-Current verification: **24 tests passed** with Python 3.13.
+Current verification: **36 tests passed** with Python 3.13.
 
 ## Next milestone
 
-Begin Hybrid A* with a focused first slice:
+Begin the common tracking and simulation slice:
 
-1. Define vehicle geometry and motion-primitive configuration.
-2. Implement bicycle-model primitive rollout.
-3. Implement oriented footprint collision checks.
-4. Test kinematic feasibility before adding the search loop.
+1. Define a shared kinematic bicycle simulation step.
+2. Implement one fixed path tracker and command limits.
+3. Run all three paths through the same vehicle model.
+4. Record reach, collision, tracking error, and completion time.
 
 ## Local environment note
 

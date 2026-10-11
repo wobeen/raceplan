@@ -10,7 +10,8 @@ def test_compare_cli_reports_matching_costs(capsys) -> None:
 
     output = capsys.readouterr().out
     assert exit_code == 0
-    assert "dijkstra  success" in output
-    assert "astar     success" in output
+    assert "dijkstra      success" in output
+    assert "astar         success" in output
+    assert "hybrid_astar  success" in output
     assert "optimal_cost_match=true" in output
     assert "astar_expanded_reduction=" in output

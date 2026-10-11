@@ -35,8 +35,11 @@ Apply the same obstacle clearance to both planners with, for example,
 - Diagonal corner-cutting prevention, timeout handling, and unit tests
 - Strict scenario YAML and provenance-aware ROS-style image-map loading
 - Shared metric obstacle inflation and a repository demo scenario
+- Baseline Hybrid A* search with rear-axle vehicle geometry, bicycle-model
+  primitives, goal-pose tolerances, and oriented footprint collision checks
 
-Hybrid A*, simulation, metrics, and batch experiments remain future milestones.
+Simulation, tracking control, metrics, and batch experiments remain future
+milestones.
 
 See [`docs/RESEARCH_PLAN.md`](docs/RESEARCH_PLAN.md) for the research questions,
 experimental design, and completion criteria.
