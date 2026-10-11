@@ -18,15 +18,25 @@ Alternatively, use Python 3.11 or newer with `python -m pip install -e
 ".[dev]"`. The lockfile is the authoritative dependency snapshot for
 reproducible development runs.
 
+Compare the implemented planners on the included scenario:
+
+```bash
+uv run --python 3.13 raceplan-compare scenarios/demo.yaml
+```
+
+Apply the same obstacle clearance to both planners with, for example,
+`--inflation-radius 0.5`.
+
 ## Implemented
 
 - Immutable occupancy grid and explicit world/grid coordinate conversion
 - Shared planner input/output types with typed failure states
 - Comparable 8-connected Dijkstra and A* implementations
 - Diagonal corner-cutting prevention, timeout handling, and unit tests
+- Strict scenario YAML and provenance-aware ROS-style image-map loading
+- Shared metric obstacle inflation and a repository demo scenario
 
-Hybrid A*, map-file loading, simulation, metrics, and batch experiments remain
-future milestones.
+Hybrid A*, simulation, metrics, and batch experiments remain future milestones.
 
 See [`docs/RESEARCH_PLAN.md`](docs/RESEARCH_PLAN.md) for the research questions,
 experimental design, and completion criteria.

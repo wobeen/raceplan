@@ -11,8 +11,12 @@ requires-python = ">=3.11"
 license = "MIT"
 dependencies = [
   "numpy>=2.0",
+  "Pillow>=11.0",
   "PyYAML>=6.0",
 ]
+
+[project.scripts]
+raceplan-compare = "raceplan.compare:main"
 
 [project.optional-dependencies]
 dev = [
@@ -24,7 +28,7 @@ dev = [
 where = ["src"]
 
 [tool.pytest.ini_options]
-addopts = "-ra --strict-markers"
+addopts = "-ra --strict-markers --basetemp=.pytest-tmp"
 testpaths = ["tests"]
 pythonpath = ["src"]
 

@@ -12,19 +12,21 @@ Updated: 2026-10-11
 - Diagonal corner-cutting prevention and timeout/failure reporting
 - Unit tests for core contracts, grid boundaries, optimal-cost equivalence,
   corner cases, and failure states
+- Strict scenario YAML loading and relative path resolution
+- ROS-style grayscale map loading with source/licence metadata
+- Shared metric obstacle inflation
+- Repository demo map and end-to-end loading/planning test
 
-Current verification: **15 tests passed** with Python 3.13.
+Current verification: **24 tests passed** with Python 3.13.
 
 ## Next milestone
 
-Finish research-plan stage 2 around file inputs:
+Begin Hybrid A* with a focused first slice:
 
-1. Define the scenario YAML schema.
-2. Add a portable occupancy-map loader and source/licence metadata.
-3. Add map inflation using the shared vehicle radius/clearance rule.
-4. Add configuration fixtures and validation tests.
-
-Then begin Hybrid A* primitives and footprint collision checks.
+1. Define vehicle geometry and motion-primitive configuration.
+2. Implement bicycle-model primitive rollout.
+3. Implement oriented footprint collision checks.
+4. Test kinematic feasibility before adding the search loop.
 
 ## Local environment note
 
