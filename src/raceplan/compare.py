@@ -7,43 +7,15 @@ from collections.abc import Sequence
 from pathlib import Path
 
 from raceplan.common import (
-    VehicleGeometry,
     inflate_obstacles,
     load_occupancy_map,
     load_scenario,
 )
+from raceplan.defaults import baseline_hybrid_astar
 from raceplan.planners import (
     AStarPlanner,
     DijkstraPlanner,
-    HybridAStarConfig,
-    HybridAStarPlanner,
 )
-from raceplan.planners.hybrid_primitives import MotionPrimitiveConfig
-
-
-def _baseline_hybrid_astar() -> HybridAStarPlanner:
-    """Return development defaults; official experiments will load config."""
-
-    vehicle = VehicleGeometry(
-        wheelbase=0.33,
-        length=0.58,
-        width=0.31,
-        rear_axle_to_center=0.10,
-    )
-    config = HybridAStarConfig(
-        xy_resolution=0.5,
-        yaw_bins=36,
-        goal_position_tolerance=0.5,
-        goal_yaw_tolerance=0.35,
-        primitives=MotionPrimitiveConfig(
-            max_steering_angle=0.45,
-            steering_samples=5,
-            travel_distance=0.5,
-            sample_distance=0.1,
-            allow_reverse=False,
-        ),
-    )
-    return HybridAStarPlanner(vehicle, config)
 
 
 def _parser() -> argparse.ArgumentParser:
@@ -68,7 +40,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     grid = inflate_obstacles(metadata.grid, args.inflation_radius)
 
     results = []
-    for planner in (DijkstraPlanner(), AStarPlanner(), _baseline_hybrid_astar()):
+    for planner in (DijkstraPlanner(), AStarPlanner(), baseline_hybrid_astar()):
         result = planner.plan(
             grid,
             scenario.start,

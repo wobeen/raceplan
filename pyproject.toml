@@ -17,6 +17,8 @@ dependencies = [
 
 [project.scripts]
 raceplan-compare = "raceplan.compare:main"
+raceplan-plot = "raceplan.plot_comparison:main"
+raceplan-run = "raceplan.experiment:main"
 
 [project.optional-dependencies]
 dev = [
