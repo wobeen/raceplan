@@ -6,9 +6,8 @@ the baseline for multi-condition objective optimization and reproducible
 experiments with improved planner variants. Camera/CV perception is a later
 extension, not part of the current core.
 
-The project is currently in its foundation stage. The first implemented pieces
-are dependency-light core types, occupancy-grid handling, coordinate
-conversion, and a common planner contract.
+The project provides baseline planners, a shared closed-loop simulator, and
+paired simulation-seed batch execution. Research evaluation remains future work.
 
 ## Quick start
 
@@ -27,7 +26,7 @@ Compare the implemented planners on the included scenario:
 uv run --python 3.13 raceplan-compare scenarios/demo.yaml
 ```
 
-Apply the same obstacle clearance to both planners with, for example,
+Apply the same obstacle clearance to all planners with, for example,
 `--inflation-radius 0.5`.
 
 Render the current paths and metrics as a PNG:
@@ -44,16 +43,54 @@ uv run --python 3.13 raceplan-run scenarios/demo.yaml \
 ```
 
 This command holds the vehicle geometry, Pure Pursuit tracker, speed PID,
-command limits, simulation step, and goal tolerance fixed. The scenario seed is
-recorded in the CSV; the current deterministic demo does not yet inject noise.
+command limits, simulation step, and goal tolerance fixed. Noise is zero by
+default. All planners drive from the scenario start, independent of the first
+planned waypoint.
+
+Run a paired development batch (example noise levels, not validated settings):
+
+```bash
+uv run --python 3.13 raceplan-run scenarios/demo.yaml \
+  --simulation-seeds 0 1 2 --planners dijkstra astar hybrid_astar \
+  --initial-position-std-m 0.02 --initial-yaw-std-rad 0.01 \
+  --initial-speed-std-mps 0.01 --steering-std-rad 0.01 \
+  --speed-measurement-std-mps 0.02 --output results/raw/pilot.csv
+```
+
+Each invocation writes a summary CSV plus `_trajectory.csv`, `_paths.csv`, and
+`_manifest.json` beside it. IDs join episodes to trajectories and shared plans
+within that invocation; use the manifest/output name when combining batches.
+Existing output artifacts are rejected to preserve earlier episodes. Planning
+failures have summary rows and no trajectory; collision and timeout episodes
+retain all samples. A manifest left `running` indicates an incomplete batch.
+
+Each planner plans once, then reuses that plan across simulation seeds. Repeated
+planning times in the summary refer to the same measurement, not independent
+timing samples. The manifest records settings, map hashes, source hashes, and
+runtime versions. Wall-clock planning times and timeout outcomes can still vary
+with machine load.
+
+Noise uses independent Gaussian streams for initial state, steering actuation,
+and speed measurement. Initial x/y perturbations are independent in world axes;
+initial speed is perturbed around zero and clipped to vehicle speed limits.
+Steering noise is added before actuator clipping; speed measurement noise feeds
+the PID without changing ground-truth speed directly. Streams reset per episode
+so matching seeds pair the initial perturbation and disturbances at each time
+step across planners. This is a fixed-step development noise model, not a
+calibrated sensor model. Pose sensing is otherwise exact. Trajectory controls
+record the applied clipped values for the interval ending at each sample;
+the initial sample has zero controls.
 
 ## Configuration conventions
 
 Scenario YAML contains `name`, `map`, `[x, y, yaw]` start and goal poses,
-`seed`, and `timeout_s`. Paths are resolved relative to the scenario file and
-unknown keys are rejected. The current single `seed` field is recorded but not
-used; the next development slice will replace it with explicit map and
-simulation seed semantics.
+`map_seed`, `simulation_seed`, and `timeout_s`. Use `map_seed: null` for fixed
+maps. A non-null map seed records generation provenance only; this runner loads
+the supplied map and does not generate it. `simulation_seed` affects driving
+noise only. Both seeds must be non-negative integers (except nullable map seed).
+The old `seed` key is no longer accepted. Paths are resolved relative to the
+scenario file and unknown keys are rejected. `timeout_s` limits planning;
+the shared simulation duration is recorded separately in the manifest.
 
 Map YAML follows the ROS map-server grayscale convention and additionally
 requires `source` and `license` provenance. Unknown cells are treated as
@@ -80,8 +117,11 @@ shared inflated grid, so experiments record this representation difference.
 - Closed-loop reach, collision, completion-time, tracking-error, and steering
   metrics exported to CSV
 
-Randomized map suites, noise models, batch aggregation, and optimized planner
-variants remain future milestones.
+Paired seed batches, driving noise, trajectory/path artifacts, and configuration
+manifests are implemented. The current development slice passed 40 tests and
+a two-map seed pilot; see `docs/REPEATABILITY_IMPLEMENTATION.md` for limits.
+Randomized map suites, batch aggregation, and optimized planner variants remain
+future milestones.
 
 ## Project documents
 

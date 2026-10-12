@@ -14,7 +14,8 @@ def test_loads_scenario_and_resolves_map_path(tmp_path: Path) -> None:
                 "map: ../maps/open.yaml",
                 "start: [0.5, 1.5, 0.0]",
                 "goal: [4.5, 3.5, 1.57]",
-                "seed: 42",
+                "map_seed: null",
+                "simulation_seed: 42",
                 "timeout_s: 10.0",
             ]
         ),
@@ -27,7 +28,8 @@ def test_loads_scenario_and_resolves_map_path(tmp_path: Path) -> None:
     assert scenario.map_path == (tmp_path / "../maps/open.yaml").resolve()
     assert scenario.start.x == pytest.approx(0.5)
     assert scenario.goal.yaw == pytest.approx(1.57)
-    assert scenario.seed == 42
+    assert scenario.map_seed is None
+    assert scenario.simulation_seed == 42
     assert scenario.timeout_s == pytest.approx(10.0)
 
 
@@ -40,7 +42,8 @@ def test_rejects_unknown_fields(tmp_path: Path) -> None:
                 "map: map.yaml",
                 "start: [0, 0, 0]",
                 "goal: [1, 1, 0]",
-                "seed: 0",
+                "map_seed: 0",
+                "simulation_seed: 0",
                 "timeout_s: 1",
                 "typo: true",
             ]

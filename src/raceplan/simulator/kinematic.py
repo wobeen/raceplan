@@ -19,6 +19,7 @@ from raceplan.controllers import (
     path_tracking_error,
 )
 from raceplan.planners.hybrid_primitives import normalize_angle
+from .noise import NoiseConfig, NoiseStreams
 
 
 @dataclass(frozen=True, slots=True)
@@ -155,13 +156,29 @@ def run_episode(
     vehicle: VehicleGeometry,
     tracker_config: PurePursuitConfig,
     simulation_config: SimulationConfig,
+    *,
+    initial_pose: Pose2D | None = None,
+    simulation_seed: int = 0,
+    noise: NoiseConfig = NoiseConfig(),
 ) -> SimulationResult:
     """Track one planned path with fixed controller and vehicle settings."""
 
     tracker = PurePursuitController(path, vehicle, tracker_config)
-    state = VehicleState(path.poses[0])
+    random = NoiseStreams(simulation_seed)
+    nominal = initial_pose if initial_pose is not None else path.poses[0]
+    offsets = random.initial.standard_normal(4)
+    yaw = nominal.yaw + float(offsets[2]) * noise.initial_yaw_std_rad
+    state = VehicleState(
+        Pose2D(
+            nominal.x + float(offsets[0]) * noise.initial_position_std_m,
+            nominal.y + float(offsets[1]) * noise.initial_position_std_m,
+            normalize_angle(yaw) if noise.initial_yaw_std_rad else yaw,
+        ),
+        max(0.0, min(simulation_config.max_speed,
+                     float(offsets[3]) * noise.initial_speed_std_mps)),
+    )
     samples: list[TrajectorySample] = [
-        TrajectorySample(0.0, state, 0.0, 0.0, 0.0)
+        TrajectorySample(0.0, state, 0.0, 0.0, path_tracking_error(path, state.pose))
     ]
 
     def finish(status: SimulationStatus, elapsed: float) -> SimulationResult:
@@ -184,11 +201,18 @@ def run_episode(
         if step == step_count:
             break
 
-        command = tracker.command(state.pose, state.speed, simulation_config.dt)
+        measured_speed = state.speed + float(random.speed.standard_normal()) * noise.speed_measurement_std_mps
+        command = tracker.command(state.pose, measured_speed, simulation_config.dt)
+        steering = max(-simulation_config.max_steering_angle, min(
+            simulation_config.max_steering_angle,
+            command.steering_angle + float(random.steering.standard_normal()) * noise.steering_std_rad,
+        ))
+        acceleration = max(-simulation_config.max_deceleration,
+                           min(simulation_config.max_acceleration, command.acceleration))
         state = step_bicycle(
             state,
-            acceleration=command.acceleration,
-            steering_angle=command.steering_angle,
+            acceleration=acceleration,
+            steering_angle=steering,
             vehicle=vehicle,
             config=simulation_config,
         )
@@ -196,8 +220,8 @@ def run_episode(
             TrajectorySample(
                 time_s=elapsed + simulation_config.dt,
                 state=state,
-                acceleration=command.acceleration,
-                steering_angle=command.steering_angle,
+                acceleration=acceleration,
+                steering_angle=steering,
                 tracking_error=path_tracking_error(path, state.pose),
             )
         )

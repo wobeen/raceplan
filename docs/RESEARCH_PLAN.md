@@ -55,7 +55,7 @@ ROS 2는 재현과 통합을 위한 수단이며 단독 연구 기여로 주장�
 | Baseline planner | Dijkstra, A*, Hybrid A*, 공통 결과 형식 | 완료 |
 | 공통 주행 계층 | 차량 footprint, 자전거 모델, Pure Pursuit, 속도 PID, 명령 제한 | 완료 |
 | 단일 실험 파이프라인 | 계획→주행→지표→CSV | 완료 |
-| 반복 실험 기반 | `map_seed`/`simulation_seed` 분리, 잡음, batch runner, trajectory 저장 | 다음 작업 |
+| 반복 실험 기반 | `map_seed`/`simulation_seed` 분리, 잡음, batch runner, trajectory 저장 | 초기 구현·재현성 파일럿 완료 |
 | 평가 기능 | 지도 난이도, 경로 기하, clearance, 집계와 그래프 | 예정 |
 | 개선 후보 | fixed multi-cost, complexity-conditioned cost 또는 planner selector | baseline 분석 후 결정 |
 | 재현·통합 | 설정 고정, 환경 기록, 자동 재현, 필요 시 ROS 2 wrapper | 예정 |
@@ -70,7 +70,7 @@ baseline 실패 분석 전에는 개선 알고리즘을 확정하지 않는다.
 | 구분 | 목적 | 운용 방식 | 상태 |
 |---|---|---|---|
 | 스모크 | 연결·저장·충돌 판정 확인 | 지도 1개, seed 1개 | 완료 |
-| 파일럿 | 지표와 난이도 구간, 잡음 크기, 실행 예산 점검 | 검증 지도 2개, 소수 query/seed | 다음 작업 |
+| 파일럿 | 지표와 난이도 구간, 잡음 크기, 실행 예산 점검 | 검증 지도 2개, 소수 query/seed | 재현성 확인 완료, 난이도·잡음 보정은 예정 |
 | Baseline 본 실험 | 세 planner의 계획·폐루프 실패 조건 분석 | 고정된 지도/query/seed 짝비교 | 예정 |
 | 최적화 | 비용 가중치와 선택 규칙 설계 | 검증 지도에서만 탐색 | 예정 |
 | 최종 평가 | 일반화와 교환관계 검증 | 미사용 평가 지도, 가중치 재조정 금지 | 예정 |

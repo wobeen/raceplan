@@ -1,0 +1,7 @@
+name: validation-open
+map: ../maps/validation_open.yaml
+start: [1.5, 2.5, 0.0]
+goal: [8.5, 2.5, 0.0]
+map_seed: null
+simulation_seed: 0
+timeout_s: 10.0

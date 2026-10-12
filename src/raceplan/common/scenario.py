@@ -18,7 +18,8 @@ class Scenario:
     map_path: Path
     start: Pose2D
     goal: Pose2D
-    seed: int
+    map_seed: int | None
+    simulation_seed: int
     timeout_s: float
 
 
@@ -37,7 +38,7 @@ def load_scenario(path: str | Path) -> Scenario:
     if not isinstance(config, dict):
         raise ValueError("scenario must contain a YAML mapping")
 
-    required = {"name", "map", "start", "goal", "seed", "timeout_s"}
+    required = {"name", "map", "start", "goal", "map_seed", "simulation_seed", "timeout_s"}
     missing = sorted(required.difference(config))
     if missing:
         raise ValueError(f"missing required scenario fields: {', '.join(missing)}")
@@ -48,9 +49,13 @@ def load_scenario(path: str | Path) -> Scenario:
     name = str(config["name"]).strip()
     if not name:
         raise ValueError("scenario name cannot be empty")
-    seed = int(config["seed"])
-    if seed < 0:
-        raise ValueError("scenario seed cannot be negative")
+    map_seed = config["map_seed"]
+    simulation_seed = config["simulation_seed"]
+    for field, value in (("map_seed", map_seed), ("simulation_seed", simulation_seed)):
+        if field == "map_seed" and value is None:
+            continue
+        if type(value) is not int or value < 0:
+            raise ValueError(f"{field} must be a non-negative integer")
     timeout_s = float(config["timeout_s"])
     if not isfinite(timeout_s) or timeout_s <= 0:
         raise ValueError("scenario timeout_s must be finite and positive")
@@ -60,7 +65,8 @@ def load_scenario(path: str | Path) -> Scenario:
         map_path=(scenario_path.parent / str(config["map"])).resolve(),
         start=_pose(config["start"], field="start"),
         goal=_pose(config["goal"], field="goal"),
-        seed=seed,
+        map_seed=map_seed,
+        simulation_seed=simulation_seed,
         timeout_s=timeout_s,
     )
 
