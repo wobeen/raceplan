@@ -1,6 +1,7 @@
 """Dependency-light closed-loop vehicle simulation."""
 
 from .noise import NoiseConfig
+from .recovery import RecoveryConfig, RecoveryEvent
 
 from .kinematic import (
     SimulationConfig,
@@ -14,6 +15,8 @@ from .kinematic import (
 
 __all__ = [
     "NoiseConfig",
+    "RecoveryConfig",
+    "RecoveryEvent",
     "SimulationConfig",
     "SimulationResult",
     "SimulationStatus",

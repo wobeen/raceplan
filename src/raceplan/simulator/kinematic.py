@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from enum import StrEnum
 from math import cos, hypot, isfinite, sqrt, sin, tan
+from time import perf_counter
 
 from raceplan.common import (
     OccupancyGrid,
@@ -20,7 +21,9 @@ from raceplan.controllers import (
 )
 from raceplan.planners.hybrid_primitives import normalize_angle
 from .noise import NoiseConfig, NoiseStreams
-from .obstacle_guard import ObstacleGuardConfig, guarded_acceleration
+from .obstacle_guard import ObstacleGuardConfig, guarded_acceleration, guard_diagnostics
+from .recovery import (RecoveryConfig, RecoveryEvent, Replanner, creep_speed_cap,
+                       PathProgress, path_prefix, repeated_path)
 
 
 @dataclass(frozen=True, slots=True)
@@ -64,6 +67,8 @@ class SimulationStatus(StrEnum):
     REACHED = "reached"
     COLLISION = "collision"
     TIMEOUT = "timeout"
+    PLANNING_FAILED = "planning_failed"
+    RECOVERY_FAILED = "recovery_failed"
 
 
 @dataclass(frozen=True, slots=True)
@@ -83,6 +88,23 @@ class SimulationResult:
     goal_distance: float
     steering_limit: float
     goal_yaw_error: float = 0.0
+    stopped_time_s: float = 0.0
+    restart_count: int = 0
+    replan_count: int = 0
+    recovery_events: tuple[RecoveryEvent, ...] = ()
+    recovery_reason: str | None = None
+
+    @property
+    def driving_time_s(self) -> float:
+        return max(0.0, self.completion_time_s - self.stopped_time_s)
+
+    @property
+    def replanning_time_s(self) -> float:
+        return sum(event.planning_time_s for event in self.recovery_events)
+
+    @property
+    def replan_validation_time_s(self) -> float:
+        return sum(event.validation_time_s for event in self.recovery_events)
 
     @property
     def reached(self) -> bool:
@@ -168,10 +190,28 @@ def run_episode(
     simulation_seed: int = 0,
     noise: NoiseConfig = NoiseConfig(),
     obstacle_guard: ObstacleGuardConfig | None = None,
+    recovery: RecoveryConfig | None = None,
+    replanner: Replanner | None = None,
 ) -> SimulationResult:
     """Track one planned path with fixed controller and vehicle settings."""
 
+    if recovery is not None and obstacle_guard is None:
+        raise ValueError("recovery requires an obstacle guard")
     tracker = PurePursuitController(path, vehicle, tracker_config)
+    active_path = path
+    events: list[RecoveryEvent] = []
+    stopped_time = 0.0
+    stop_dwell = 0.0
+    restarts = replans = 0
+    creeping = False
+    pending_replan = False
+    recovery_reason = None
+    progress_distance = None
+    progress_time = 0.0
+    resume_dwell = 0.0
+    progress_cursor = 0.0
+    progress_pose = None
+    blocked_prefixes = []
     clearance = None
     if obstacle_guard is not None:
         from raceplan.metrics import Clearance
@@ -192,6 +232,7 @@ def run_episode(
     samples: list[TrajectorySample] = [
         TrajectorySample(0.0, state, 0.0, 0.0, path_tracking_error(path, state.pose))
     ]
+    route_progress = PathProgress(active_path, state.pose) if recovery is not None and recovery.policy_version == 2 else None
 
     def finish(status: SimulationStatus, elapsed: float) -> SimulationResult:
         return SimulationResult(
@@ -201,6 +242,11 @@ def run_episode(
             goal_distance=hypot(goal.x - state.pose.x, goal.y - state.pose.y),
             steering_limit=simulation_config.max_steering_angle,
             goal_yaw_error=abs(normalize_angle(goal.yaw - state.pose.yaw)),
+            stopped_time_s=stopped_time,
+            restart_count=restarts,
+            replan_count=replans,
+            recovery_events=tuple(events),
+            recovery_reason=recovery_reason,
         )
 
     if footprint_in_collision(grid, state.pose, vehicle):
@@ -226,11 +272,124 @@ def run_episode(
         ))
         acceleration = max(-simulation_config.max_deceleration,
                            min(simulation_config.max_acceleration, command.acceleration))
+        requested_acceleration = acceleration
         if obstacle_guard is not None:
             acceleration = guarded_acceleration(
                 grid, clearance, state.pose, state.speed, steering, acceleration,
                 vehicle, simulation_config, obstacle_guard,
             )
+        stop_threshold = recovery.stop_speed_mps if recovery is not None else .03
+        was_stopped = state.speed <= stop_threshold
+        if recovery is not None:
+            distance = hypot(goal.x - state.pose.x, goal.y - state.pose.y)
+            cursor = route_progress.update(state.pose) if route_progress is not None else 0.0
+            if progress_distance is not None:
+                advanced = distance <= progress_distance - recovery.progress_distance_m
+                if route_progress is not None:
+                    advanced = (cursor-progress_cursor >= recovery.progress_distance_m
+                                and hypot(state.pose.x-progress_pose.x, state.pose.y-progress_pose.y)
+                                >= recovery.progress_distance_m)
+                if advanced:
+                    progress_distance, progress_time = distance, elapsed
+                    progress_cursor, progress_pose = cursor, state.pose
+                elif elapsed - progress_time >= recovery.progress_timeout_s:
+                    pending_replan = True
+            blocked = state.speed <= recovery.stop_speed_mps and acceleration <= 0
+            stop_dwell = stop_dwell + simulation_config.dt if blocked else 0.0
+            cap = 0.0
+            if not pending_replan and (creeping or stop_dwell >= recovery.stop_dwell_s):
+                cap = creep_speed_cap(grid, clearance, state.pose, state.speed, steering,
+                                      vehicle, simulation_config, obstacle_guard, recovery)
+            if creeping and not pending_replan:
+                if recovery.policy_version == 2:
+                    diagnostics = guard_diagnostics(grid, clearance, state.pose, state.speed,
+                                                    steering, vehicle, simulation_config, obstacle_guard)
+                    # Enter creep at a sustained stop; exit only with sustained
+                    # native-guard headroom. Noise cannot release a single frame.
+                    release_speed = min(tracker_config.target_speed, simulation_config.max_speed,
+                                        recovery.creep_speed_mps + recovery.resume_speed_margin_mps)
+                    clear = diagnostics['speed_cap_mps'] >= release_speed and cap > 0
+                    resume_dwell = resume_dwell + simulation_config.dt if clear else 0.0
+                    if resume_dwell >= recovery.resume_dwell_s:
+                        creeping = False
+                        resume_dwell = 0.0
+                        events.append(RecoveryEvent(elapsed, 'resume', state.pose, 'guard_headroom_sustained'))
+                if creeping and cap > 0:
+                    acceleration = max(-simulation_config.max_deceleration,
+                                       min(requested_acceleration,
+                                           (cap - state.speed) / simulation_config.dt))
+                    stop_dwell = 0.0
+                elif creeping:
+                    creeping = False
+                    pending_replan = True
+                    events.append(RecoveryEvent(elapsed, 'stop', state.pose, 'forward_preview_blocked'))
+            if stop_dwell >= recovery.stop_dwell_s and not pending_replan:
+                if cap > 0 and restarts < recovery.max_restarts:
+                    restarts += 1
+                    creeping = True
+                    resume_dwell = 0.0
+                    stop_dwell = 0.0
+                    if progress_distance is None:
+                        progress_distance, progress_time = distance, elapsed
+                        progress_cursor, progress_pose = cursor, state.pose
+                    events.append(RecoveryEvent(elapsed, 'restart', state.pose, 'clear_forward_creep'))
+                    acceleration = max(-simulation_config.max_deceleration,
+                                       min(requested_acceleration,
+                                           (cap - state.speed) / simulation_config.dt))
+                else:
+                    pending_replan = True
+            if pending_replan:
+                acceleration = -simulation_config.max_deceleration
+                creeping = False
+                # Planning starts only from a fully stopped physical state.
+                if state.speed <= 1e-12:
+                    if replanner is None or replans >= recovery.max_replans:
+                        recovery_reason = 'no_replanner' if replanner is None else 'replan_budget_exhausted'
+                        events.append(RecoveryEvent(elapsed, 'failed', state.pose, recovery_reason))
+                        return finish(SimulationStatus.RECOVERY_FAILED, elapsed)
+                    replans += 1
+                    if recovery.policy_version == 2:
+                        blocked_prefixes.append(path_prefix(active_path, state.pose))
+                    planned = replanner(state.pose, goal)
+                    events.append(RecoveryEvent(elapsed, 'replan', state.pose,
+                                                planned.status.value, planned.path,
+                                                planned.planning_time_s))
+                    if planned.path is None:
+                        recovery_reason = 'planner_' + planned.status.value
+                        return finish(SimulationStatus.PLANNING_FAILED, elapsed)
+                    if recovery.policy_version == 2:
+                        candidate_prefix = path_prefix(planned.path, state.pose)
+                        duplicate = any(repeated_path(candidate_prefix, previous,
+                                                       recovery.repeated_path_tolerance_m)
+                                        for previous in blocked_prefixes)
+                        validation_started = perf_counter()
+                        feasible = False if duplicate else replan_feasible(
+                            grid, planned.path, goal, state.pose, vehicle, tracker_config,
+                            simulation_config, obstacle_guard, recovery)
+                        validation_time = 0.0 if duplicate else perf_counter()-validation_started
+                        if not duplicate:
+                            events.append(RecoveryEvent(elapsed, 'validation', state.pose,
+                                                        'prefix_trackable' if feasible else 'prefix_blocked',
+                                                        validation_time_s=validation_time))
+                        if duplicate or not feasible:
+                            recovery_reason = 'repeated_blocked_path' if duplicate else 'replan_not_trackable'
+                            events.append(RecoveryEvent(elapsed, 'rejected', state.pose, recovery_reason,
+                                                        planned.path))
+                            return finish(SimulationStatus.RECOVERY_FAILED, elapsed)
+                    # Never teleport to the planner's discretized start pose.
+                    active_path = planned.path
+                    tracker = PurePursuitController(active_path, vehicle, tracker_config)
+                    pending_replan = False
+                    stop_dwell = 0.0
+                    progress_distance, progress_time = distance, elapsed
+                    if route_progress is not None:
+                        route_progress = PathProgress(active_path, state.pose)
+                        progress_cursor, progress_pose = route_progress.cursor, state.pose
+                    resume_dwell = 0.0
+                    # Hold this step; the new tracker is sampled next control interval.
+                    acceleration = 0.0
+        if was_stopped:
+            stopped_time += simulation_config.dt
         state = step_bicycle(
             state,
             acceleration=acceleration,
@@ -244,10 +403,38 @@ def run_episode(
                 state=state,
                 acceleration=acceleration,
                 steering_angle=steering,
-                tracking_error=path_tracking_error(path, state.pose),
+                tracking_error=path_tracking_error(active_path, state.pose),
             )
         )
         if footprint_in_collision(grid, state.pose, vehicle):
             return finish(SimulationStatus.COLLISION, elapsed + simulation_config.dt)
 
     return finish(SimulationStatus.TIMEOUT, simulation_config.max_time_s)
+
+
+def replan_feasible(grid, path, goal, pose, vehicle, tracker, simulation, guard, recovery):
+    """Check a candidate prefix with the real tracker, guard and bicycle dynamics.
+
+    A deterministic disposable episode has its own PID and RNG. It never updates
+    the physical episode or consumes its noise stream. Zero replans prevents
+    nested checks while retaining the v2 watchdog and speed-resume behavior.
+    The short prefix check is necessary evidence, not full-path feasibility.
+    """
+    preview = run_episode(grid, path, goal, vehicle, tracker,
+                          replace(simulation, max_time_s=recovery.feasibility_time_s),
+                          initial_pose=pose, noise=NoiseConfig(), obstacle_guard=guard,
+                          recovery=replace(recovery, policy_version=2, max_replans=0,
+                                           max_restarts=1,
+                                           progress_timeout_s=max(recovery.progress_timeout_s,
+                                                                  recovery.feasibility_time_s+simulation.dt)))
+    if preview.collided or preview.status is SimulationStatus.RECOVERY_FAILED:
+        return False
+    if preview.reached:
+        return True
+    progress = PathProgress(path, pose)
+    start = progress.cursor
+    for sample in preview.samples:
+        progress.update(sample.state.pose)
+    end = preview.samples[-1].state.pose
+    return (progress.cursor-start >= recovery.feasibility_progress_m
+            and hypot(end.x-pose.x, end.y-pose.y) >= recovery.feasibility_progress_m)

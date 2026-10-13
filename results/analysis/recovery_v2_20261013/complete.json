@@ -1,0 +1,13 @@
+{
+  "artifacts": {
+    "comparison.png": "24fad25cfd12b19b489028eb8f4b4ab73be42b315cd115f7a46089274eb637bc",
+    "episodes.json": "5069d2080ee1ad52b5b622e45fcefcbcac3874472cf5a407499bc89621941b6d",
+    "manifest.json": "a4b53f3a03bac3e1b90fb4d56e41a9d7ca6970607ad96c123171af9212be344a",
+    "paths.json": "00c32b448f7a59298912873ceb834ddcf4e091a01c3727fda6f6b2889f30f633",
+    "summary.json": "9e139f6f54da549d7c03b38c48a82eef32b54c2a169a59758e7633ae465287e4",
+    "trajectories.json": "f03aa6af17bde05b9d075211cb646bba32dbc5d02e8cd786c429390f1fad90a3",
+    "trajectories_astar.png": "7ea713b64f916768251f3f7cfca0670827e6fa9222c9525913b0eb58eb541063",
+    "trajectories_dijkstra.png": "a4c571eff01dfb9e90da3e41ae1aae1566ef6897c98ff5a48824fe09506aa306",
+    "trajectories_hybrid_astar.png": "fb62a841e96c4bdff4b2d6e91c5c6002025d3ec09724b4cc1463a37c20a158fd"
+  }
+}

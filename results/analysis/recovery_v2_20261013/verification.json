@@ -1,0 +1,555 @@
+{
+  "episodes": 144,
+  "v1_historical_pairs": 72,
+  "v1_result_differences": [],
+  "v1_sample_differences": [],
+  "config_equal": {
+    "cases": true,
+    "seeds": true,
+    "vehicle": true,
+    "tracker": true,
+    "simulation": true,
+    "noise": true,
+    "obstacle_guard": true,
+    "planning_timeout_s": true,
+    "paths_content": true
+  },
+  "artifact_hash_mismatches": [],
+  "input_hash_mismatches": [],
+  "source_hash_mismatches": [],
+  "hybrid_paired_success": {
+    "n": 15,
+    "v1_mean_s": 15.736666666666668,
+    "v2_mean_s": 11.846666666666668,
+    "pairs": [
+      {
+        "case": "validation_gate_0_q0",
+        "seed": 0,
+        "v1_s": 6.550000000000001,
+        "v2_s": 6.550000000000001
+      },
+      {
+        "case": "validation_gate_0_q0",
+        "seed": 1,
+        "v1_s": 6.550000000000001,
+        "v2_s": 6.550000000000001
+      },
+      {
+        "case": "validation_gate_0_q0",
+        "seed": 2,
+        "v1_s": 6.550000000000001,
+        "v2_s": 6.550000000000001
+      },
+      {
+        "case": "validation_gate_0_q1",
+        "seed": 0,
+        "v1_s": 6.45,
+        "v2_s": 6.45
+      },
+      {
+        "case": "validation_gate_0_q1",
+        "seed": 1,
+        "v1_s": 6.5,
+        "v2_s": 6.5
+      },
+      {
+        "case": "validation_gate_0_q1",
+        "seed": 2,
+        "v1_s": 6.5,
+        "v2_s": 6.5
+      },
+      {
+        "case": "validation_turn_0_q0",
+        "seed": 0,
+        "v1_s": 22.25,
+        "v2_s": 17.150000000000002
+      },
+      {
+        "case": "validation_turn_0_q0",
+        "seed": 1,
+        "v1_s": 22.3,
+        "v2_s": 17.150000000000002
+      },
+      {
+        "case": "validation_turn_0_q0",
+        "seed": 2,
+        "v1_s": 22.3,
+        "v2_s": 17.25
+      },
+      {
+        "case": "validation_turn_0_q1",
+        "seed": 0,
+        "v1_s": 22.650000000000002,
+        "v2_s": 17.1
+      },
+      {
+        "case": "validation_turn_0_q1",
+        "seed": 1,
+        "v1_s": 22.55,
+        "v2_s": 17.05
+      },
+      {
+        "case": "validation_turn_0_q1",
+        "seed": 2,
+        "v1_s": 22.6,
+        "v2_s": 17.150000000000002
+      },
+      {
+        "case": "validation_heading_0_q0",
+        "seed": 0,
+        "v1_s": 20.75,
+        "v2_s": 11.9
+      },
+      {
+        "case": "validation_heading_0_q0",
+        "seed": 1,
+        "v1_s": 20.75,
+        "v2_s": 11.9
+      },
+      {
+        "case": "validation_heading_0_q0",
+        "seed": 2,
+        "v1_s": 20.8,
+        "v2_s": 11.950000000000001
+      }
+    ]
+  },
+  "hybrid_paired_failure": {
+    "n": 9,
+    "v1_mean_s": 4.638888888888889,
+    "v2_mean_s": 2.688888888888889,
+    "reasons": {
+      "repeated_blocked_path": 1,
+      "replan_not_trackable": 8
+    }
+  },
+  "hybrid_v2_events": {
+    "replan:success": 9,
+    "rejected:repeated_blocked_path": 1,
+    "validation:prefix_blocked": 8,
+    "rejected:replan_not_trackable": 8,
+    "restart:clear_forward_creep": 15,
+    "resume:guard_headroom_sustained": 15
+  },
+  "status_changes": [],
+  "v2_event_cases": [
+    {
+      "case": "validation_gate_0_q0",
+      "seed": 0,
+      "events": []
+    },
+    {
+      "case": "validation_gate_0_q0",
+      "seed": 1,
+      "events": []
+    },
+    {
+      "case": "validation_gate_0_q0",
+      "seed": 2,
+      "events": []
+    },
+    {
+      "case": "validation_gate_0_q1",
+      "seed": 0,
+      "events": []
+    },
+    {
+      "case": "validation_gate_0_q1",
+      "seed": 1,
+      "events": []
+    },
+    {
+      "case": "validation_gate_0_q1",
+      "seed": 2,
+      "events": []
+    },
+    {
+      "case": "validation_slalom_0_q0",
+      "seed": 0,
+      "events": [
+        [
+          2.3000000000000003,
+          "replan",
+          "success"
+        ],
+        [
+          2.3000000000000003,
+          "rejected",
+          "repeated_blocked_path"
+        ]
+      ]
+    },
+    {
+      "case": "validation_slalom_0_q0",
+      "seed": 1,
+      "events": [
+        [
+          2.35,
+          "replan",
+          "success"
+        ],
+        [
+          2.35,
+          "validation",
+          "prefix_blocked"
+        ],
+        [
+          2.35,
+          "rejected",
+          "replan_not_trackable"
+        ]
+      ]
+    },
+    {
+      "case": "validation_slalom_0_q0",
+      "seed": 2,
+      "events": [
+        [
+          2.35,
+          "replan",
+          "success"
+        ],
+        [
+          2.35,
+          "validation",
+          "prefix_blocked"
+        ],
+        [
+          2.35,
+          "rejected",
+          "replan_not_trackable"
+        ]
+      ]
+    },
+    {
+      "case": "validation_slalom_0_q1",
+      "seed": 0,
+      "events": [
+        [
+          2.2,
+          "replan",
+          "success"
+        ],
+        [
+          2.2,
+          "validation",
+          "prefix_blocked"
+        ],
+        [
+          2.2,
+          "rejected",
+          "replan_not_trackable"
+        ]
+      ]
+    },
+    {
+      "case": "validation_slalom_0_q1",
+      "seed": 1,
+      "events": [
+        [
+          2.25,
+          "replan",
+          "success"
+        ],
+        [
+          2.25,
+          "validation",
+          "prefix_blocked"
+        ],
+        [
+          2.25,
+          "rejected",
+          "replan_not_trackable"
+        ]
+      ]
+    },
+    {
+      "case": "validation_slalom_0_q1",
+      "seed": 2,
+      "events": [
+        [
+          2.25,
+          "replan",
+          "success"
+        ],
+        [
+          2.25,
+          "validation",
+          "prefix_blocked"
+        ],
+        [
+          2.25,
+          "rejected",
+          "replan_not_trackable"
+        ]
+      ]
+    },
+    {
+      "case": "validation_turn_0_q0",
+      "seed": 0,
+      "events": [
+        [
+          4.800000000000001,
+          "restart",
+          "clear_forward_creep"
+        ],
+        [
+          8.65,
+          "resume",
+          "guard_headroom_sustained"
+        ],
+        [
+          10.950000000000001,
+          "restart",
+          "clear_forward_creep"
+        ],
+        [
+          14.9,
+          "resume",
+          "guard_headroom_sustained"
+        ]
+      ]
+    },
+    {
+      "case": "validation_turn_0_q0",
+      "seed": 1,
+      "events": [
+        [
+          4.800000000000001,
+          "restart",
+          "clear_forward_creep"
+        ],
+        [
+          8.700000000000001,
+          "resume",
+          "guard_headroom_sustained"
+        ],
+        [
+          10.950000000000001,
+          "restart",
+          "clear_forward_creep"
+        ],
+        [
+          14.9,
+          "resume",
+          "guard_headroom_sustained"
+        ]
+      ]
+    },
+    {
+      "case": "validation_turn_0_q0",
+      "seed": 2,
+      "events": [
+        [
+          4.800000000000001,
+          "restart",
+          "clear_forward_creep"
+        ],
+        [
+          8.8,
+          "resume",
+          "guard_headroom_sustained"
+        ],
+        [
+          11.05,
+          "restart",
+          "clear_forward_creep"
+        ],
+        [
+          15.0,
+          "resume",
+          "guard_headroom_sustained"
+        ]
+      ]
+    },
+    {
+      "case": "validation_turn_0_q1",
+      "seed": 0,
+      "events": [
+        [
+          4.45,
+          "restart",
+          "clear_forward_creep"
+        ],
+        [
+          8.55,
+          "resume",
+          "guard_headroom_sustained"
+        ],
+        [
+          11.0,
+          "restart",
+          "clear_forward_creep"
+        ],
+        [
+          14.75,
+          "resume",
+          "guard_headroom_sustained"
+        ]
+      ]
+    },
+    {
+      "case": "validation_turn_0_q1",
+      "seed": 1,
+      "events": [
+        [
+          4.25,
+          "restart",
+          "clear_forward_creep"
+        ],
+        [
+          8.55,
+          "resume",
+          "guard_headroom_sustained"
+        ],
+        [
+          11.0,
+          "restart",
+          "clear_forward_creep"
+        ],
+        [
+          14.700000000000001,
+          "resume",
+          "guard_headroom_sustained"
+        ]
+      ]
+    },
+    {
+      "case": "validation_turn_0_q1",
+      "seed": 2,
+      "events": [
+        [
+          4.4,
+          "restart",
+          "clear_forward_creep"
+        ],
+        [
+          8.6,
+          "resume",
+          "guard_headroom_sustained"
+        ],
+        [
+          11.05,
+          "restart",
+          "clear_forward_creep"
+        ],
+        [
+          14.8,
+          "resume",
+          "guard_headroom_sustained"
+        ]
+      ]
+    },
+    {
+      "case": "validation_heading_0_q0",
+      "seed": 0,
+      "events": [
+        [
+          4.95,
+          "restart",
+          "clear_forward_creep"
+        ],
+        [
+          8.4,
+          "resume",
+          "guard_headroom_sustained"
+        ]
+      ]
+    },
+    {
+      "case": "validation_heading_0_q0",
+      "seed": 1,
+      "events": [
+        [
+          4.9,
+          "restart",
+          "clear_forward_creep"
+        ],
+        [
+          8.4,
+          "resume",
+          "guard_headroom_sustained"
+        ]
+      ]
+    },
+    {
+      "case": "validation_heading_0_q0",
+      "seed": 2,
+      "events": [
+        [
+          4.95,
+          "restart",
+          "clear_forward_creep"
+        ],
+        [
+          8.450000000000001,
+          "resume",
+          "guard_headroom_sustained"
+        ]
+      ]
+    },
+    {
+      "case": "validation_heading_0_q1",
+      "seed": 0,
+      "events": [
+        [
+          3.5,
+          "replan",
+          "success"
+        ],
+        [
+          3.5,
+          "validation",
+          "prefix_blocked"
+        ],
+        [
+          3.5,
+          "rejected",
+          "replan_not_trackable"
+        ]
+      ]
+    },
+    {
+      "case": "validation_heading_0_q1",
+      "seed": 1,
+      "events": [
+        [
+          3.5,
+          "replan",
+          "success"
+        ],
+        [
+          3.5,
+          "validation",
+          "prefix_blocked"
+        ],
+        [
+          3.5,
+          "rejected",
+          "replan_not_trackable"
+        ]
+      ]
+    },
+    {
+      "case": "validation_heading_0_q1",
+      "seed": 2,
+      "events": [
+        [
+          3.5,
+          "replan",
+          "success"
+        ],
+        [
+          3.5,
+          "validation",
+          "prefix_blocked"
+        ],
+        [
+          3.5,
+          "rejected",
+          "replan_not_trackable"
+        ]
+      ]
+    }
+  ]
+}

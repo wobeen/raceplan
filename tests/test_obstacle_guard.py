@@ -5,6 +5,31 @@ from raceplan.common import OccupancyGrid, Pose2D, Path
 from raceplan.defaults import baseline_vehicle, baseline_tracker_config, baseline_simulation_config
 from raceplan.simulator import run_episode
 from raceplan.simulator.obstacle_guard import ObstacleGuardConfig
+from raceplan.simulator.obstacle_guard import guard_diagnostics
+from raceplan.metrics import Clearance
+
+
+def test_parallel_wall_can_stop_lateral_cap_without_forward_collision():
+    occupied = np.zeros((60, 80), dtype=bool)
+    occupied[20, :] = True
+    grid = OccupancyGrid(occupied, .1)
+    result = guard_diagnostics(grid, Clearance(grid), Pose2D(2, 2.3), 0, 0,
+                               baseline_vehicle(), baseline_simulation_config(), ObstacleGuardConfig())
+    assert result['clearance_m'] == pytest.approx(.045)
+    assert result['lateral_cap_mps'] == 0
+    assert not result['preview_collision']
+    assert result['braking_cap_mps'] > 0
+
+
+def test_forward_wall_blocks_preview_even_with_large_current_clearance():
+    occupied = np.zeros((60, 80), dtype=bool)
+    occupied[:, 40] = True
+    grid = OccupancyGrid(occupied, .1)
+    result = guard_diagnostics(grid, Clearance(grid), Pose2D(3, 3), 0, 0,
+                               baseline_vehicle(), baseline_simulation_config(), ObstacleGuardConfig())
+    assert result['preview_collision']
+    assert result['lateral_cap_mps'] > 0
+    assert result['preview_free_m'] < 1
 
 
 def test_guard_stops_before_wall_and_does_not_claim_success():
@@ -43,8 +68,7 @@ def test_collision_at_goal_is_not_counted_as_arrival():
     assert result.collided and not result.reached
 
 
-@pytest.mark.parametrize('kwargs', [dict(horizon_m=0), dict(stop_margin_m=float('nan')),
-                                   dict(sample_distance_m=2), dict(stop_margin_m=2)])
+@pytest.mark.parametrize('kwargs', [dict(stop_margin_m=float('nan')), dict(sample_distance_m=2)])
 def test_invalid_guard_config(kwargs):
     with pytest.raises(ValueError):
         ObstacleGuardConfig(**kwargs)

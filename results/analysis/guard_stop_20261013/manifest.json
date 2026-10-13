@@ -1,0 +1,15 @@
+{
+  "purpose": "Saved validation final-state diagnosis; not a new safety evaluation",
+  "classification": "zero speed caps at final pose and last applied steering; future collision is a separate field",
+  "inputs": {
+    "results\\analysis\\obstacle_guard_20261013\\episodes.json": "16abe6d0800bee64a2cfb235b4e5661ab9056e70f9f2c60158fe706ff05934e5",
+    "results\\analysis\\obstacle_guard_20261013\\manifest.json": "fdede9d90020a27c9442030879a4092cd66ba4e6fcd6b8f77d771a25236cf894",
+    "results\\analysis\\obstacle_guard_20261013\\paths.json": "78f618b1e7f0753c5d58da5923b9f1a96f8c2a91a31c9abc6237db580b51abd0",
+    "results\\analysis\\obstacle_guard_20261013\\summary.json": "935b4e4e449b327b3d82acc07dc855ca9e9f1fcf7fa12890d6811ed566441ecf",
+    "results\\analysis\\obstacle_guard_20261013\\trajectories.json": "dd6ab7a3e6c3ed505f8720d1b5e67c268f12043de94b13d8a6d4403e35dbc252"
+  },
+  "source_sha256": {
+    "results\\guard_stop_analysis.py": "641139b369f7351e35930f8b4848a1ccd010ea468ae7def62728e8f3e70bbc88",
+    "src\\raceplan\\simulator\\obstacle_guard.py": "172bcf4e48c5f02155b352f0d03d92fad89028c7e2abb8a9a6bcfd3d093b0e43"
+  }
+}

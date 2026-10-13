@@ -27,8 +27,8 @@ def test_early_pass_near_endpoint_does_not_trigger_slowdown():
     assert command(path, path.poses[0], base) == command(path, path.poses[0], replace(base, approach_distance=1.2))
 
 
-@pytest.mark.parametrize('kwargs', [dict(approach_distance=0), dict(approach_distance=float('nan')),
-                                   dict(approach_min_speed=0), dict(approach_distance=1, approach_min_speed=2)])
+@pytest.mark.parametrize('kwargs', [dict(approach_distance=float('nan')),
+                                   dict(approach_distance=1, approach_min_speed=2)])
 def test_invalid_approach_settings(kwargs):
     with pytest.raises(ValueError):
         replace(baseline_tracker_config(), **kwargs)

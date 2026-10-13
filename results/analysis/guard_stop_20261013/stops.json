@@ -1,0 +1,362 @@
+[
+  {
+    "case": "validation_slalom_0_q0",
+    "planner": "hybrid_astar",
+    "seed": 0,
+    "reason": "lateral_only",
+    "final_pose": {
+      "x": 1.936562832131327,
+      "y": 2.2674306938594455,
+      "yaw": 0.7968960026689293
+    },
+    "final_speed": 4.625929269271486e-16,
+    "steering_rad": 0.22551507554365446,
+    "goal_distance_m": 5.0687404799233,
+    "clearance_m": 0.08000000000000007,
+    "preview_free_m": 0.15000000000000002,
+    "preview_collision": true,
+    "lateral_cap_mps": 4.625929269271486e-16,
+    "braking_cap_mps": 0.5152067347825037,
+    "speed_cap_mps": 4.625929269271486e-16
+  },
+  {
+    "case": "validation_slalom_0_q0",
+    "planner": "hybrid_astar",
+    "seed": 1,
+    "reason": "lateral_only",
+    "final_pose": {
+      "x": 1.9343804656479573,
+      "y": 2.2990750442590326,
+      "yaw": 0.7839131572117948
+    },
+    "final_speed": 4.625929269271486e-16,
+    "steering_rad": 0.25217061735742746,
+    "goal_distance_m": 5.060066723992895,
+    "clearance_m": 0.08000000000000007,
+    "preview_free_m": 0.15000000000000002,
+    "preview_collision": true,
+    "lateral_cap_mps": 4.625929269271486e-16,
+    "braking_cap_mps": 0.5152067347825037,
+    "speed_cap_mps": 4.625929269271486e-16
+  },
+  {
+    "case": "validation_slalom_0_q0",
+    "planner": "hybrid_astar",
+    "seed": 2,
+    "reason": "lateral_only",
+    "final_pose": {
+      "x": 1.9362403887543023,
+      "y": 2.2979581699621,
+      "yaw": 0.7950018030719717
+    },
+    "final_speed": 4.625929269271486e-16,
+    "steering_rad": 0.24398058158612687,
+    "goal_distance_m": 5.058690742171786,
+    "clearance_m": 0.08000000000000007,
+    "preview_free_m": 0.15000000000000002,
+    "preview_collision": true,
+    "lateral_cap_mps": 4.625929269271486e-16,
+    "braking_cap_mps": 0.5152067347825037,
+    "speed_cap_mps": 4.625929269271486e-16
+  },
+  {
+    "case": "validation_slalom_0_q1",
+    "planner": "hybrid_astar",
+    "seed": 0,
+    "reason": "lateral_only",
+    "final_pose": {
+      "x": 1.925942174283601,
+      "y": 2.447635017894122,
+      "yaw": 0.7294807720240879
+    },
+    "final_speed": 4.625929269271486e-16,
+    "steering_rad": 0.11635193821077339,
+    "goal_distance_m": 4.961906807680917,
+    "clearance_m": 0.08000000000000007,
+    "preview_free_m": 0.1,
+    "preview_collision": true,
+    "lateral_cap_mps": 4.625929269271486e-16,
+    "braking_cap_mps": 0.2274917217635375,
+    "speed_cap_mps": 4.625929269271486e-16
+  },
+  {
+    "case": "validation_slalom_0_q1",
+    "planner": "hybrid_astar",
+    "seed": 1,
+    "reason": "lateral_only",
+    "final_pose": {
+      "x": 1.922542702876275,
+      "y": 2.4763793835841255,
+      "yaw": 0.7051221284652769
+    },
+    "final_speed": 4.625929269271486e-16,
+    "steering_rad": 0.14234506102075126,
+    "goal_distance_m": 4.957425719266186,
+    "clearance_m": 0.08000000000000007,
+    "preview_free_m": 0.1,
+    "preview_collision": true,
+    "lateral_cap_mps": 4.625929269271486e-16,
+    "braking_cap_mps": 0.2274917217635375,
+    "speed_cap_mps": 4.625929269271486e-16
+  },
+  {
+    "case": "validation_slalom_0_q1",
+    "planner": "hybrid_astar",
+    "seed": 2,
+    "reason": "lateral_only",
+    "final_pose": {
+      "x": 1.9244655681657934,
+      "y": 2.475697880367807,
+      "yaw": 0.7191059429479161
+    },
+    "final_speed": 4.625929269271486e-16,
+    "steering_rad": 0.1312220646070464,
+    "goal_distance_m": 4.955754757218761,
+    "clearance_m": 0.08000000000000007,
+    "preview_free_m": 0.1,
+    "preview_collision": true,
+    "lateral_cap_mps": 4.625929269271486e-16,
+    "braking_cap_mps": 0.2274917217635375,
+    "speed_cap_mps": 4.625929269271486e-16
+  },
+  {
+    "case": "validation_turn_0_q0",
+    "planner": "hybrid_astar",
+    "seed": 0,
+    "reason": "lateral_only",
+    "final_pose": {
+      "x": 2.6522526727932796,
+      "y": 3.564593790687459,
+      "yaw": 0.8387807204487592
+    },
+    "final_speed": 5.3660779523549235e-15,
+    "steering_rad": -0.2839410767206621,
+    "goal_distance_m": 4.339609677697627,
+    "clearance_m": 0.0800000000000008,
+    "preview_free_m": 1.0,
+    "preview_collision": false,
+    "lateral_cap_mps": 5.3660779523549235e-15,
+    "braking_cap_mps": 2.2042514733987106,
+    "speed_cap_mps": 5.3660779523549235e-15
+  },
+  {
+    "case": "validation_turn_0_q0",
+    "planner": "hybrid_astar",
+    "seed": 1,
+    "reason": "lateral_only",
+    "final_pose": {
+      "x": 2.647749983211162,
+      "y": 3.558436828226757,
+      "yaw": 0.8416599190860099
+    },
+    "final_speed": 1.942890293094024e-15,
+    "steering_rad": -0.25693681824424636,
+    "goal_distance_m": 4.341595967629716,
+    "clearance_m": 0.0800000000000003,
+    "preview_free_m": 1.0,
+    "preview_collision": false,
+    "lateral_cap_mps": 1.942890293094024e-15,
+    "braking_cap_mps": 2.2042514733987106,
+    "speed_cap_mps": 1.942890293094024e-15
+  },
+  {
+    "case": "validation_turn_0_q0",
+    "planner": "hybrid_astar",
+    "seed": 2,
+    "reason": "lateral_only",
+    "final_pose": {
+      "x": 2.6410592055859925,
+      "y": 3.5502492352749617,
+      "yaw": 0.8433449622789402
+    },
+    "final_speed": 3.4231876592608996e-15,
+    "steering_rad": -0.25328066809108296,
+    "goal_distance_m": 4.344913470257932,
+    "clearance_m": 0.08000000000000052,
+    "preview_free_m": 1.0,
+    "preview_collision": false,
+    "lateral_cap_mps": 3.4231876592608996e-15,
+    "braking_cap_mps": 2.2042514733987106,
+    "speed_cap_mps": 3.4231876592608996e-15
+  },
+  {
+    "case": "validation_turn_0_q1",
+    "planner": "hybrid_astar",
+    "seed": 0,
+    "reason": "lateral_only",
+    "final_pose": {
+      "x": 2.611377357780588,
+      "y": 3.5579683681359016,
+      "yaw": 0.7527306447543802
+    },
+    "final_speed": 3.0531133177191805e-15,
+    "steering_rad": -0.23031749988576072,
+    "goal_distance_m": 4.450537933085804,
+    "clearance_m": 0.08000000000000046,
+    "preview_free_m": 1.0,
+    "preview_collision": false,
+    "lateral_cap_mps": 3.0531133177191805e-15,
+    "braking_cap_mps": 2.2042514733987106,
+    "speed_cap_mps": 3.0531133177191805e-15
+  },
+  {
+    "case": "validation_turn_0_q1",
+    "planner": "hybrid_astar",
+    "seed": 1,
+    "reason": "lateral_only",
+    "final_pose": {
+      "x": 2.5923269667998508,
+      "y": 3.5343207804395447,
+      "yaw": 0.7651507011387464
+    },
+    "final_speed": 5.551115123125783e-16,
+    "steering_rad": -0.19758796621298613,
+    "goal_distance_m": 4.45879426719199,
+    "clearance_m": 0.08000000000000008,
+    "preview_free_m": 1.0,
+    "preview_collision": false,
+    "lateral_cap_mps": 5.551115123125783e-16,
+    "braking_cap_mps": 2.2042514733987106,
+    "speed_cap_mps": 5.551115123125783e-16
+  },
+  {
+    "case": "validation_turn_0_q1",
+    "planner": "hybrid_astar",
+    "seed": 2,
+    "reason": "lateral_only",
+    "final_pose": {
+      "x": 2.6026471017688797,
+      "y": 3.5502312950842994,
+      "yaw": 0.7517384955277855
+    },
+    "final_speed": 4.718447854656915e-15,
+    "steering_rad": -0.20204343151214796,
+    "goal_distance_m": 4.455514600911484,
+    "clearance_m": 0.08000000000000071,
+    "preview_free_m": 1.0,
+    "preview_collision": false,
+    "lateral_cap_mps": 4.718447854656915e-15,
+    "braking_cap_mps": 2.2042514733987106,
+    "speed_cap_mps": 4.718447854656915e-15
+  },
+  {
+    "case": "validation_heading_0_q0",
+    "planner": "hybrid_astar",
+    "seed": 0,
+    "reason": "lateral_only",
+    "final_pose": {
+      "x": 2.6651928682463653,
+      "y": 2.963193967163403,
+      "yaw": 0.8816651786022902
+    },
+    "final_speed": 9.71445146547012e-15,
+    "steering_rad": -0.23483056387379153,
+    "goal_distance_m": 4.317573551546395,
+    "clearance_m": 0.08000000000000154,
+    "preview_free_m": 1.0,
+    "preview_collision": false,
+    "lateral_cap_mps": 1.0269562977782698e-14,
+    "braking_cap_mps": 2.2042514733987106,
+    "speed_cap_mps": 1.0269562977782698e-14
+  },
+  {
+    "case": "validation_heading_0_q0",
+    "planner": "hybrid_astar",
+    "seed": 1,
+    "reason": "lateral_only",
+    "final_pose": {
+      "x": 2.6546423225275086,
+      "y": 2.9463682612080127,
+      "yaw": 0.8915017764227784
+    },
+    "final_speed": 5.921189464667502e-15,
+    "steering_rad": -0.20513127993336067,
+    "goal_distance_m": 4.333438625210636,
+    "clearance_m": 0.08000000000000089,
+    "preview_free_m": 1.0,
+    "preview_collision": false,
+    "lateral_cap_mps": 5.921189464667502e-15,
+    "braking_cap_mps": 2.2042514733987106,
+    "speed_cap_mps": 5.921189464667502e-15
+  },
+  {
+    "case": "validation_heading_0_q0",
+    "planner": "hybrid_astar",
+    "seed": 2,
+    "reason": "lateral_only",
+    "final_pose": {
+      "x": 2.6581045158177465,
+      "y": 2.953508751121559,
+      "yaw": 0.8843838600138856
+    },
+    "final_speed": 9.89948863624098e-15,
+    "steering_rad": -0.2073792805611112,
+    "goal_distance_m": 4.327649972896433,
+    "clearance_m": 0.08000000000000161,
+    "preview_free_m": 1.0,
+    "preview_collision": false,
+    "lateral_cap_mps": 1.0732155904709847e-14,
+    "braking_cap_mps": 2.2042514733987106,
+    "speed_cap_mps": 1.0732155904709847e-14
+  },
+  {
+    "case": "validation_heading_0_q1",
+    "planner": "hybrid_astar",
+    "seed": 0,
+    "reason": "lateral_only",
+    "final_pose": {
+      "x": 2.573529049913369,
+      "y": 2.5087407907183077,
+      "yaw": 0.9778706062106561
+    },
+    "final_speed": 3.4231876592608996e-15,
+    "steering_rad": 0.04803478103741998,
+    "goal_distance_m": 4.4984855292359605,
+    "clearance_m": 0.08000000000000052,
+    "preview_free_m": 0.15000000000000002,
+    "preview_collision": true,
+    "lateral_cap_mps": 3.4231876592608996e-15,
+    "braking_cap_mps": 0.5152067347825037,
+    "speed_cap_mps": 3.4231876592608996e-15
+  },
+  {
+    "case": "validation_heading_0_q1",
+    "planner": "hybrid_astar",
+    "seed": 1,
+    "reason": "lateral_only",
+    "final_pose": {
+      "x": 2.5708728190485917,
+      "y": 2.5104784476118303,
+      "yaw": 0.9665604645282251
+    },
+    "final_speed": 3.4231876592608996e-15,
+    "steering_rad": 0.078057217269083,
+    "goal_distance_m": 4.500230956621393,
+    "clearance_m": 0.08000000000000052,
+    "preview_free_m": 0.15000000000000002,
+    "preview_collision": true,
+    "lateral_cap_mps": 3.4231876592608996e-15,
+    "braking_cap_mps": 0.5152067347825037,
+    "speed_cap_mps": 3.4231876592608996e-15
+  },
+  {
+    "case": "validation_heading_0_q1",
+    "planner": "hybrid_astar",
+    "seed": 2,
+    "reason": "lateral_only",
+    "final_pose": {
+      "x": 2.571434236834945,
+      "y": 2.5149723450321892,
+      "yaw": 0.9689668392910011
+    },
+    "final_speed": 0.0,
+    "steering_rad": 0.023751617239311486,
+    "goal_distance_m": 4.497930523004833,
+    "clearance_m": 0.07999999999999963,
+    "preview_free_m": 0.1,
+    "preview_collision": true,
+    "lateral_cap_mps": 0.0,
+    "braking_cap_mps": 0.2274917217635375,
+    "speed_cap_mps": 0.0
+  }
+]

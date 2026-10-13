@@ -22,8 +22,7 @@ class ObstacleGuardConfig:
             raise ValueError('guard sample/margin must fit horizon')
 
 
-def guarded_acceleration(grid, clearance, pose, speed, steering, acceleration,
-                         vehicle, simulation, config):
+def guard_diagnostics(grid, clearance, pose, speed, steering, vehicle, simulation, config):
     """Limit speed using current body clearance and a constant-steering preview.
 
     Uses true simulated state and known static map. Does not replan or change steering.
@@ -47,5 +46,14 @@ def guarded_acceleration(grid, clearance, pose, speed, steering, acceleration,
     a = simulation.max_deceleration
     # Reserve one control interval in addition to continuous braking distance.
     braking_cap = sqrt((a*simulation.dt)**2 + 2*a*available) - a*simulation.dt
-    cap = min(lateral_cap, braking_cap)
+    return dict(clearance_m=gap, preview_free_m=free, preview_collision=free < horizon,
+                lateral_cap_mps=lateral_cap, braking_cap_mps=braking_cap,
+                speed_cap_mps=min(lateral_cap, braking_cap))
+
+
+def guarded_acceleration(grid, clearance, pose, speed, steering, acceleration,
+                         vehicle, simulation, config):
+    diagnostics = guard_diagnostics(grid, clearance, pose, speed, steering, vehicle, simulation, config)
+    cap = diagnostics['speed_cap_mps']
+    a = simulation.max_deceleration
     return max(-a, min(acceleration, (cap-speed)/simulation.dt))
