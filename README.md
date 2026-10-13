@@ -125,6 +125,18 @@ future milestones.
 
 ## Project documents
 
+Saved-batch geometry and paired analysis (42 tests passed; two saved noise batches analyzed):
+
+```bash
+python -m raceplan.analyze results/raw/pilot_20261012/demo_noise.csv --output-dir results/analysis/geometry_20261012/demo_noise
+```
+
+Metric definitions, limitations, and outputs: [docs/GEOMETRY_ANALYSIS.md](docs/GEOMETRY_ANALYSIS.md).
+
+Recorded driving footprint clearance is also analyzed (44 tests passed), including
+collision/timeout episodes and per-step distances. See
+[docs/DRIVING_CLEARANCE.md](docs/DRIVING_CLEARANCE.md) for the comparison image and findings.
+
 - [`docs/RESEARCH_PLAN.md`](docs/RESEARCH_PLAN.md): development, experiment, and
   research-analysis tracks, evaluation rules, and the next work package
 - [`docs/LITERATURE_GAP.md`](docs/LITERATURE_GAP.md): related work, limitations,

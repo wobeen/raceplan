@@ -56,7 +56,7 @@ ROS 2는 재현과 통합을 위한 수단이며 단독 연구 기여로 주장�
 | 공통 주행 계층 | 차량 footprint, 자전거 모델, Pure Pursuit, 속도 PID, 명령 제한 | 완료 |
 | 단일 실험 파이프라인 | 계획→주행→지표→CSV | 완료 |
 | 반복 실험 기반 | `map_seed`/`simulation_seed` 분리, 잡음, batch runner, trajectory 저장 | 초기 구현·재현성 파일럿 완료 |
-| 평가 기능 | 지도 난이도, 경로 기하, clearance, 집계와 그래프 | 예정 |
+| 평가 기능 | 지도 난이도, 경로 기하, clearance, 집계와 그래프 | 기하·clearance·단일 batch 집계 검증 및 파일럿 이미지 완료; 일반 그래프·병목 추출 예정 |
 | 개선 후보 | fixed multi-cost, complexity-conditioned cost 또는 planner selector | baseline 분석 후 결정 |
 | 재현·통합 | 설정 고정, 환경 기록, 자동 재현, 필요 시 ROS 2 wrapper | 예정 |
 
