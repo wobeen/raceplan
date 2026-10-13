@@ -66,6 +66,8 @@ class Clearance:
             y = grid.origin_y + int(row) * grid.resolution
             r = grid.resolution
             self.cells.append(((x, y), (x + r, y), (x + r, y + r), (x, y + r)))
+        self.bounds = np.asarray([(c[0][0], c[0][1], c[2][0], c[2][1])
+                                  for c in self.cells], dtype=float).reshape(-1, 4)
 
     def point(self, pose: Pose2D) -> float:
         boundary = min(pose.x - self.grid.origin_x, self.right - pose.x,
@@ -85,7 +87,17 @@ class Clearance:
         rectangle = footprint_corners(pose, vehicle)
         nearest = min(min(x - self.grid.origin_x, self.right - x,
                           y - self.grid.origin_y, self.top - y) for x, y in rectangle)
-        for cell in self.cells:
+        # AABB distances are lower bounds on oriented rectangle distance.
+        # Exclude only cells that cannot improve the current boundary distance.
+        min_x, max_x = min(p[0] for p in rectangle), max(p[0] for p in rectangle)
+        min_y, max_y = min(p[1] for p in rectangle), max(p[1] for p in rectangle)
+        dx = np.maximum(0, np.maximum(self.bounds[:, 0] - max_x, min_x - self.bounds[:, 2]))
+        dy = np.maximum(0, np.maximum(self.bounds[:, 1] - max_y, min_y - self.bounds[:, 3]))
+        candidates = np.flatnonzero(dx * dx + dy * dy < nearest * nearest)
+        for cell_index in candidates[np.argsort((dx * dx + dy * dy)[candidates])]:
+            if dx[cell_index] ** 2 + dy[cell_index] ** 2 >= nearest ** 2:
+                break
+            cell = self.cells[cell_index]
             for first, second in ((rectangle, cell), (cell, rectangle)):
                 for point in first:
                     for index in range(4):

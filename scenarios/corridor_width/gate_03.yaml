@@ -1,0 +1,13 @@
+name: gate_03
+map: gate_03_map.yaml
+start:
+- 1.05
+- 1.55
+- 0.0
+goal:
+- 6.95
+- 2.55
+- 0.0
+map_seed: null
+simulation_seed: 0
+timeout_s: 10.0

@@ -1,0 +1,16 @@
+case,planner,seed,reason,trajectory
+evaluation_gate_1_q0,dijkstra,3,no_path,C:\Users\sinub\OneDrive\Desktop\raceplan\results\raw\research_20261013\evaluation\evaluation_gate_1_q0\trajectory.csv
+evaluation_gate_1_q0,astar,3,no_path,C:\Users\sinub\OneDrive\Desktop\raceplan\results\raw\research_20261013\evaluation\evaluation_gate_1_q0\trajectory.csv
+evaluation_gate_1_q0,clearance_0.25,3,no_path,C:\Users\sinub\OneDrive\Desktop\raceplan\results\raw\research_20261013\evaluation\evaluation_gate_1_q0\trajectory.csv
+evaluation_slalom_1_q0,dijkstra,3,heading_miss,C:\Users\sinub\OneDrive\Desktop\raceplan\results\raw\research_20261013\evaluation\evaluation_slalom_1_q0\trajectory.csv
+evaluation_slalom_1_q0,astar,3,heading_miss,C:\Users\sinub\OneDrive\Desktop\raceplan\results\raw\research_20261013\evaluation\evaluation_slalom_1_q0\trajectory.csv
+evaluation_slalom_1_q0,hybrid_astar,3,collision,C:\Users\sinub\OneDrive\Desktop\raceplan\results\raw\research_20261013\evaluation\evaluation_slalom_1_q0\trajectory.csv
+evaluation_slalom_1_q0,clearance_0.25,3,heading_miss,C:\Users\sinub\OneDrive\Desktop\raceplan\results\raw\research_20261013\evaluation\evaluation_slalom_1_q0\trajectory.csv
+evaluation_turn_1_q0,dijkstra,3,heading_miss,C:\Users\sinub\OneDrive\Desktop\raceplan\results\raw\research_20261013\evaluation\evaluation_turn_1_q0\trajectory.csv
+evaluation_turn_1_q0,astar,3,heading_miss,C:\Users\sinub\OneDrive\Desktop\raceplan\results\raw\research_20261013\evaluation\evaluation_turn_1_q0\trajectory.csv
+evaluation_turn_1_q1,hybrid_astar,3,collision,C:\Users\sinub\OneDrive\Desktop\raceplan\results\raw\research_20261013\evaluation\evaluation_turn_1_q1\trajectory.csv
+evaluation_turn_1_q0,clearance_0.25,3,heading_miss,C:\Users\sinub\OneDrive\Desktop\raceplan\results\raw\research_20261013\evaluation\evaluation_turn_1_q0\trajectory.csv
+evaluation_heading_1_q0,dijkstra,3,heading_miss,C:\Users\sinub\OneDrive\Desktop\raceplan\results\raw\research_20261013\evaluation\evaluation_heading_1_q0\trajectory.csv
+evaluation_heading_1_q0,astar,3,heading_miss,C:\Users\sinub\OneDrive\Desktop\raceplan\results\raw\research_20261013\evaluation\evaluation_heading_1_q0\trajectory.csv
+evaluation_heading_1_q0,hybrid_astar,3,collision,C:\Users\sinub\OneDrive\Desktop\raceplan\results\raw\research_20261013\evaluation\evaluation_heading_1_q0\trajectory.csv
+evaluation_heading_1_q0,clearance_0.25,3,heading_miss,C:\Users\sinub\OneDrive\Desktop\raceplan\results\raw\research_20261013\evaluation\evaluation_heading_1_q0\trajectory.csv

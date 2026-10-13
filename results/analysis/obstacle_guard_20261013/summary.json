@@ -1,0 +1,62 @@
+[
+  {
+    "planner": "dijkstra",
+    "mode": "constant",
+    "n": 24,
+    "position_success": 24,
+    "reached": 24,
+    "collision": 0,
+    "timeout": 0,
+    "no_path": 0
+  },
+  {
+    "planner": "dijkstra",
+    "mode": "guard",
+    "n": 24,
+    "position_success": 24,
+    "reached": 24,
+    "collision": 0,
+    "timeout": 0,
+    "no_path": 0
+  },
+  {
+    "planner": "astar",
+    "mode": "constant",
+    "n": 24,
+    "position_success": 24,
+    "reached": 24,
+    "collision": 0,
+    "timeout": 0,
+    "no_path": 0
+  },
+  {
+    "planner": "astar",
+    "mode": "guard",
+    "n": 24,
+    "position_success": 24,
+    "reached": 24,
+    "collision": 0,
+    "timeout": 0,
+    "no_path": 0
+  },
+  {
+    "planner": "hybrid_astar",
+    "mode": "constant",
+    "n": 24,
+    "position_success": 15,
+    "reached": 15,
+    "collision": 9,
+    "timeout": 0,
+    "no_path": 0
+  },
+  {
+    "planner": "hybrid_astar",
+    "mode": "guard",
+    "n": 24,
+    "position_success": 6,
+    "reached": 6,
+    "collision": 0,
+    "timeout": 18,
+    "no_path": 0
+  }
+]

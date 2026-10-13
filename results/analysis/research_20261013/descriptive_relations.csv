@@ -1,0 +1,9 @@
+split,feature,target,n_case_planner,pearson_r,note
+validation,bottleneck_proxy_m,mean_driven_rmse,24,0.5878148824066544,"descriptive, not causal; shared cases are correlated"
+validation,reference_detour,mean_driven_rmse,24,0.29569738643271287,"descriptive, not causal; shared cases are correlated"
+validation,curvature_q90,mean_driven_rmse,24,0.2764883473935528,"descriptive, not causal; shared cases are correlated"
+validation,plan_clearance_m,mean_driven_rmse,24,0.2388546434492909,"descriptive, not causal; shared cases are correlated"
+evaluation,bottleneck_proxy_m,mean_driven_rmse,32,0.26759867226816936,"descriptive, not causal; shared cases are correlated"
+evaluation,reference_detour,mean_driven_rmse,32,0.15054411745186055,"descriptive, not causal; shared cases are correlated"
+evaluation,curvature_q90,mean_driven_rmse,32,0.3361655942572088,"descriptive, not causal; shared cases are correlated"
+evaluation,plan_clearance_m,mean_driven_rmse,32,0.371032886253024,"descriptive, not causal; shared cases are correlated"

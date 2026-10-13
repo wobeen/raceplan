@@ -1,0 +1,6 @@
+planner,n,pose_success,pose_rate,ci_low,ci_high,bootstrap_degenerate,position_success,collision,timeout,planning_failed,pose_success_rmse_mean,pose_success_rmse_q90,driven_clearance_q10
+astar,40,0,0.0,0.0,0.0,True,30,0,0,10,,,0.15790092818506718
+clearance_0.0,40,0,0.0,0.0,0.0,True,30,0,0,10,,,0.15790092818506718
+clearance_0.25,40,0,0.0,0.0,0.0,True,30,0,0,10,,,0.15790092818506718
+dijkstra,40,0,0.0,0.0,0.0,True,30,0,0,10,,,0.15790092818506718
+hybrid_astar,40,15,0.375,0.0,0.75,False,20,20,0,0,0.034795603074031095,0.05290061318837968,0.0

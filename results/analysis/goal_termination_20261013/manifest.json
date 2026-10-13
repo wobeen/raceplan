@@ -1,0 +1,147 @@
+{
+  "purpose": "validation diagnostic; no new held-out claim",
+  "seeds": [
+    0,
+    1,
+    2
+  ],
+  "vehicle": {
+    "wheelbase": 0.33,
+    "length": 0.58,
+    "width": 0.31,
+    "rear_axle_to_center": 0.1
+  },
+  "tracker": {
+    "lookahead_distance": 0.8,
+    "target_speed": 0.8,
+    "max_steering_angle": 0.45,
+    "speed_pid": {
+      "kp": 2.0,
+      "ki": 0.2,
+      "kd": 0.05,
+      "output_min": -3.0,
+      "output_max": 2.0,
+      "integral_limit": 2.0
+    }
+  },
+  "simulation": {
+    "dt": 0.05,
+    "max_time_s": 30.0,
+    "max_speed": 2.0,
+    "max_acceleration": 2.0,
+    "max_deceleration": 3.0,
+    "max_steering_angle": 0.45,
+    "goal_tolerance": 0.5,
+    "goal_yaw_tolerance": null
+  },
+  "noise": {
+    "initial_position_std_m": 0.02,
+    "initial_yaw_std_rad": 0.01,
+    "initial_speed_std_mps": 0.01,
+    "steering_std_rad": 0.01,
+    "speed_measurement_std_mps": 0.02
+  },
+  "yaw_tolerance": 0.35,
+  "cases": [
+    {
+      "name": "validation_gate_0_q0",
+      "split": "validation",
+      "family": "gate",
+      "variant": 0,
+      "query": 0,
+      "resolution": 0.1
+    },
+    {
+      "name": "validation_gate_0_q1",
+      "split": "validation",
+      "family": "gate",
+      "variant": 0,
+      "query": 1,
+      "resolution": 0.1
+    },
+    {
+      "name": "validation_slalom_0_q0",
+      "split": "validation",
+      "family": "slalom",
+      "variant": 0,
+      "query": 0,
+      "resolution": 0.1
+    },
+    {
+      "name": "validation_slalom_0_q1",
+      "split": "validation",
+      "family": "slalom",
+      "variant": 0,
+      "query": 1,
+      "resolution": 0.1
+    },
+    {
+      "name": "validation_turn_0_q0",
+      "split": "validation",
+      "family": "turn",
+      "variant": 0,
+      "query": 0,
+      "resolution": 0.1
+    },
+    {
+      "name": "validation_turn_0_q1",
+      "split": "validation",
+      "family": "turn",
+      "variant": 0,
+      "query": 1,
+      "resolution": 0.1
+    },
+    {
+      "name": "validation_heading_0_q0",
+      "split": "validation",
+      "family": "heading",
+      "variant": 0,
+      "query": 0,
+      "resolution": 0.1
+    },
+    {
+      "name": "validation_heading_0_q1",
+      "split": "validation",
+      "family": "heading",
+      "variant": 0,
+      "query": 1,
+      "resolution": 0.1
+    }
+  ],
+  "source_sha256": {
+    "src\\raceplan\\__init__.py": "5d2d7e8371c0db0f9a7e73ec3e58f359851dd24c2bdbffefd0b0deb491d93687",
+    "src\\raceplan\\analyze.py": "3af57c94ac16accaf4885ad8f9d7bccdcabceb01175dc099397da65dde46459c",
+    "src\\raceplan\\common\\__init__.py": "782d6d0a4da361e00b5f082b221ac50ddb49cdd2665bef1ccd0659fca8d93967",
+    "src\\raceplan\\common\\grid.py": "2448e48546a556a477fea2dd4d5dc5bbf4e73f2b91d83ce7ebed152b5243fcff",
+    "src\\raceplan\\common\\inflation.py": "1c72f0f20f6c4e180271a0b9bcbe50c5bd5c31f2036182587ca168931130f632",
+    "src\\raceplan\\common\\map_io.py": "3ef36fe1d2dd0ca4accc9010a22f80e7ba988993a2ad68247ee06c0c2a6765fe",
+    "src\\raceplan\\common\\planning_space.py": "6bbe25eabda436f04654abdbd9ba86649df920ef459ba30672b81daada1091d5",
+    "src\\raceplan\\common\\scenario.py": "7cc0957df709464ae470219613a5c6457bb2f8b803c1eee3fd3c8c829f180da3",
+    "src\\raceplan\\common\\types.py": "17915571b17500339e70c027f794f0ce6e4b60d08a07f4e344e23bd72f497171",
+    "src\\raceplan\\common\\vehicle.py": "45a2219db7e7f806112d4664bd260f953736dd4b79f59185ee5f5342a32c7cb6",
+    "src\\raceplan\\compare.py": "0ca00da47111a92704fbe092d78377724f04276968afc8f62eaac823ab159647",
+    "src\\raceplan\\controllers\\__init__.py": "1c292461e11bf01634d3dba7da8312700e91f13564482b668a2915cd57f8c77b",
+    "src\\raceplan\\controllers\\pid.py": "c969845a32be2a871d1844d244dc234bacc42ca68993c67a17090d446078ef03",
+    "src\\raceplan\\controllers\\pure_pursuit.py": "bd13223ada95e9dfdeb3ef5dd19100a69ecbfcd7f2657fe6085d8bf87bf3b7a0",
+    "src\\raceplan\\corridor_suite.py": "8da2ce005b149243451f0b1bec467f72a558e50ebe43118a053af99c4a032f05",
+    "src\\raceplan\\defaults.py": "9b95bfbb128a20c0a6f096c3d13d96c520bf0b86815127bdcca7e4c184198d90",
+    "src\\raceplan\\experiment.py": "77aa990d9645698ccbd2eedf20d5090aabfbc85b2d4f104ca8542e73d0b6b7c3",
+    "src\\raceplan\\metrics.py": "90b534dbabdc1059285eb3f4687275a0fa11642060a13cd066dab18cc79a2bf3",
+    "src\\raceplan\\planners\\__init__.py": "b7aee579f8a1c636aa147312f0edb552ac27405c2069373a8b944be2826d16a2",
+    "src\\raceplan\\planners\\_grid_search.py": "7e1046db4e06780a10816a67b1fff42b34eb4edfb9c9f1589b3a4e024e05c4b9",
+    "src\\raceplan\\planners\\astar.py": "7cbdca328f7515f77bd682f6cf72bbbf232b7ae644a282aea9343a97fc07297e",
+    "src\\raceplan\\planners\\base.py": "16da300edb5eda95334944bc01d34320e6b360412c3cbda78d4c63eeb3e157f0",
+    "src\\raceplan\\planners\\clearance_astar.py": "fda7b9db44499bfa3615f9a35925841ad1e91aebf30a6ae81d9b5c29fe2d64c7",
+    "src\\raceplan\\planners\\dijkstra.py": "3a8be426c296c37047bb0b96cdeb90010887eb6faaa0137515d5886bd26d8e8c",
+    "src\\raceplan\\planners\\hybrid_astar.py": "c88cd28d401988472ebc26e4d6125825d8e1d84a76e5586e39982d871274a857",
+    "src\\raceplan\\planners\\hybrid_primitives.py": "093dedf28c93ff475a923c23cc74a44e68f905092504beb9f9a63fb390bf0ba6",
+    "src\\raceplan\\plot_comparison.py": "d6fc3bc00d546809f510e4f4ec05c680f0521ac9aaa7dd7f07b5a273629b7a46",
+    "src\\raceplan\\research_analytic.py": "b1d5e8c41956a13e646185a4f99f08e7f8bf73a13f59a233a45077db340b94ce",
+    "src\\raceplan\\research_design.py": "f2fe5eadf4d25edcf31d921fae54150fad2e23732ab03609b97ddd72313e8f87",
+    "src\\raceplan\\research_engine.py": "69cbeecd9af069118766223d9f69155718729804666bdf4f837acff4490100f0",
+    "src\\raceplan\\research_features.py": "5f779f19c35d15f83b25dfbf85309053e080e0da53c69577d2c46b3a0cc76a1e",
+    "src\\raceplan\\simulator\\__init__.py": "54a5019d467eab41f1e1c0d9928f6d49d87e7a4b8d1b19764eb475dc9079f2ef",
+    "src\\raceplan\\simulator\\kinematic.py": "84b8fab137846751e97bf6101ee9924d73651e5b2d3c7606b67f0b336b55e958",
+    "src\\raceplan\\simulator\\noise.py": "b5ec24989f947eaa99e5d660dfba79d46bb4d6ebbf64b8dbde76192bcc5fe347"
+  }
+}

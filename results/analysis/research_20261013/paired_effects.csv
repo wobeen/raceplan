@@ -1,0 +1,5 @@
+planner,baseline,paired_pose_rate_difference,ci_low,ci_high
+clearance_0.0,astar,0.0,0.0,0.0
+clearance_0.25,astar,0.0,0.0,0.0
+dijkstra,astar,0.0,0.0,0.0
+hybrid_astar,astar,0.375,0.0,0.75

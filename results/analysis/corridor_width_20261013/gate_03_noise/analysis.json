@@ -1,0 +1,27 @@
+{
+  "analysis_schema_version": 2,
+  "summary": "C:\\Users\\sinub\\OneDrive\\Desktop\\raceplan\\results\\raw\\corridor_width_20261013\\gate_03_noise.csv",
+  "input_sha256": {
+    "C:\\Users\\sinub\\OneDrive\\Desktop\\raceplan\\results\\raw\\corridor_width_20261013\\gate_03_noise.csv": "9b5eb8166925a1aff396d28a2140a00b555493dc1a0efbbb70213433814731f4",
+    "C:\\Users\\sinub\\OneDrive\\Desktop\\raceplan\\results\\raw\\corridor_width_20261013\\gate_03_noise_manifest.json": "d27d35db0d08b2eb7b010ba8ec3d10639bf1a60935149f8a0d940a0e8dd3abc5",
+    "C:\\Users\\sinub\\OneDrive\\Desktop\\raceplan\\results\\raw\\corridor_width_20261013\\gate_03_noise_paths.csv": "ac99f42d450c2f8278a7c3a43751e10ced4fc90d2ef88a9c03bf59bdcaab1471",
+    "C:\\Users\\sinub\\OneDrive\\Desktop\\raceplan\\results\\raw\\corridor_width_20261013\\gate_03_noise_trajectory.csv": "e5c652e145ca86a8c7c3580eb63232f73f96f1617fafde5058842765b4e4cfd6"
+  },
+  "source_sha256": {
+    "analyze.py": "3af57c94ac16accaf4885ad8f9d7bccdcabceb01175dc099397da65dde46459c",
+    "metrics.py": "90b534dbabdc1059285eb3f4687275a0fa11642060a13cd066dab18cc79a2bf3"
+  },
+  "numpy": "2.5.4",
+  "requested_spacing_m": 0.1,
+  "baseline": "dijkstra",
+  "clearance_grid": "inflated grid, matching batch planning and driving",
+  "curvature": "absolute change in resampled XY segment heading / arc-length spacing",
+  "clearance": "minimum sampled footprint distance; zero for overlap or contact; not swept clearance",
+  "diameter_proxy": "twice minimum reference-point clearance / width; NOT map bottleneck width",
+  "aggregation": "one batch only; all failures counted; continuous quantiles on reached episodes only",
+  "pair_delta": "planner minus baseline, continuous metrics only when both reached",
+  "driving_clearance": "all recorded true poses including failures; no temporal resampling or swept guarantee",
+  "driving_clearance_aggregation": "all driven episodes including collision and timeout; lower tail q10",
+  "driving_clearance_pair_delta": "planner minus baseline when both drove, including failures",
+  "plan_comparison_limit": "different sampling, endpoint coverage and yaw; delta is descriptive, not pointwise loss"
+}

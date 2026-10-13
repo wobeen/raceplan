@@ -1,0 +1,27 @@
+{
+  "analysis_schema_version": 2,
+  "summary": "C:\\Users\\sinub\\OneDrive\\Desktop\\raceplan\\results\\raw\\pilot_20261012\\demo_noise.csv",
+  "input_sha256": {
+    "C:\\Users\\sinub\\OneDrive\\Desktop\\raceplan\\results\\raw\\pilot_20261012\\demo_noise.csv": "d6077609c275ac43d25e8e7c1cf7c76acbb750444c5a66693e02c0558f0030ae",
+    "C:\\Users\\sinub\\OneDrive\\Desktop\\raceplan\\results\\raw\\pilot_20261012\\demo_noise_manifest.json": "1c0468fbb874463f771953d6759978efa3ce4a49c84168a58752a364333f3bc3",
+    "C:\\Users\\sinub\\OneDrive\\Desktop\\raceplan\\results\\raw\\pilot_20261012\\demo_noise_paths.csv": "7f8eacd5148907d9f58a55e9883e40155a99fd26e1e0e0c3c137cea5f5f3a8c7",
+    "C:\\Users\\sinub\\OneDrive\\Desktop\\raceplan\\results\\raw\\pilot_20261012\\demo_noise_trajectory.csv": "7c73e88b37cfa72a5eda87f63b20ab4d167587e98fdb27b7ad0bb12ee41a2f1a"
+  },
+  "source_sha256": {
+    "analyze.py": "3af57c94ac16accaf4885ad8f9d7bccdcabceb01175dc099397da65dde46459c",
+    "metrics.py": "29398153d0b7655dd25e39d1ace21d7caa00b0c0761a896f693a11ebab065b29"
+  },
+  "numpy": "2.5.4",
+  "requested_spacing_m": 0.1,
+  "baseline": "dijkstra",
+  "clearance_grid": "inflated grid, matching batch planning and driving",
+  "curvature": "absolute change in resampled XY segment heading / arc-length spacing",
+  "clearance": "minimum sampled footprint distance; zero for overlap or contact; not swept clearance",
+  "diameter_proxy": "twice minimum reference-point clearance / width; NOT map bottleneck width",
+  "aggregation": "one batch only; all failures counted; continuous quantiles on reached episodes only",
+  "pair_delta": "planner minus baseline, continuous metrics only when both reached",
+  "driving_clearance": "all recorded true poses including failures; no temporal resampling or swept guarantee",
+  "driving_clearance_aggregation": "all driven episodes including collision and timeout; lower tail q10",
+  "driving_clearance_pair_delta": "planner minus baseline when both drove, including failures",
+  "plan_comparison_limit": "different sampling, endpoint coverage and yaw; delta is descriptive, not pointwise loss"
+}

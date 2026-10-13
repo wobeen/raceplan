@@ -1,0 +1,17 @@
+case,split,family,analytic_vertical_cross_section_bottleneck_m,vehicle_width_normalized,definition
+validation_gate_0_q0,validation,gate,1.2000000000000002,3.8709677419354844,min over x slabs of widest free vertical interval between query endpoints; not global widest route
+validation_gate_0_q1,validation,gate,1.2000000000000002,3.8709677419354844,min over x slabs of widest free vertical interval between query endpoints; not global widest route
+validation_slalom_0_q0,validation,slalom,3.0,9.67741935483871,min over x slabs of widest free vertical interval between query endpoints; not global widest route
+validation_slalom_0_q1,validation,slalom,3.0,9.67741935483871,min over x slabs of widest free vertical interval between query endpoints; not global widest route
+validation_turn_0_q0,validation,turn,2.1999999999999997,7.096774193548386,min over x slabs of widest free vertical interval between query endpoints; not global widest route
+validation_turn_0_q1,validation,turn,2.1999999999999997,7.096774193548386,min over x slabs of widest free vertical interval between query endpoints; not global widest route
+validation_heading_0_q0,validation,heading,2.8,9.032258064516128,min over x slabs of widest free vertical interval between query endpoints; not global widest route
+validation_heading_0_q1,validation,heading,2.8,9.032258064516128,min over x slabs of widest free vertical interval between query endpoints; not global widest route
+evaluation_gate_1_q0,evaluation,gate,1.0,3.2258064516129035,min over x slabs of widest free vertical interval between query endpoints; not global widest route
+evaluation_gate_1_q1,evaluation,gate,1.0,3.2258064516129035,min over x slabs of widest free vertical interval between query endpoints; not global widest route
+evaluation_slalom_1_q0,evaluation,slalom,2.8,9.032258064516128,min over x slabs of widest free vertical interval between query endpoints; not global widest route
+evaluation_slalom_1_q1,evaluation,slalom,2.8,9.032258064516128,min over x slabs of widest free vertical interval between query endpoints; not global widest route
+evaluation_turn_1_q0,evaluation,turn,1.9999999999999996,6.451612903225805,min over x slabs of widest free vertical interval between query endpoints; not global widest route
+evaluation_turn_1_q1,evaluation,turn,1.9999999999999996,6.451612903225805,min over x slabs of widest free vertical interval between query endpoints; not global widest route
+evaluation_heading_1_q0,evaluation,heading,2.5999999999999996,8.387096774193548,min over x slabs of widest free vertical interval between query endpoints; not global widest route
+evaluation_heading_1_q1,evaluation,heading,2.5999999999999996,8.387096774193548,min over x slabs of widest free vertical interval between query endpoints; not global widest route

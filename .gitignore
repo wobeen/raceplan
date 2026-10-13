@@ -15,3 +15,9 @@ dist/
 
 results/raw/
 
+
+# Local detailed samples and reproduction archives; preserve on disk.
+results/analysis/**/clearance_samples.csv
+results/analysis/**/trajectories.json
+results/analysis/*_pre_boundary_fix/
+results/packages/

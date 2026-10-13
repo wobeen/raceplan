@@ -20,6 +20,7 @@ from raceplan.controllers import (
 )
 from raceplan.planners.hybrid_primitives import normalize_angle
 from .noise import NoiseConfig, NoiseStreams
+from .obstacle_guard import ObstacleGuardConfig, guarded_acceleration
 
 
 @dataclass(frozen=True, slots=True)
@@ -37,8 +38,13 @@ class SimulationConfig:
     max_deceleration: float = 3.0
     max_steering_angle: float = 0.45
     goal_tolerance: float = 0.5
+    goal_yaw_tolerance: float | None = None
 
     def __post_init__(self) -> None:
+        if self.goal_yaw_tolerance is not None and (
+            not isfinite(self.goal_yaw_tolerance) or not 0 < self.goal_yaw_tolerance <= 3.141592653589793
+        ):
+            raise ValueError("goal yaw tolerance must be finite and in (0, pi]")
         values = (
             self.dt,
             self.max_time_s,
@@ -76,6 +82,7 @@ class SimulationResult:
     completion_time_s: float
     goal_distance: float
     steering_limit: float
+    goal_yaw_error: float = 0.0
 
     @property
     def reached(self) -> bool:
@@ -160,10 +167,15 @@ def run_episode(
     initial_pose: Pose2D | None = None,
     simulation_seed: int = 0,
     noise: NoiseConfig = NoiseConfig(),
+    obstacle_guard: ObstacleGuardConfig | None = None,
 ) -> SimulationResult:
     """Track one planned path with fixed controller and vehicle settings."""
 
     tracker = PurePursuitController(path, vehicle, tracker_config)
+    clearance = None
+    if obstacle_guard is not None:
+        from raceplan.metrics import Clearance
+        clearance = Clearance(grid)
     random = NoiseStreams(simulation_seed)
     nominal = initial_pose if initial_pose is not None else path.poses[0]
     offsets = random.initial.standard_normal(4)
@@ -188,6 +200,7 @@ def run_episode(
             completion_time_s=elapsed,
             goal_distance=hypot(goal.x - state.pose.x, goal.y - state.pose.y),
             steering_limit=simulation_config.max_steering_angle,
+            goal_yaw_error=abs(normalize_angle(goal.yaw - state.pose.yaw)),
         )
 
     if footprint_in_collision(grid, state.pose, vehicle):
@@ -196,7 +209,11 @@ def run_episode(
     step_count = round(simulation_config.max_time_s / simulation_config.dt)
     for step in range(step_count + 1):
         elapsed = step * simulation_config.dt
-        if hypot(goal.x - state.pose.x, goal.y - state.pose.y) <= simulation_config.goal_tolerance:
+        position_reached = hypot(goal.x - state.pose.x, goal.y - state.pose.y) <= simulation_config.goal_tolerance
+        yaw_reached = simulation_config.goal_yaw_tolerance is None or abs(
+            normalize_angle(goal.yaw - state.pose.yaw)
+        ) <= simulation_config.goal_yaw_tolerance + 1e-12
+        if position_reached and yaw_reached:
             return finish(SimulationStatus.REACHED, elapsed)
         if step == step_count:
             break
@@ -209,6 +226,11 @@ def run_episode(
         ))
         acceleration = max(-simulation_config.max_deceleration,
                            min(simulation_config.max_acceleration, command.acceleration))
+        if obstacle_guard is not None:
+            acceleration = guarded_acceleration(
+                grid, clearance, state.pose, state.speed, steering, acceleration,
+                vehicle, simulation_config, obstacle_guard,
+            )
         state = step_bicycle(
             state,
             acceleration=acceleration,

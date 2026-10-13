@@ -7,7 +7,30 @@ experiments with improved planner variants. Camera/CV perception is a later
 extension, not part of the current core.
 
 The project provides baseline planners, a shared closed-loop simulator, and
-paired simulation-seed batch execution. Research evaluation remains future work.
+paired simulation-seed batch execution. A small synthetic research cycle is complete; larger unseen-map validation remains future work.
+
+## 현재 상태 (2026-10-13)
+
+- 성공은 충돌 없이 **후륜 축 중심이 목표 위치 0.5m 이내 진입**하는 것이다.
+  최종 방향은 참고값이며 완전 정차를 요구하는 기준은 아니다.
+- 전륜 조향 bicycle model이며 차량 전체 직사각형으로 충돌을 검사한다.
+- 전체 테스트 **71개 통과**. 접근 감속 및 장애물 감속·정지 옵션을 구현했다.
+- 최신 144건 비교에서 Dijkstra/A*는 각각 24/24 도달을 유지했다.
+  Hybrid A*는 충돌 9→0, 성공 15→6, 시간초과 0→18이었다.
+  정지로 충돌을 줄였지만 도달 성능 개선은 아니다.
+- 다음은 정지 원인 분석과 안전한 재계획이다. 기존 validation 재사용 결과이며
+  새로운 미사용 지도 평가가 아니다.
+
+[인계 문서](docs/HANDOFF.md) · [최신 결과](docs/OBSTACLE_GUARD_20261013.md) ·
+[커밋 구성](docs/COMMIT_PLAN.md) · [결과 폴더](results/README.md)
+
+```powershell
+.venv/Scripts/python.exe -m pytest -q
+.venv/Scripts/python.exe results/obstacle_guard_diagnostic.py
+```
+
+진단 스크립트는 기존 출력 폴더가 있으면 덮어쓰지 않고 실패한다. 제어 옵션은
+Python API/진단 스크립트에서 사용하며 기존 CLI에 자동 적용하지 않는다.
 
 ## Quick start
 
@@ -118,12 +141,32 @@ shared inflated grid, so experiments record this representation difference.
   metrics exported to CSV
 
 Paired seed batches, driving noise, trajectory/path artifacts, and configuration
-manifests are implemented. The current development slice passed 40 tests and
+manifests are implemented. The historical initial development slice passed 40 tests and
 a two-map seed pilot; see `docs/REPEATABILITY_IMPLEMENTATION.md` for limits.
-Randomized map suites, batch aggregation, and optimized planner variants remain
-future milestones.
+Later work added synthetic map suites, aggregation, and a clearance-cost A* candidate.
+Large randomized-map validation remains future work.
 
 ## Project documents
+
+The end-to-end synthetic research cycle is documented in
+[docs/RESEARCH_CYCLE_20261013.md](docs/RESEARCH_CYCLE_20261013.md): 52 tests,
+335 episode records, frozen validation choice, held-out evaluation, ablation,
+failure images, and a source/data reproduction package. The tested clearance-cost
+candidate did **not** improve success rates; general superiority is not claimed.
+
+```bash
+python results/research_all.py --name research_new_run
+```
+
+This historical protocol uses pose-based scoring; it is not the current
+position-only diagnostic. Resume requires matching source/config hashes.
+Current code cannot resume the archived research_20261013 run: use its local ZIP
+for historical source/data. A new name runs new data with current code.
+Raw data and reproduction ZIPs are local-only and excluded from Git.
+
+Controlled gate-width validation pilot: [docs/CORRIDOR_WIDTH.md](docs/CORRIDOR_WIDTH.md).
+Five widths at fixed 0.1 m grid resolution, with a reproducible runner and failure
+report (46 tests passed; 90 episode records including planning failures).
 
 Saved-batch geometry and paired analysis (42 tests passed; two saved noise batches analyzed):
 

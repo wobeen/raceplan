@@ -1,0 +1,107 @@
+{
+  "selected": "clearance_0.25",
+  "scores": {
+    "astar": [
+      3,
+      0,
+      -0.035463719523244654
+    ],
+    "clearance_0.25": [
+      3,
+      0,
+      -0.06005130507426747
+    ],
+    "clearance_1.0": [
+      3,
+      0,
+      -0.06005130507426747
+    ]
+  },
+  "outperformed_baseline_on_validation": false,
+  "rule": "maximize pose successes, then minimize collisions, then successful mean RMSE; ties prefer lower weight",
+  "resolution": 0.1,
+  "dt": 0.05,
+  "spacing": 0.1,
+  "goal_position": 0.5,
+  "goal_yaw": 0.35,
+  "validation_seeds": [
+    0,
+    1,
+    2
+  ],
+  "evaluation_seeds": [
+    3,
+    4,
+    5,
+    6,
+    7
+  ],
+  "baseline": "astar",
+  "ablation": "clearance_0.0",
+  "evaluation_cases": [
+    {
+      "name": "evaluation_gate_1_q0",
+      "split": "evaluation",
+      "family": "gate",
+      "variant": 1,
+      "query": 0,
+      "resolution": 0.1
+    },
+    {
+      "name": "evaluation_gate_1_q1",
+      "split": "evaluation",
+      "family": "gate",
+      "variant": 1,
+      "query": 1,
+      "resolution": 0.1
+    },
+    {
+      "name": "evaluation_slalom_1_q0",
+      "split": "evaluation",
+      "family": "slalom",
+      "variant": 1,
+      "query": 0,
+      "resolution": 0.1
+    },
+    {
+      "name": "evaluation_slalom_1_q1",
+      "split": "evaluation",
+      "family": "slalom",
+      "variant": 1,
+      "query": 1,
+      "resolution": 0.1
+    },
+    {
+      "name": "evaluation_turn_1_q0",
+      "split": "evaluation",
+      "family": "turn",
+      "variant": 1,
+      "query": 0,
+      "resolution": 0.1
+    },
+    {
+      "name": "evaluation_turn_1_q1",
+      "split": "evaluation",
+      "family": "turn",
+      "variant": 1,
+      "query": 1,
+      "resolution": 0.1
+    },
+    {
+      "name": "evaluation_heading_1_q0",
+      "split": "evaluation",
+      "family": "heading",
+      "variant": 1,
+      "query": 0,
+      "resolution": 0.1
+    },
+    {
+      "name": "evaluation_heading_1_q1",
+      "split": "evaluation",
+      "family": "heading",
+      "variant": 1,
+      "query": 1,
+      "resolution": 0.1
+    }
+  ]
+}

@@ -17,8 +17,18 @@ class PurePursuitConfig:
     target_speed: float
     max_steering_angle: float
     speed_pid: PIDConfig
+    approach_distance: float | None = None
+    approach_min_speed: float = 0.15
 
     def __post_init__(self) -> None:
+        if self.approach_distance is not None and (
+            not isfinite(self.approach_distance) or self.approach_distance <= 0
+        ):
+            raise ValueError("approach distance must be finite and positive")
+        if not isfinite(self.approach_min_speed) or self.approach_min_speed <= 0 or (
+            self.approach_distance is not None and self.approach_min_speed > self.target_speed
+        ):
+            raise ValueError("approach minimum speed must be in (0, target speed]")
         values = (
             self.lookahead_distance,
             self.target_speed,
@@ -81,6 +91,10 @@ class PurePursuitController:
         self.config = config
         self._speed_pid = PIDController(config.speed_pid)
         self._progress_index = 0
+        self._remaining = [0.0] * len(path.poses)
+        for i in range(len(path.poses) - 2, -1, -1):
+            a, b = path.poses[i:i + 2]
+            self._remaining[i] = self._remaining[i + 1] + hypot(b.x - a.x, b.y - a.y)
 
     def command(self, pose: Pose2D, speed: float, dt: float) -> ControlCommand:
         poses = self.path.poses
@@ -113,7 +127,17 @@ class PurePursuitController:
             -self.config.max_steering_angle,
             min(self.config.max_steering_angle, steering),
         )
-        acceleration = self._speed_pid.update(self.config.target_speed, speed, dt)
+        target_speed = self.config.target_speed
+        if self.config.approach_distance is not None:
+            # Remaining polyline distance avoids slowing beside an early pass near the endpoint.
+            remaining = self._remaining[nearest_index] + hypot(
+                poses[nearest_index].x - pose.x, poses[nearest_index].y - pose.y
+            )
+            target_speed = min(target_speed, max(
+                self.config.approach_min_speed,
+                target_speed * remaining / self.config.approach_distance,
+            ))
+        acceleration = self._speed_pid.update(target_speed, speed, dt)
         return ControlCommand(
             acceleration=acceleration,
             steering_angle=steering,

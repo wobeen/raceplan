@@ -1,0 +1,7 @@
+planner,baseline,simulation_seed,planner_outcome,baseline_outcome,both_reached,delta_tracking_rmse_m,delta_completion_time_s,delta_steering_saturation_fraction
+astar,dijkstra,0,reached,reached,True,0.0,0.0,0.0
+astar,dijkstra,1,reached,reached,True,0.0,0.0,0.0
+astar,dijkstra,2,reached,reached,True,0.0,0.0,0.0
+hybrid_astar,dijkstra,0,reached,reached,True,0.00887078394521653,0.0,0.0
+hybrid_astar,dijkstra,1,reached,reached,True,0.010998475012074765,0.0,0.0
+hybrid_astar,dijkstra,2,reached,reached,True,0.01097823554965797,0.0,0.0

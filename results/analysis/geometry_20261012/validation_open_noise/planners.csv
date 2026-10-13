@@ -1,0 +1,4 @@
+planner,episodes,reached,reach_rate,planning_failures,initial_collisions,driving_collisions,timeouts,success_tracking_rmse_m_median,success_tracking_rmse_m_q25,success_tracking_rmse_m_q75,success_tracking_rmse_m_q90,success_completion_time_s_median,success_completion_time_s_q25,success_completion_time_s_q75,success_completion_time_s_q90,success_steering_saturation_fraction_median,success_steering_saturation_fraction_q25,success_steering_saturation_fraction_q75,success_steering_saturation_fraction_q90
+dijkstra,3,3,1.0,0,0,0,0,0.0033546934729308257,0.003165539974765598,0.004770583099833117,0.005620116875974491,8.35,8.35,8.375,8.39,0.0,0.0,0.0,0.0
+astar,3,3,1.0,0,0,0,0,0.0033546934729308257,0.003165539974765598,0.004770583099833117,0.005620116875974491,8.35,8.35,8.375,8.39,0.0,0.0,0.0,0.0
+hybrid_astar,3,3,1.0,0,0,0,0,0.014332929022588795,0.014153895255631965,0.014695092847270365,0.014912391142079309,8.35,8.35,8.375,8.39,0.0,0.0,0.0,0.0

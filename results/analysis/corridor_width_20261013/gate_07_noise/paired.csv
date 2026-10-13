@@ -1,0 +1,7 @@
+planner,baseline,simulation_seed,planner_outcome,baseline_outcome,both_reached,delta_tracking_rmse_m,delta_completion_time_s,delta_steering_saturation_fraction,both_driven,delta_driving_min_sampled_clearance_m
+astar,dijkstra,0,driving_collision,driving_collision,False,,,,True,0.0
+astar,dijkstra,1,driving_collision,driving_collision,False,,,,True,0.0
+astar,dijkstra,2,driving_collision,driving_collision,False,,,,True,0.0
+hybrid_astar,dijkstra,0,reached,driving_collision,False,,,,True,0.023022137229437897
+hybrid_astar,dijkstra,1,reached,driving_collision,False,,,,True,0.023539019761766578
+hybrid_astar,dijkstra,2,reached,driving_collision,False,,,,True,0.02418227879533502

@@ -1,0 +1,22 @@
+{
+  "analysis_schema_version": 1,
+  "summary": "C:\\Users\\sinub\\OneDrive\\Desktop\\raceplan\\results\\raw\\pilot_20261012\\demo_noise.csv",
+  "input_sha256": {
+    "C:\\Users\\sinub\\OneDrive\\Desktop\\raceplan\\results\\raw\\pilot_20261012\\demo_noise.csv": "d6077609c275ac43d25e8e7c1cf7c76acbb750444c5a66693e02c0558f0030ae",
+    "C:\\Users\\sinub\\OneDrive\\Desktop\\raceplan\\results\\raw\\pilot_20261012\\demo_noise_manifest.json": "1c0468fbb874463f771953d6759978efa3ce4a49c84168a58752a364333f3bc3",
+    "C:\\Users\\sinub\\OneDrive\\Desktop\\raceplan\\results\\raw\\pilot_20261012\\demo_noise_paths.csv": "7f8eacd5148907d9f58a55e9883e40155a99fd26e1e0e0c3c137cea5f5f3a8c7"
+  },
+  "source_sha256": {
+    "analyze.py": "4d34c65f8b6f2940656685cb7daf3fb57a79999f9c9b332fb4f90c4302af35a1",
+    "metrics.py": "bfcd887361db73b134f5ed4b695a74ffa5c3d14e9338bd45244defbae6bc9e33"
+  },
+  "numpy": "2.5.4",
+  "requested_spacing_m": 0.1,
+  "baseline": "dijkstra",
+  "clearance_grid": "inflated grid, matching batch planning and driving",
+  "curvature": "absolute change in resampled XY segment heading / arc-length spacing",
+  "clearance": "minimum sampled footprint distance; zero for overlap or contact; not swept clearance",
+  "diameter_proxy": "twice minimum reference-point clearance / width; NOT map bottleneck width",
+  "aggregation": "one batch only; all failures counted; continuous quantiles on reached episodes only",
+  "pair_delta": "planner minus baseline, continuous metrics only when both reached"
+}

@@ -1,54 +1,41 @@
-# 이번 변경의 커밋 단위
+# 커밋 구성 — 2026-10-13
 
-아직 staging 또는 commit을 수행하지 않았다. 기존 baseline 커밋 e73b245 이후
-추가한 분석 기능과 보고 결과를 아래 두 단위로 나눈다.
+커밋과 staging은 사용자가 수행한다. 이전 분석/보고 커밋은 9758b8f 및
+6bc0b84로 반영되었다. 아래는 그 이후 작업의 권장 단위다.
 
-## 1. feat: 경로 기하 및 실제 주행 clearance 분석 추가
+## 1. feat: 연구 실험과 접근 감속·장애물 정지 제어 추가
 
-정확한 파일 목록:
+- src/raceplan/metrics.py, tests/test_metrics.py
+- src/raceplan/common/planning_space.py
+- src/raceplan/corridor_suite.py, tests/test_corridor_suite.py
+- src/raceplan/planners/clearance_astar.py
+- src/raceplan/research_*.py, tests/test_research.py
+- src/raceplan/controllers/pure_pursuit.py
+- src/raceplan/simulator/kinematic.py, src/raceplan/simulator/obstacle_guard.py
+- tests/test_goal_termination.py, tests/test_approach_speed.py, tests/test_obstacle_guard.py
+- scenarios/corridor_width/
+- results/ 아래 새 Python 실험·분석·렌더 스크립트
 
-- pyproject.toml
-- src/raceplan/analyze.py
-- src/raceplan/metrics.py
-- tests/test_analysis.py
-- tests/test_metrics.py
+전체 검증 71 tests passed. 과거 pose scoring은 재현용으로 유지하며
+현재 obstacle_guard 진단은 위치 도달 기준이다.
 
-공통 계획 기하, 실제 주행 clearance, 실패 포함 집계, seed 짝비교, 입력 검증과
-CLI 등록을 하나의 기능으로 묶는다. 직전 기능 검증은 44 tests passed였다.
+## 2. docs: 결과 정리 및 위치 도달 기준 인계 문서 추가
 
-## 2. docs: 파일럿 분석 결과와 시각화 보고 정리
-
-문서·렌더러:
-
-- README.md
-- docs/RESEARCH_PLAN.md
-- docs/GEOMETRY_ANALYSIS.md
-- docs/DRIVING_CLEARANCE.md
-- docs/COMMIT_PLAN.md
+- .gitignore, README.md, docs/ 내 변경·신규 문서
 - results/README.md
-- results/render_analysis_report.py
-- results/render_driving_clearance.py
+- results/figures/ 내 신규 PNG
+- results/analysis/ 내 ignore되지 않은 episode/요약/경로/설정/CSV/JSON
 
-대표 이미지:
+공유 파일의 기능 변경이 겹치므로 코드/테스트 전체와 문서/결과로 나눴다.
+전체를 한 checkpoint 커밋으로 묶어도 된다.
 
-- results/figures/geometry_report.png
-- results/figures/driving_clearance_report.png
+## 제외하고 로컬 보관
 
-분석 데이터는 아래 **네 폴더 각각의 episodes.csv, planners.csv, paired.csv,
-analysis.json만** 포함한다(총 16개 파일).
+- results/raw/, results/packages/: 원본 및 과거 소스 재현 ZIP
+- results/analysis/**/trajectories.json: 전체 시계열
+- results/analysis/**/clearance_samples.csv: 상세 clearance
+- results/analysis/*_pre_boundary_fix/: 수정 전 중간 실행
 
-- results/analysis/geometry_20261012/demo_noise/
-- results/analysis/geometry_20261012/validation_open_noise/
-- results/analysis/driving_clearance_20261013/demo/
-- results/analysis/driving_clearance_20261013/open/
-
-## 이번 커밋에서 제외
-
-- results/raw/: 기존 ignore 정책 유지. 원본을 삭제하거나 이동하지 않았다.
-- results/analysis/driving_clearance_20261013/*/clearance_samples.csv:
-  시점별 상세 데이터. 로컬 보관, 재분석으로 재생성 가능.
-- results/pilot_repeatability.py, results/figures/planner_comparison.png:
-  이미 추적 중이고 이번에 변경하지 않은 파일.
-
-`git add .`로 전부 stage하지 말고 위 파일을 선택한다. 상세 CSV는 삭제하지
-않았으며 새로운 ignore 규칙도 추가하지 않았다.
+모두 삭제하지 않고 ignore 처리했다. 별도 백업 없이 Git만으로 복원되지 않는다.
+`git status --short`, `git diff --stat` 확인 후 사용자가 선택적으로 stage/commit한다.
+이번 정리에서 Codex는 stage/commit하지 않았다.

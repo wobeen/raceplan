@@ -1,0 +1,57 @@
+{
+  "family": "controlled_gate_width",
+  "split": "validation",
+  "resolution_m": 0.1,
+  "map_size_m": [
+    8.0,
+    4.1
+  ],
+  "gate_x_m": [
+    3.0,
+    5.0
+  ],
+  "gate_center_y_m": 2.05,
+  "start": [
+    1.05,
+    1.55,
+    0.0
+  ],
+  "goal": [
+    6.95,
+    2.55,
+    0.0
+  ],
+  "members": [
+    {
+      "scenario": "gate_13.yaml",
+      "width_cells": 13,
+      "width_m": 1.3,
+      "feasible_width_only": true
+    },
+    {
+      "scenario": "gate_09.yaml",
+      "width_cells": 9,
+      "width_m": 0.9,
+      "feasible_width_only": true
+    },
+    {
+      "scenario": "gate_07.yaml",
+      "width_cells": 7,
+      "width_m": 0.7,
+      "feasible_width_only": true
+    },
+    {
+      "scenario": "gate_05.yaml",
+      "width_cells": 5,
+      "width_m": 0.5,
+      "feasible_width_only": true
+    },
+    {
+      "scenario": "gate_03.yaml",
+      "width_cells": 3,
+      "width_m": 0.3,
+      "feasible_width_only": false
+    }
+  ],
+  "note": "Width-only feasibility is necessary, not a guarantee of planning/driving success."
+}
