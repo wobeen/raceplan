@@ -1,4 +1,33 @@
-# 작업 인계 — 2026-10-13
+# 작업 인계 — 2026-10-14
+
+## 현재 후속 작업: 회복 v4 코드 완료, Astra 검증 대기
+
+기본v2/비교v3 보존. v4는 exact request-local clearance cache 및 비음수 비용 하한
+선검사, 전체 tail4000 nodes/3*planning_timeout(기본9s) 공유예산으로 비용을 제한한다.
+후보순서/clearance/preview는 동일하며 비용 개선이 도달 개선을 보장하지 않는다.
+저장 v3 실패5건은 안전prefix 없음1건, 생성후preview 거부2건, tailtimeout만2건이다.
+문서 RECOVERY 마지막 절에 근거/한계/명령을 기록했다. --compare-v4는 Hybrid48건.
+구현 중 테스트/실험0회이며 stage/commit/기존결과 변경삭제없음.
+아래 v3 완료 기록과 과거 전체테스트는 historical 기록이다.
+
+## 현재 후속 작업: 회복 v3 구현 및 Astra 검증 완료
+
+확인 HEAD `8c5f8cb`. 회복 v3는 v2 preview 거부 뒤 현재 정지 pose에서
+전진 arc+clearance/조향 비용 Hybrid tail 후보를 최대15개 탐색한다.
+`--compare-v3`는 Hybrid만 동일 저장 첫 경로·seeds로 v2/v3 48건을 비교한다.
+기본 회복은 계속 v2이며 v1/v2 및 기본 Hybrid 비용은 유지한다.
+구현 후 targeted 테스트 1회 **33 passed**, Hybrid v2/v3 비교 1회 **48건** 완료.
+v2 15/24 성공·9회복실패 → v3 **19/24 성공·5회복실패**, 두 조건 충돌/timeout/계획실패0.
+수락 대안4개가 모두 실제 도달했고 기존 성공15건 회귀0·평균11.8467초 동일하다.
+대안125개 중 prefix 여유 거부103, tail timeout15, 경로생성7(수락4/preview 거부3).
+추가 대안 계산64.263초, 전체 재계획65.109초(v2 .817초), preview1.566초(v2 .104초).
+planning wall time은 주행시간에 포함되지 않으며 현재 구현은 실시간성 검증이 아니다.
+기존 v2 Hybrid24건 종료지표·전체 sample 일치, 입력/소스/산출물 hash 불일치0.
+PNG 두 장 시각검토 완료. 출력 `results/analysis/recovery_v3_20261013/` 보존.
+2026-10-14에는 기존 산출물 검토·문서화만 마무리했고 테스트/실험을 재실행하지 않았다.
+사용자 범위에 따라 전체 pytest/Dijkstra/A* 비교 및 반복 튜닝은 실행하지 않았다.
+아래 과거 전체 테스트 기록은 historical 결과이며 이번 허가 범위가 아니다.
+최신 설계·명령은 RECOVERY 문서 마지막 절 참고. stage/commit 없음.
 
 2026-10-13 후속 v2 구현 및 Astra 검증 완료. 전체 pytest 1회 **71 passed**,
 v1/v2 비교 1회 **144건** 실행. 기존 v1 72건 모든 sample·종료 결과를 정확히 재현했다.
@@ -94,5 +123,18 @@ analysis/figures는 실행 묶음별 보관. 경로를 이동하지 않아 prove
 재현은 ZIP 소스로 한다. research_all은 역사적 pose scoring 프로토콜이며
 현재 위치 기준의 새 비교에 그대로 사용하지 않는다.
 
-마지막 확인 HEAD는 6bc0b84. 재개 시 사용자의 후속 커밋 여부를 git status/log로
+마지막 확인 HEAD는 8c5f8cb. 재개 시 사용자의 후속 커밋 여부를 git status/log로
 확인한다. 커밋별 파일 안내는 docs/COMMIT_PLAN.md. 정리 중 stage/commit하지 않았다.
+
+## 2026-10-14 v4 검증 완료 (최신)
+
+Astra 정적검토 후 지정 관련 테스트1회36 passed, Hybrid v3/v4 비교1회48건 완료.
+현재 v3/v4 모두22/24 도달·충돌0·회복실패2이며 모든24쌍 sample이 정확히 동일하다.
+계획+preview 23.5501→13.5881초(42.3% 감소), 같은 성공22쌍 완료시간13.0091초 동일.
+과거 v3의19/24와 이번 v3 자체22/24는 wall timeout 의존 탐색의 historical 차이이며
+v4 성공 개선으로 귀속하지 않는다(samples7건/종료3건 차이). 신규 실패/성공회귀0.
+남은 slalom q1 seed0은 tail3개 preview 거부, seed1은 prefix15개 전부 거부다.
+request 예산 실제 소진0이므로 소진시 성공 손실 위험과 hard deadline 보장은 미검증.
+출력 `results/analysis/recovery_v4_20261014/`; verification.json, 두 PNG 검토 완료.
+상세 결과/한계는 RECOVERY_20261013.md 마지막 절. 전체 pytest·다른 planner·반복
+튜닝 없이 종료했으며 과거 출력/미커밋 변경 보존, stage/commit하지 않았다.

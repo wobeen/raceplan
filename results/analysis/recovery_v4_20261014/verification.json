@@ -1,0 +1,396 @@
+{
+  "episodes": 48,
+  "tests": "36 passed in 2.46s; specified tests once",
+  "config_equal": {
+    "cases": true,
+    "seeds": true,
+    "vehicle": true,
+    "tracker": true,
+    "simulation": true,
+    "noise": true,
+    "obstacle_guard": true,
+    "planning_timeout_s": true
+  },
+  "artifact_hash_mismatches": [],
+  "input_hash_mismatches": [],
+  "source_hash_mismatches": [],
+  "paired_sample_differences": [],
+  "historical_sample_differences": [
+    [
+      "validation_slalom_0_q0",
+      0
+    ],
+    [
+      "validation_slalom_0_q0",
+      1
+    ],
+    [
+      "validation_slalom_0_q0",
+      2
+    ],
+    [
+      "validation_slalom_0_q1",
+      2
+    ],
+    [
+      "validation_heading_0_q1",
+      0
+    ],
+    [
+      "validation_heading_0_q1",
+      1
+    ],
+    [
+      "validation_heading_0_q1",
+      2
+    ]
+  ],
+  "historical_status_differences": [
+    {
+      "case": "validation_slalom_0_q0",
+      "seed": 1,
+      "historical": "recovery_failed",
+      "current": "reached"
+    },
+    {
+      "case": "validation_slalom_0_q1",
+      "seed": 2,
+      "historical": "recovery_failed",
+      "current": "reached"
+    },
+    {
+      "case": "validation_heading_0_q1",
+      "seed": 1,
+      "historical": "recovery_failed",
+      "current": "reached"
+    }
+  ],
+  "regressions": [],
+  "rescued": [],
+  "same_success": {
+    "n": 22,
+    "v3_mean_s": 13.00909090909091,
+    "v4_mean_s": 13.00909090909091
+  },
+  "failures": [
+    {
+      "case": "validation_slalom_0_q1",
+      "planner": "hybrid_astar",
+      "seed": 0,
+      "mode": "recovery_v3",
+      "status": "recovery_failed",
+      "position_success": false,
+      "collision": false,
+      "goal_distance_m": 4.962043476443666,
+      "time_s": 2.2,
+      "driving_time_s": 1.6,
+      "stopped_time_s": 0.6,
+      "restart_count": 0,
+      "replan_count": 1,
+      "replanning_time_s": 5.219222499988973,
+      "replan_validation_time_s": 0.032801899971673265,
+      "planning_failure_stage": null,
+      "recovery_reason": "alternative_budget_exhausted",
+      "alternative_count": 15,
+      "alternative_prefix_blocked_count": 12,
+      "alternative_tail_timeout_count": 0,
+      "alternative_request_budget_count": 0,
+      "alternative_expanded_nodes": 1918,
+      "alternative_planning_time_s": 5.168480299995281,
+      "alternative_accepted_count": 0,
+      "alternative_rejected_count": 3
+    },
+    {
+      "case": "validation_slalom_0_q1",
+      "planner": "hybrid_astar",
+      "seed": 0,
+      "mode": "recovery_v4",
+      "status": "recovery_failed",
+      "position_success": false,
+      "collision": false,
+      "goal_distance_m": 4.962043476443666,
+      "time_s": 2.2,
+      "driving_time_s": 1.6,
+      "stopped_time_s": 0.6,
+      "restart_count": 0,
+      "replan_count": 1,
+      "replanning_time_s": 2.743932199984556,
+      "replan_validation_time_s": 0.03315669999574311,
+      "planning_failure_stage": null,
+      "recovery_reason": "alternative_budget_exhausted",
+      "alternative_count": 15,
+      "alternative_prefix_blocked_count": 12,
+      "alternative_tail_timeout_count": 0,
+      "alternative_request_budget_count": 0,
+      "alternative_expanded_nodes": 1918,
+      "alternative_planning_time_s": 2.694790599984117,
+      "alternative_accepted_count": 0,
+      "alternative_rejected_count": 3
+    },
+    {
+      "case": "validation_slalom_0_q1",
+      "planner": "hybrid_astar",
+      "seed": 1,
+      "mode": "recovery_v3",
+      "status": "recovery_failed",
+      "position_success": false,
+      "collision": false,
+      "goal_distance_m": 4.957517715370002,
+      "time_s": 2.25,
+      "driving_time_s": 1.65,
+      "stopped_time_s": 0.6,
+      "restart_count": 0,
+      "replan_count": 1,
+      "replanning_time_s": 0.049669999949401245,
+      "replan_validation_time_s": 0.005823699990287423,
+      "planning_failure_stage": null,
+      "recovery_reason": "alternative_budget_exhausted",
+      "alternative_count": 15,
+      "alternative_prefix_blocked_count": 15,
+      "alternative_tail_timeout_count": 0,
+      "alternative_request_budget_count": 0,
+      "alternative_expanded_nodes": 0,
+      "alternative_planning_time_s": 0.005126499949255958,
+      "alternative_accepted_count": 0,
+      "alternative_rejected_count": 0
+    },
+    {
+      "case": "validation_slalom_0_q1",
+      "planner": "hybrid_astar",
+      "seed": 1,
+      "mode": "recovery_v4",
+      "status": "recovery_failed",
+      "position_success": false,
+      "collision": false,
+      "goal_distance_m": 4.957517715370002,
+      "time_s": 2.25,
+      "driving_time_s": 1.65,
+      "stopped_time_s": 0.6,
+      "restart_count": 0,
+      "replan_count": 1,
+      "replanning_time_s": 0.04645889994571917,
+      "replan_validation_time_s": 0.005165300011867657,
+      "planning_failure_stage": null,
+      "recovery_reason": "alternative_budget_exhausted",
+      "alternative_count": 15,
+      "alternative_prefix_blocked_count": 15,
+      "alternative_tail_timeout_count": 0,
+      "alternative_request_budget_count": 0,
+      "alternative_expanded_nodes": 0,
+      "alternative_planning_time_s": 0.0020555999653879553,
+      "alternative_accepted_count": 0,
+      "alternative_rejected_count": 0
+    }
+  ],
+  "accepted_episodes": [
+    {
+      "case": "validation_slalom_0_q0",
+      "seed": 0,
+      "status": "reached",
+      "accepted": 1
+    },
+    {
+      "case": "validation_slalom_0_q0",
+      "seed": 1,
+      "status": "reached",
+      "accepted": 1
+    },
+    {
+      "case": "validation_slalom_0_q0",
+      "seed": 2,
+      "status": "reached",
+      "accepted": 1
+    },
+    {
+      "case": "validation_slalom_0_q1",
+      "seed": 2,
+      "status": "reached",
+      "accepted": 2
+    },
+    {
+      "case": "validation_heading_0_q1",
+      "seed": 0,
+      "status": "reached",
+      "accepted": 1
+    },
+    {
+      "case": "validation_heading_0_q1",
+      "seed": 1,
+      "status": "reached",
+      "accepted": 1
+    },
+    {
+      "case": "validation_heading_0_q1",
+      "seed": 2,
+      "status": "reached",
+      "accepted": 1
+    }
+  ],
+  "historical_five": [
+    {
+      "case": "validation_slalom_0_q0",
+      "seed": 1,
+      "v3": "reached",
+      "v4": "reached"
+    },
+    {
+      "case": "validation_slalom_0_q1",
+      "seed": 0,
+      "v3": "recovery_failed",
+      "v4": "recovery_failed"
+    },
+    {
+      "case": "validation_slalom_0_q1",
+      "seed": 1,
+      "v3": "recovery_failed",
+      "v4": "recovery_failed"
+    },
+    {
+      "case": "validation_slalom_0_q1",
+      "seed": 2,
+      "v3": "reached",
+      "v4": "reached"
+    },
+    {
+      "case": "validation_heading_0_q1",
+      "seed": 1,
+      "v3": "reached",
+      "v4": "reached"
+    }
+  ],
+  "v4_requests": [
+    {
+      "case": "validation_slalom_0_q0",
+      "seed": 0,
+      "at_s": 2.3000000000000003,
+      "nodes": 775,
+      "planning_s": 1.068380500015337,
+      "candidates": 5
+    },
+    {
+      "case": "validation_slalom_0_q0",
+      "seed": 1,
+      "at_s": 2.35,
+      "nodes": 717,
+      "planning_s": 1.0283671999641228,
+      "candidates": 5
+    },
+    {
+      "case": "validation_slalom_0_q0",
+      "seed": 2,
+      "at_s": 2.35,
+      "nodes": 674,
+      "planning_s": 0.991110800037859,
+      "candidates": 5
+    },
+    {
+      "case": "validation_slalom_0_q1",
+      "seed": 0,
+      "at_s": 2.2,
+      "nodes": 1918,
+      "planning_s": 2.694790599984117,
+      "candidates": 15
+    },
+    {
+      "case": "validation_slalom_0_q1",
+      "seed": 1,
+      "at_s": 2.25,
+      "nodes": 0,
+      "planning_s": 0.0020555999653879553,
+      "candidates": 15
+    },
+    {
+      "case": "validation_slalom_0_q1",
+      "seed": 2,
+      "at_s": 2.25,
+      "nodes": 835,
+      "planning_s": 1.1767919000703841,
+      "candidates": 5
+    },
+    {
+      "case": "validation_slalom_0_q1",
+      "seed": 2,
+      "at_s": 2.9000000000000004,
+      "nodes": 2010,
+      "planning_s": 2.9048612999613397,
+      "candidates": 15
+    },
+    {
+      "case": "validation_heading_0_q1",
+      "seed": 0,
+      "at_s": 3.5,
+      "nodes": 424,
+      "planning_s": 0.7049813999910839,
+      "candidates": 5
+    },
+    {
+      "case": "validation_heading_0_q1",
+      "seed": 1,
+      "at_s": 3.5,
+      "nodes": 455,
+      "planning_s": 0.7806826999876648,
+      "candidates": 5
+    },
+    {
+      "case": "validation_heading_0_q1",
+      "seed": 2,
+      "at_s": 3.5,
+      "nodes": 455,
+      "planning_s": 0.7163275999773759,
+      "candidates": 5
+    }
+  ],
+  "max_request_expanded_nodes": 2010,
+  "max_request_candidate_planning_s": 2.9048612999613397,
+  "png_visual_review": "Both PNGs inspected: 24 query/seed panels; identical overlapping paired traces; slalom q1 seeds 0/1 stopped; summary matches JSON.",
+  "timing": [
+    {
+      "planner": "hybrid_astar",
+      "mode": "recovery_v3",
+      "n": 24,
+      "reached": 22,
+      "collision": 0,
+      "timeout": 0,
+      "planning_failed": 0,
+      "recovery_failed": 2,
+      "mean_driving_time_s": 11.293750000000001,
+      "mean_stopped_time_s": 0.8166666666666669,
+      "restart_count": 22,
+      "replan_count": 10,
+      "alternative_count": 80,
+      "alternative_prefix_blocked_count": 67,
+      "alternative_tail_timeout_count": 0,
+      "alternative_request_budget_count": 0,
+      "alternative_expanded_nodes": 8263,
+      "alternative_planning_time_s": 22.071750999835785,
+      "alternative_accepted_count": 8,
+      "alternative_rejected_count": 5,
+      "replanning_time_s": 22.45872399979271,
+      "replan_validation_time_s": 1.0913353999494575
+    },
+    {
+      "planner": "hybrid_astar",
+      "mode": "recovery_v4",
+      "n": 24,
+      "reached": 22,
+      "collision": 0,
+      "timeout": 0,
+      "planning_failed": 0,
+      "recovery_failed": 2,
+      "mean_driving_time_s": 11.293750000000001,
+      "mean_stopped_time_s": 0.8166666666666669,
+      "restart_count": 22,
+      "replan_count": 10,
+      "alternative_count": 80,
+      "alternative_prefix_blocked_count": 67,
+      "alternative_tail_timeout_count": 0,
+      "alternative_request_budget_count": 0,
+      "alternative_expanded_nodes": 8263,
+      "alternative_planning_time_s": 12.068349599954672,
+      "alternative_accepted_count": 8,
+      "alternative_rejected_count": 5,
+      "replanning_time_s": 12.454020099976333,
+      "replan_validation_time_s": 1.1341065999295097
+    }
+  ]
+}

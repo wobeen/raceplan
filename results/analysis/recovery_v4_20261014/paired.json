@@ -1,0 +1,194 @@
+[
+  {
+    "case": "validation_gate_0_q0",
+    "seed": 0,
+    "v3_status": "reached",
+    "v4_status": "reached",
+    "same_success_time_delta_s": 0.0,
+    "accepted_candidates": 0
+  },
+  {
+    "case": "validation_gate_0_q0",
+    "seed": 1,
+    "v3_status": "reached",
+    "v4_status": "reached",
+    "same_success_time_delta_s": 0.0,
+    "accepted_candidates": 0
+  },
+  {
+    "case": "validation_gate_0_q0",
+    "seed": 2,
+    "v3_status": "reached",
+    "v4_status": "reached",
+    "same_success_time_delta_s": 0.0,
+    "accepted_candidates": 0
+  },
+  {
+    "case": "validation_gate_0_q1",
+    "seed": 0,
+    "v3_status": "reached",
+    "v4_status": "reached",
+    "same_success_time_delta_s": 0.0,
+    "accepted_candidates": 0
+  },
+  {
+    "case": "validation_gate_0_q1",
+    "seed": 1,
+    "v3_status": "reached",
+    "v4_status": "reached",
+    "same_success_time_delta_s": 0.0,
+    "accepted_candidates": 0
+  },
+  {
+    "case": "validation_gate_0_q1",
+    "seed": 2,
+    "v3_status": "reached",
+    "v4_status": "reached",
+    "same_success_time_delta_s": 0.0,
+    "accepted_candidates": 0
+  },
+  {
+    "case": "validation_slalom_0_q0",
+    "seed": 0,
+    "v3_status": "reached",
+    "v4_status": "reached",
+    "same_success_time_delta_s": 0.0,
+    "accepted_candidates": 1
+  },
+  {
+    "case": "validation_slalom_0_q0",
+    "seed": 1,
+    "v3_status": "reached",
+    "v4_status": "reached",
+    "same_success_time_delta_s": 0.0,
+    "accepted_candidates": 1
+  },
+  {
+    "case": "validation_slalom_0_q0",
+    "seed": 2,
+    "v3_status": "reached",
+    "v4_status": "reached",
+    "same_success_time_delta_s": 0.0,
+    "accepted_candidates": 1
+  },
+  {
+    "case": "validation_slalom_0_q1",
+    "seed": 0,
+    "v3_status": "recovery_failed",
+    "v4_status": "recovery_failed",
+    "same_success_time_delta_s": null,
+    "accepted_candidates": 0
+  },
+  {
+    "case": "validation_slalom_0_q1",
+    "seed": 1,
+    "v3_status": "recovery_failed",
+    "v4_status": "recovery_failed",
+    "same_success_time_delta_s": null,
+    "accepted_candidates": 0
+  },
+  {
+    "case": "validation_slalom_0_q1",
+    "seed": 2,
+    "v3_status": "reached",
+    "v4_status": "reached",
+    "same_success_time_delta_s": 0.0,
+    "accepted_candidates": 2
+  },
+  {
+    "case": "validation_turn_0_q0",
+    "seed": 0,
+    "v3_status": "reached",
+    "v4_status": "reached",
+    "same_success_time_delta_s": 0.0,
+    "accepted_candidates": 0
+  },
+  {
+    "case": "validation_turn_0_q0",
+    "seed": 1,
+    "v3_status": "reached",
+    "v4_status": "reached",
+    "same_success_time_delta_s": 0.0,
+    "accepted_candidates": 0
+  },
+  {
+    "case": "validation_turn_0_q0",
+    "seed": 2,
+    "v3_status": "reached",
+    "v4_status": "reached",
+    "same_success_time_delta_s": 0.0,
+    "accepted_candidates": 0
+  },
+  {
+    "case": "validation_turn_0_q1",
+    "seed": 0,
+    "v3_status": "reached",
+    "v4_status": "reached",
+    "same_success_time_delta_s": 0.0,
+    "accepted_candidates": 0
+  },
+  {
+    "case": "validation_turn_0_q1",
+    "seed": 1,
+    "v3_status": "reached",
+    "v4_status": "reached",
+    "same_success_time_delta_s": 0.0,
+    "accepted_candidates": 0
+  },
+  {
+    "case": "validation_turn_0_q1",
+    "seed": 2,
+    "v3_status": "reached",
+    "v4_status": "reached",
+    "same_success_time_delta_s": 0.0,
+    "accepted_candidates": 0
+  },
+  {
+    "case": "validation_heading_0_q0",
+    "seed": 0,
+    "v3_status": "reached",
+    "v4_status": "reached",
+    "same_success_time_delta_s": 0.0,
+    "accepted_candidates": 0
+  },
+  {
+    "case": "validation_heading_0_q0",
+    "seed": 1,
+    "v3_status": "reached",
+    "v4_status": "reached",
+    "same_success_time_delta_s": 0.0,
+    "accepted_candidates": 0
+  },
+  {
+    "case": "validation_heading_0_q0",
+    "seed": 2,
+    "v3_status": "reached",
+    "v4_status": "reached",
+    "same_success_time_delta_s": 0.0,
+    "accepted_candidates": 0
+  },
+  {
+    "case": "validation_heading_0_q1",
+    "seed": 0,
+    "v3_status": "reached",
+    "v4_status": "reached",
+    "same_success_time_delta_s": 0.0,
+    "accepted_candidates": 1
+  },
+  {
+    "case": "validation_heading_0_q1",
+    "seed": 1,
+    "v3_status": "reached",
+    "v4_status": "reached",
+    "same_success_time_delta_s": 0.0,
+    "accepted_candidates": 1
+  },
+  {
+    "case": "validation_heading_0_q1",
+    "seed": 2,
+    "v3_status": "reached",
+    "v4_status": "reached",
+    "same_success_time_delta_s": 0.0,
+    "accepted_candidates": 1
+  }
+]

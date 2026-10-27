@@ -1,0 +1,246 @@
+{
+  "episodes": 48,
+  "v2_historical_pairs": 24,
+  "v2_result_differences": [],
+  "v2_sample_differences": [],
+  "config_equal": {
+    "cases": true,
+    "seeds": true,
+    "vehicle": true,
+    "tracker": true,
+    "simulation": true,
+    "noise": true,
+    "obstacle_guard": true,
+    "planning_timeout_s": true,
+    "paths_content": true
+  },
+  "artifact_hash_mismatches": [],
+  "input_hash_mismatches": [],
+  "source_hash_mismatches": [],
+  "paired_success": {
+    "n": 15,
+    "v2_mean_s": 11.846666666666668,
+    "v3_mean_s": 11.846666666666668
+  },
+  "rescued": [
+    [
+      "validation_slalom_0_q0",
+      "hybrid_astar",
+      0
+    ],
+    [
+      "validation_slalom_0_q0",
+      "hybrid_astar",
+      2
+    ],
+    [
+      "validation_heading_0_q1",
+      "hybrid_astar",
+      0
+    ],
+    [
+      "validation_heading_0_q1",
+      "hybrid_astar",
+      2
+    ]
+  ],
+  "regressed": [],
+  "accepted_episodes": [
+    {
+      "case": "validation_slalom_0_q0",
+      "planner": "hybrid_astar",
+      "seed": 0,
+      "mode": "recovery_v3",
+      "status": "reached",
+      "position_success": true,
+      "collision": false,
+      "goal_distance_m": 0.4864097937470825,
+      "time_s": 13.8,
+      "driving_time_s": 12.45,
+      "stopped_time_s": 1.3500000000000005,
+      "restart_count": 1,
+      "replan_count": 2,
+      "replanning_time_s": 9.013378600036958,
+      "replan_validation_time_s": 0.3635738000157289,
+      "planning_failure_stage": null,
+      "recovery_reason": null,
+      "alternative_count": 15,
+      "alternative_expanded_nodes": 1879,
+      "alternative_planning_time_s": 8.978701600048225,
+      "alternative_accepted_count": 1,
+      "alternative_rejected_count": 0
+    },
+    {
+      "case": "validation_slalom_0_q0",
+      "planner": "hybrid_astar",
+      "seed": 2,
+      "mode": "recovery_v3",
+      "status": "reached",
+      "position_success": true,
+      "collision": false,
+      "goal_distance_m": 0.49584047866001324,
+      "time_s": 13.75,
+      "driving_time_s": 12.399999999999999,
+      "stopped_time_s": 1.3500000000000005,
+      "restart_count": 1,
+      "replan_count": 2,
+      "replanning_time_s": 8.697970000008354,
+      "replan_validation_time_s": 0.37038920001941733,
+      "planning_failure_stage": null,
+      "recovery_reason": null,
+      "alternative_count": 15,
+      "alternative_expanded_nodes": 1755,
+      "alternative_planning_time_s": 8.651052100030938,
+      "alternative_accepted_count": 1,
+      "alternative_rejected_count": 1
+    },
+    {
+      "case": "validation_heading_0_q1",
+      "planner": "hybrid_astar",
+      "seed": 0,
+      "mode": "recovery_v3",
+      "status": "reached",
+      "position_success": true,
+      "collision": false,
+      "goal_distance_m": 0.48535942984672387,
+      "time_s": 13.100000000000001,
+      "driving_time_s": 11.850000000000001,
+      "stopped_time_s": 1.2500000000000004,
+      "restart_count": 1,
+      "replan_count": 1,
+      "replanning_time_s": 5.81072090001544,
+      "replan_validation_time_s": 0.32817639998393133,
+      "planning_failure_stage": null,
+      "recovery_reason": null,
+      "alternative_count": 10,
+      "alternative_expanded_nodes": 782,
+      "alternative_planning_time_s": 5.6206797000195365,
+      "alternative_accepted_count": 1,
+      "alternative_rejected_count": 0
+    },
+    {
+      "case": "validation_heading_0_q1",
+      "planner": "hybrid_astar",
+      "seed": 2,
+      "mode": "recovery_v3",
+      "status": "reached",
+      "position_success": true,
+      "collision": false,
+      "goal_distance_m": 0.48445134563488407,
+      "time_s": 12.600000000000001,
+      "driving_time_s": 11.350000000000001,
+      "stopped_time_s": 1.2500000000000004,
+      "restart_count": 1,
+      "replan_count": 1,
+      "replanning_time_s": 5.539381199982017,
+      "replan_validation_time_s": 0.42781880000256933,
+      "planning_failure_stage": null,
+      "recovery_reason": null,
+      "alternative_count": 10,
+      "alternative_expanded_nodes": 589,
+      "alternative_planning_time_s": 5.405834799981676,
+      "alternative_accepted_count": 1,
+      "alternative_rejected_count": 0
+    }
+  ],
+  "v3_candidates_by_reason": {
+    "prefix_clearance_blocked": 103,
+    "timeout": 15,
+    "success": 7
+  },
+  "v3_preview_outcomes": {
+    "prefix_trackable": 4,
+    "prefix_blocked": 3
+  },
+  "v3_case_summary": [
+    {
+      "case": "validation_gate_0_q0",
+      "statuses": {
+        "reached": 3
+      },
+      "candidates": 0,
+      "accepted": 0,
+      "planning_s": 0
+    },
+    {
+      "case": "validation_gate_0_q1",
+      "statuses": {
+        "reached": 3
+      },
+      "candidates": 0,
+      "accepted": 0,
+      "planning_s": 0
+    },
+    {
+      "case": "validation_slalom_0_q0",
+      "statuses": {
+        "reached": 2,
+        "recovery_failed": 1
+      },
+      "candidates": 45,
+      "accepted": 2,
+      "planning_s": 26.639183499995852
+    },
+    {
+      "case": "validation_slalom_0_q1",
+      "statuses": {
+        "recovery_failed": 3
+      },
+      "candidates": 45,
+      "accepted": 0,
+      "planning_s": 17.986540900019463
+    },
+    {
+      "case": "validation_turn_0_q0",
+      "statuses": {
+        "reached": 3
+      },
+      "candidates": 0,
+      "accepted": 0,
+      "planning_s": 0.0
+    },
+    {
+      "case": "validation_turn_0_q1",
+      "statuses": {
+        "reached": 3
+      },
+      "candidates": 0,
+      "accepted": 0,
+      "planning_s": 0.0
+    },
+    {
+      "case": "validation_heading_0_q0",
+      "statuses": {
+        "reached": 3
+      },
+      "candidates": 0,
+      "accepted": 0,
+      "planning_s": 0.0
+    },
+    {
+      "case": "validation_heading_0_q1",
+      "statuses": {
+        "reached": 2,
+        "recovery_failed": 1
+      },
+      "candidates": 35,
+      "accepted": 2,
+      "planning_s": 20.48284049992799
+    }
+  ],
+  "timing": {
+    "recovery_v2": {
+      "replanning_time_s": 0.8170445999712683,
+      "replan_validation_time_s": 0.10379000005195849,
+      "alternative_planning_time_s": 0,
+      "alternative_expanded_nodes": 0
+    },
+    "recovery_v3": {
+      "replanning_time_s": 65.1085648999433,
+      "replan_validation_time_s": 1.5657669999927748,
+      "alternative_planning_time_s": 64.26305059995502,
+      "alternative_expanded_nodes": 10519
+    }
+  },
+  "maximum_candidate_expanded_nodes": 651
+}

@@ -1,5 +1,102 @@
 # RacePlan
 
+## 프로젝트 개요
+
+RacePlan은 Dijkstra, A*, Hybrid A* 경로 계획 알고리즘을 동일한 물리적 지도와 차량 조건에서 비교하는 2D 주행 시뮬레이션 프로젝트입니다. 통로 폭, 장애물 배치, 회전 구간과 격자 해상도가 경로 계획과 실제 주행에 미치는 영향을 분석합니다.
+
+경로가 생성되었더라도 차량의 크기와 조향 제약 때문에 주행 중 충돌하거나 정지할 수 있습니다. 따라서 **경로 계획 성공과 차량의 실제 목표 도달을 구분**하여 평가합니다. 목표 도달은 충돌 없이 후륜 축 중심이 목표 위치 0.5m 이내에 진입한 경우이며, 최종 방향은 요구하지 않습니다.
+
+### 비교 대상과 주행 방식
+
+- **Dijkstra와 A***: 격자 기반 경로 탐색. 차량 크기를 반영하기 위해 장애물을 확장한 계획 지도를 사용합니다.
+- **Hybrid A***: 차량의 위치·방향과 조향 제약을 고려한 경로 탐색. 차량의 직사각형 형태를 충돌 검사에 반영합니다.
+- 각 경로는 차량 조향과 이동을 표현하는 공통 시뮬레이터에서 주행합니다. 알고리즘별 장애물 처리 방식의 차이는 결과 해석에 포함합니다.
+
+### 실험 조건
+
+지도 특성의 영향을 구분하기 위해 기본 실험에서는 한 번에 하나의 특성을 변경하고 다른 조건을 유지합니다.
+
+- **기본 환경**: 장애물이 없거나 주행 공간에 충분한 여유가 있는 지도에서 기본 성능을 확인합니다.
+- **통로 폭**: 통로를 단계적으로 좁혀 경로 생성, 통과 및 충돌 여부를 비교합니다.
+- **장애물 배치**: 단일·연속·좌우 교차 배치에서 우회와 반복 조향의 영향을 살펴봅니다.
+- **회전 구간**: 완만한 회전과 급격한 방향 전환에서 조향 제약과 경로 추종 성능을 비교합니다.
+- **격자 해상도**: 같은 물리적 환경을 서로 다른 격자 크기로 표현하여 지도 표현과 탐색 비용의 변화를 확인합니다.
+- **출발·목표 조건**: 동일 지도에서 출발·목표 위치와 초기 방향을 바꾸어 결과의 변화를 확인합니다.
+
+주행 제어는 기본 경로 추종, 장애물 감속·정지, 정지 후 재출발·재계획으로 구분해 비교합니다. 제어 조건 비교에는 같은 초기 경로를 사용하며, 재계획 후 경로가 달라지면 그 횟수와 추가 계산시간을 기록합니다. 지도별 본 비교에 사용할 제어 정책은 실험 전에 고정합니다.
+
+차량 크기와 성능, 출발·목표, 제어 설정, 노이즈 설정과 seed를 비교 조건에 맞게 동일하게 유지합니다. 여러 seed로 반복하며, 탐색 노드 수와 시간 제한 및 실제 계산시간을 기록합니다. 구체적인 지도 조건의 수준과 반복 횟수는 추후 확정합니다.
+
+### 평가 지표
+
+- 목표 도달률, 충돌률, 계획 실패, 시간초과 및 회복 실패
+- 경로 길이, 목표 도달시간 및 경로 계획 계산시간
+- 장애물과의 최소 거리 및 경로 추종 오차
+- 정지시간, 재출발·재계획 횟수 및 추가 계산시간
+
+빠르게 종료된 실패를 성능 향상으로 오해하지 않도록 주행시간은 성공 사례끼리도 비교합니다. 주행 시뮬레이션 시간과 경로 계획에 사용한 실제 계산시간도 구분합니다.
+
+### 기대 효과 및 향후 계획
+
+지도 환경에 따른 알고리즘의 성능과 한계를 비교하고, 차량의 조향 제약과 주행 제어가 목표 도달에 미치는 영향을 파악합니다. 격자 해상도의 변화에 따른 경로 표현과 계산 비용의 관계도 살펴봅니다.
+
+개발용 지도에서 실험 설정을 조정한 뒤, 설정을 고정하고 개발에 사용하지 않은 별도 지도에서 최종 평가할 계획입니다. 결과는 비교 지표, 그래프 및 주행 궤적 이미지로 정리합니다. 이 개요는 향후 실험 계획을 포함하며 모든 지도 조건의 검증이 완료되었다는 뜻은 아닙니다.
+
+### 결과와 버전 관리
+
+기능 구현, 관련 테스트, 실험 결과와 문서 정리를 의미 있는 단위로 커밋합니다. 소스 코드, 지도·실험 설정, 요약 결과와 대표 이미지는 저장소에서 관리합니다. 대용량 원본 데이터는 별도로 보관하고 실험 재현 방법을 문서화합니다.
+
+<details>
+<summary>English overview</summary>
+
+## Project Overview
+
+RacePlan is a 2D driving simulation project that compares Dijkstra, A*, and Hybrid A* on the same physical maps and under the same vehicle conditions. It investigates how corridor width, obstacle layout, turns, and grid resolution affect path planning and vehicle driving performance.
+
+A planned path may still lead to a collision or a stop because of the vehicle's size and steering constraints. The project therefore **evaluates planning success and actual goal arrival separately**. A run reaches the goal when the rear-axle center enters within 0.5 m of the goal position without a collision; final heading is not required.
+
+### Planners and simulation
+
+- **Dijkstra and A*** use grid-based planning on a map with obstacles inflated to account for vehicle size.
+- **Hybrid A*** considers vehicle position, heading, and steering constraints and checks collisions against the rectangular vehicle footprint.
+- Paths are driven in a shared simulator that models vehicle steering and motion. Differences in how the planners account for obstacles are considered when interpreting results.
+
+### Experimental conditions
+
+The baseline experiments change one map characteristic at a time while keeping the other conditions fixed:
+
+- **Basic environment:** Open or sufficiently spacious maps to assess baseline performance.
+- **Corridor width:** Progressively narrower passages to compare planning, passage, and collision outcomes.
+- **Obstacle layout:** Single, consecutive, and alternating obstacles to assess detours and repeated steering.
+- **Turns:** Gentle and sharp direction changes to assess steering constraints and path tracking.
+- **Grid resolution:** Different cell sizes for the same physical environment to compare map representation and search cost.
+- **Start and goal conditions:** Different positions and initial headings on the same map.
+
+Driving control is compared under basic path tracking, obstacle-aware slowing and stopping, and restart and replanning after a stop. These comparisons use the same initial path; replanning count and additional computation time are recorded when the path changes. The control policy for the main map comparisons will be fixed before the experiments.
+
+Vehicle geometry and performance, start and goal, controller settings, noise configuration, and seeds are held consistent for each comparison. Runs use multiple seeds, and search-node limits, time limits, and actual computation time are recorded. Exact condition levels and repetition counts will be decided later.
+
+### Evaluation metrics
+
+- Goal arrival and collision rates; planning failures, timeouts, and recovery failures
+- Path length, goal arrival time, and path-planning computation time
+- Minimum obstacle clearance and path-tracking error
+- Stopped time, restart and replanning counts, and additional computation time
+
+Driving times are also compared among successful runs so that early termination of a failure is not mistaken for better performance. Simulated driving time and actual planning computation time are reported separately.
+
+### Expected outcomes and future work
+
+The study aims to identify how map characteristics affect planner performance and how steering constraints and driving control affect goal arrival. It will also examine the relationship between grid resolution, path representation, and computation cost.
+
+Settings will be adjusted using development maps, then held fixed for final evaluation on separate maps not used during development. Results will be presented with comparison metrics, charts, and trajectory images. These experiments are planned; validation across all listed map conditions is not yet complete.
+
+### Results and version control
+
+Implementation, relevant tests, experimental results, and documentation are committed in meaningful units. The repository tracks source code, map and experiment settings, summary results, and representative images. Large raw datasets are stored separately, and reproduction steps are documented.
+
+</details>
+
 F1TENTH-style 2D simulation experiments comparing Dijkstra, A*, and Hybrid A*
 under shared map, vehicle, controller, and metric conditions. The comparison is
 the baseline for multi-condition objective optimization and reproducible

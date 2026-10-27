@@ -20,6 +20,7 @@ from raceplan.research_engine import BASELINES, planner
 from raceplan.common.planning_space import circle_planning_grid
 from raceplan.simulator import NoiseConfig, RecoveryConfig, SimulationConfig, run_episode
 from raceplan.simulator.obstacle_guard import ObstacleGuardConfig
+from raceplan.planners.recovery_alternatives import forward_alternatives
 
 ROOT = FilePath(__file__).resolve().parents[1]
 MODES = ('baseline', 'guard', 'recovery')
@@ -48,7 +49,7 @@ def render(out, summary, traces, designs, paths):
     for x, label in zip(columns, headers):
         text(x, 130, label, 20)
     labels = dict(baseline='기존', guard='guard', recovery='회복 v1',
-                  recovery_v1='회복 v1', recovery_v2='회복 v2')
+                  recovery_v1='회복 v1', recovery_v2='회복 v2', recovery_v3='회복 v3', recovery_v4='회복 v4')
     for i, row in enumerate(summary):
         y = 185 + i * 70
         values = [row['planner'] + ' / ' + labels[row['mode']], row['n'],
@@ -57,14 +58,28 @@ def render(out, summary, traces, designs, paths):
                   f"{row['mean_stopped_time_s']:.2f}", row['replan_count'], row['restart_count']]
         for x, value in zip(columns, values):
             text(x, y, str(value))
+    if any(r['mode'] in ('recovery_v3', 'recovery_v4') for r in summary):
+        row = summary[-1]
+        earlier, later = (3, 4) if row['mode'] == 'recovery_v4' else (2, 3)
+        text(30, 400, f"v{later} 대안 후보: {row['alternative_count']}개 생성/시도, "
+             f"{row['alternative_accepted_count']}개 수락, {row['alternative_rejected_count']}개 preview/중복 거부", 25)
+        paired = json.loads((out/'paired.json').read_text(encoding='utf-8'))
+        successful = [r['same_success_time_delta_s'] for r in paired
+                      if r['same_success_time_delta_s'] is not None]
+        if successful:
+            text(30, 450, f'같은 성공 {len(successful)}쌍 평균 도달시간 차이 v{later}-v{earlier}: {mean(successful):+.2f}s', 25)
+        rescued = sum(r[f'v{earlier}_status'] != 'reached' and r[f'v{later}_status'] == 'reached' for r in paired)
+        text(30, 500, f'v{earlier} 실패 -> v{later} 도달: {rescued}건. 수락 후보의 실제 도달은 paired.json에서 확인.', 25)
+        text(30, 550, '계획+preview wall time: ' + ' / '.join(
+            f"{r['mode']} {r['replanning_time_s']+r['replan_validation_time_s']:.3f}s" for r in summary), 25)
     text(30, 845, '주행/정지 시간은 시뮬레이션 시간: 각 step 시작 속도 ≤ 0.03m/s이면 정지로 집계. planning wall time은 별도 JSON.', 20)
     text(30, 895, '샘플 충돌 검사·완전한 정적 지도·true pose 기반. swept collision, 동적 장애물, 센서 오차/제동 지연 보장 없음.', 20)
     image.save(out / 'comparison.png')
 
     # Each planner receives all cases and seeds, so a representative seed cannot hide failures.
     colors = dict(baseline='#c44f52', guard='#326ec1', recovery='#158979',
-                  recovery_v1='#326ec1', recovery_v2='#158979')
-    for name in BASELINES:
+                  recovery_v1='#326ec1', recovery_v2='#158979', recovery_v3='#c44f52', recovery_v4='#158979')
+    for name in dict.fromkeys(t['planner'] for t in traces):
         case_names = list(designs)
         seed_count = len({t['seed'] for t in traces})
         canvas = Image.new('RGB', (max(1740, seed_count * 575 + 25), 130 + len(case_names) * 365), 'white')
@@ -107,9 +122,13 @@ def main(argv=None):
     parser.add_argument('--source', type=FilePath, default=ROOT/'results/analysis/obstacle_guard_20261013')
     parser.add_argument('--output', type=FilePath, default=None)
     parser.add_argument('--compare-v2', action='store_true', help='paired recovery v1 versus v2; no retuning')
+    parser.add_argument('--compare-v3', action='store_true', help='Hybrid only: paired v2 versus bounded alternatives v3')
+    parser.add_argument('--compare-v4', action='store_true', help='Hybrid only: paired v3 versus request-bounded cached v4')
     parser.add_argument('--seeds', type=int, nargs='+', default=None)
     parser.add_argument('--planning-timeout', type=float, default=3.0)
     args = parser.parse_args(argv)
+    if sum((args.compare_v2, args.compare_v3, args.compare_v4)) > 1:
+        parser.error('choose one comparison version')
     if args.planning_timeout <= 0:
         parser.error('--planning-timeout must be positive')
     source = args.source.resolve()
@@ -128,8 +147,11 @@ def main(argv=None):
     noise = NoiseConfig(**old['noise'])
     guard = ObstacleGuardConfig(**old['obstacle_guard'])
     recovery = RecoveryConfig(policy_version=1)
-    modes = ('recovery_v1', 'recovery_v2') if args.compare_v2 else MODES
-    recovery_configs = {mode: replace(recovery, policy_version=2 if mode == 'recovery_v2' else 1)
+    modes = (('recovery_v3', 'recovery_v4') if args.compare_v4 else
+             ('recovery_v2', 'recovery_v3') if args.compare_v3 else
+             ('recovery_v1', 'recovery_v2') if args.compare_v2 else MODES)
+    names = ('hybrid_astar',) if args.compare_v3 or args.compare_v4 else BASELINES
+    recovery_configs = {mode: replace(recovery, policy_version=int(mode[-1]) if mode[-1].isdigit() else 1)
                         for mode in modes if mode.startswith('recovery')}
     paths = {}
     for item in saved:
@@ -141,7 +163,9 @@ def main(argv=None):
     expected = {(c, p) for c in designs for p in BASELINES}
     if set(paths) != expected:
         raise ValueError('saved paths must contain exactly every case/planner pair')
-    default_output = ROOT/'results/analysis'/('recovery_v2_20261013' if args.compare_v2 else 'recovery_20261013')
+    default_output = ROOT/'results/analysis'/('recovery_v4_20261014' if args.compare_v4 else
+                                            'recovery_v3_20261013' if args.compare_v3 else
+                                            'recovery_v2_20261013' if args.compare_v2 else 'recovery_20261013')
     out = (args.output or default_output).resolve()
     out.mkdir(parents=True, exist_ok=False)
     sources = sorted((ROOT/'src/raceplan').rglob('*.py')) + [FilePath(__file__)]
@@ -152,9 +176,17 @@ def main(argv=None):
         python=platform.python_version(), cases=old['cases'], seeds=seeds,
         vehicle=asdict(vehicle), tracker=asdict(tracker), simulation=asdict(simulation),
         noise=asdict(noise), obstacle_guard=asdict(guard), recovery=asdict(recovery),
-        modes=modes, recovery_configs={mode: asdict(config) for mode, config in recovery_configs.items()},
+        modes=modes, planners=names, recovery_configs={mode: asdict(config) for mode, config in recovery_configs.items()},
+        alternatives=dict(distances_m=[1.5, .75, 2.5], steering_fractions=[0, -.5, .5, -1, 1],
+                          max_candidates=15, tail_max_expanded_nodes=4000,
+                          clearance_cost_weight=.15, steering_cost_weight=.5,
+                          v4_request_node_budget=4000, v4_request_time_budget_s=3*args.planning_timeout,
+                          v4_exact_cache_entries=32768) if args.compare_v3 or args.compare_v4 else None,
         success_criterion='collision-free position within 0.5m, yaw excluded',
-        replan_policy='same planner and planning grid, fully stopped current true pose; no teleport; controller reset',
+        replan_policy=('v2 same planner; v3 rejected candidate then forward arc + weighted Hybrid tail; '
+                       'v4 exact clearance cache and shared request budget; '
+                       'fully stopped current true pose; controller reset') if args.compare_v3 or args.compare_v4 else
+                      'same planner and planning grid, fully stopped current true pose; no teleport; controller reset',
         planning_timeout_s=args.planning_timeout,
         timing='fixed simulation clock; planning wall time excluded and recorded separately',
         stop_threshold_mps=recovery.stop_speed_mps))
@@ -163,11 +195,15 @@ def main(argv=None):
     for case_name, case in designs.items():
         grid, start, goal, _ = build(case)
         planning_grid = circle_planning_grid(grid, vehicle)
-        for name in BASELINES:
+        for name in names:
             algorithm = planner(name)
             target_grid = grid if name == 'hybrid_astar' else planning_grid
             def replan(pose, destination):
                 return algorithm.plan(target_grid, pose, destination, timeout_s=args.planning_timeout)
+            def alternatives(pose, destination):
+                return forward_alternatives(algorithm, target_grid, pose, destination,
+                                            timeout_s=args.planning_timeout,
+                                            policy_version=int(mode[-1]))
             for seed in seeds:
                 for mode in modes:
                     row = dict(case=case_name, planner=name, seed=seed, mode=mode,
@@ -183,7 +219,8 @@ def main(argv=None):
                             initial_pose=start, simulation_seed=seed, noise=noise,
                             obstacle_guard=None if mode == 'baseline' else guard,
                             recovery=recovery_configs.get(mode),
-                            replanner=replan if mode in recovery_configs else None)
+                            replanner=replan if mode in recovery_configs else None,
+                            alternative_replanner=alternatives if mode in ('recovery_v3', 'recovery_v4') else None)
                         row.update(status=result.status.value, position_success=result.reached,
                                    collision=result.collided, goal_distance_m=result.goal_distance,
                                    time_s=result.completion_time_s, driving_time_s=result.driving_time_s,
@@ -192,6 +229,14 @@ def main(argv=None):
                                    replan_validation_time_s=result.replan_validation_time_s,
                                    planning_failure_stage='recovery' if result.status.value == 'planning_failed' else None,
                                    recovery_reason=result.recovery_reason)
+                        row.update(alternative_count=sum(e.kind == 'alternative' for e in result.recovery_events),
+                                   alternative_prefix_blocked_count=sum(e.kind == 'alternative' and e.reason.endswith(':prefix_clearance_blocked') for e in result.recovery_events),
+                                   alternative_tail_timeout_count=sum(e.kind == 'alternative' and e.reason.endswith(':timeout') for e in result.recovery_events),
+                                   alternative_request_budget_count=sum(e.kind == 'alternative' and e.reason.endswith(':request_budget_exhausted') for e in result.recovery_events),
+                                   alternative_expanded_nodes=sum(e.expanded_nodes for e in result.recovery_events if e.kind == 'alternative'),
+                                   alternative_planning_time_s=sum(e.planning_time_s for e in result.recovery_events if e.kind == 'alternative'),
+                                   alternative_accepted_count=sum(e.kind == 'alternative_accepted' for e in result.recovery_events),
+                                   alternative_rejected_count=sum(e.kind == 'alternative_rejected' for e in result.recovery_events))
                         traces.append(dict(case=case_name, planner=name, seed=seed, mode=mode,
                                            status=result.status.value,
                                            samples=[asdict(s) for s in result.samples],
@@ -202,7 +247,7 @@ def main(argv=None):
         dump(out/'trajectories.json', traces)
         print(case_name, flush=True)
     summary = []
-    for name in BASELINES:
+    for name in names:
         for mode in modes:
             subset = [r for r in rows if r['planner'] == name and r['mode'] == mode]
             summary.append(dict(planner=name, mode=mode, n=len(subset),
@@ -211,9 +256,29 @@ def main(argv=None):
                 mean_stopped_time_s=mean(r['stopped_time_s'] for r in subset),
                 restart_count=sum(r['restart_count'] for r in subset),
                 replan_count=sum(r['replan_count'] for r in subset),
+                alternative_count=sum(r.get('alternative_count', 0) for r in subset),
+                alternative_prefix_blocked_count=sum(r.get('alternative_prefix_blocked_count', 0) for r in subset),
+                alternative_tail_timeout_count=sum(r.get('alternative_tail_timeout_count', 0) for r in subset),
+                alternative_request_budget_count=sum(r.get('alternative_request_budget_count', 0) for r in subset),
+                alternative_expanded_nodes=sum(r.get('alternative_expanded_nodes', 0) for r in subset),
+                alternative_planning_time_s=sum(r.get('alternative_planning_time_s', 0) for r in subset),
+                alternative_accepted_count=sum(r.get('alternative_accepted_count', 0) for r in subset),
+                alternative_rejected_count=sum(r.get('alternative_rejected_count', 0) for r in subset),
                 replanning_time_s=sum(r['replanning_time_s'] for r in subset),
                 replan_validation_time_s=sum(r['replan_validation_time_s'] for r in subset)))
     dump(out/'summary.json', summary)
+    if args.compare_v3 or args.compare_v4:
+        paired = []
+        for case in designs:
+            for seed in seeds:
+                pair = {r['mode']: r for r in rows if r['case'] == case and r['seed'] == seed}
+                a, b = pair[modes[0]], pair[modes[1]]
+                paired.append(dict(case=case, seed=seed,
+                                   **{f'v{modes[0][-1]}_status': a['status'], f'v{modes[1][-1]}_status': b['status']},
+                                   same_success_time_delta_s=b['time_s']-a['time_s']
+                                   if a['position_success'] and b['position_success'] else None,
+                                   accepted_candidates=b.get('alternative_accepted_count', 0)))
+        dump(out/'paired.json', paired)
     render(out, summary, traces, designs, paths)
     dump(out/'complete.json', dict(artifacts={p.name: sha(p) for p in sorted(out.iterdir()) if p.is_file()}))
     print(json.dumps(summary, indent=2), flush=True)

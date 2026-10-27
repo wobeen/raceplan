@@ -5,12 +5,13 @@ guarantee for swept collisions, map error, steering latency or dynamic obstacles
 """
 from dataclasses import dataclass
 from math import isfinite, hypot
-from typing import Callable
+from typing import Callable, Iterable
 
 from raceplan.common import Path, PlannerResult, Pose2D, footprint_in_collision
 from raceplan.planners.hybrid_primitives import rollout_bicycle
 
 Replanner = Callable[[Pose2D, Pose2D], PlannerResult]
+AlternativeReplanner = Callable[[Pose2D, Pose2D], Iterable[PlannerResult]]
 
 
 @dataclass(frozen=True, slots=True)
@@ -30,6 +31,7 @@ class RecoveryConfig:
     feasibility_time_s: float = 5.0
     feasibility_progress_m: float = .5
     repeated_path_tolerance_m: float = .1
+    max_alternatives: int = 15
 
     def __post_init__(self):
         values = (self.stop_speed_mps, self.stop_dwell_s, self.creep_speed_mps,
@@ -41,10 +43,10 @@ class RecoveryConfig:
         if any(not isfinite(x) or x <= 0 for x in values):
             raise ValueError('recovery values must be finite and positive')
         if any(isinstance(x, bool) or not isinstance(x, int) or x < 0
-               for x in (self.max_restarts, self.max_replans)):
+               for x in (self.max_restarts, self.max_replans, self.max_alternatives)):
             raise ValueError('recovery budgets must be non-negative integers')
-        if isinstance(self.policy_version, bool) or self.policy_version not in (1, 2):
-            raise ValueError('recovery policy version must be 1 or 2')
+        if isinstance(self.policy_version, bool) or self.policy_version not in (1, 2, 3, 4):
+            raise ValueError('recovery policy version must be 1, 2, 3 or 4')
 
 
 class PathProgress:
@@ -129,6 +131,7 @@ class RecoveryEvent:
     path: Path | None = None
     planning_time_s: float = 0.0
     validation_time_s: float = 0.0
+    expanded_nodes: int = 0
 
 
 def creep_speed_cap(grid, clearance, pose, speed, steering, vehicle, simulation, guard, config):

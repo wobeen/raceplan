@@ -38,6 +38,9 @@ class HybridAStarConfig:
     goal_position_tolerance: float
     goal_yaw_tolerance: float
     primitives: MotionPrimitiveConfig
+    clearance_cost_weight: float = 0.0
+    steering_cost_weight: float = 0.0
+    max_expanded_nodes: int | None = None
 
     def __post_init__(self) -> None:
         numeric = (
@@ -55,6 +58,11 @@ class HybridAStarConfig:
             raise ValueError("goal position tolerance cannot be negative")
         if not 0 <= self.goal_yaw_tolerance <= pi:
             raise ValueError("goal yaw tolerance must be between 0 and pi")
+        if any(not isfinite(v) or v < 0 for v in
+               (self.clearance_cost_weight, self.steering_cost_weight)):
+            raise ValueError('search cost weights must be finite and non-negative')
+        if self.max_expanded_nodes is not None and self.max_expanded_nodes <= 0:
+            raise ValueError('node budget must be positive')
 
 
 @dataclass(frozen=True, slots=True)
@@ -121,11 +129,16 @@ class HybridAStarPlanner(Planner):
         goal: Pose2D,
         *,
         timeout_s: float | None = None,
+        clearance_evaluator=None,
     ) -> PlannerResult:
         if timeout_s is not None and timeout_s < 0:
             raise ValueError("timeout_s cannot be negative")
 
         started_at = perf_counter()
+        clearance = None
+        if self.config.clearance_cost_weight:
+            from raceplan.metrics import Clearance
+            clearance = clearance_evaluator if clearance_evaluator is not None else Clearance(grid)
 
         def result(
             status: PlannerStatus,
@@ -186,12 +199,31 @@ class HybridAStarPlanner(Planner):
                     expanded_nodes=expanded_nodes,
                 )
 
+            if (self.config.max_expanded_nodes is not None
+                    and expanded_nodes >= self.config.max_expanded_nodes):
+                return result(PlannerStatus.TIMEOUT, expanded_nodes=expanded_nodes)
+
             for primitive in generate_primitives(node.pose, self.vehicle, self.config.primitives):
                 if not primitive_is_collision_free(grid, primitive, self.vehicle):
                     continue
                 successor = primitive.poses[-1]
                 successor_key = self._state_key(grid, successor)
                 successor_cost = node.cost + abs(primitive.signed_distance)
+                if self.config.steering_cost_weight:
+                    successor_cost += (abs(primitive.signed_distance)
+                                       * self.config.steering_cost_weight
+                                       * abs(primitive.steering_angle)
+                                       / self.config.primitives.max_steering_angle)
+                # The clearance contribution is nonnegative. This lower-bound
+                # rejection avoids geometry work without changing search costs.
+                # Enable only for the explicitly optimized recovery call.
+                if (clearance_evaluator is not None
+                        and successor_cost >= best_cost.get(successor_key, float("inf"))):
+                    continue
+                if clearance is not None:
+                    gap = min(clearance.footprint(p, self.vehicle) for p in primitive.poses)
+                    successor_cost += (abs(primitive.signed_distance)
+                                       * self.config.clearance_cost_weight / max(gap, .02))
                 if successor_cost >= best_cost.get(successor_key, float("inf")):
                     continue
 

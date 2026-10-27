@@ -6,6 +6,7 @@ from dataclasses import dataclass, replace
 from enum import StrEnum
 from math import cos, hypot, isfinite, sqrt, sin, tan
 from time import perf_counter
+from itertools import islice
 
 from raceplan.common import (
     OccupancyGrid,
@@ -22,7 +23,7 @@ from raceplan.controllers import (
 from raceplan.planners.hybrid_primitives import normalize_angle
 from .noise import NoiseConfig, NoiseStreams
 from .obstacle_guard import ObstacleGuardConfig, guarded_acceleration, guard_diagnostics
-from .recovery import (RecoveryConfig, RecoveryEvent, Replanner, creep_speed_cap,
+from .recovery import (RecoveryConfig, RecoveryEvent, Replanner, AlternativeReplanner, creep_speed_cap,
                        PathProgress, path_prefix, repeated_path)
 
 
@@ -192,6 +193,7 @@ def run_episode(
     obstacle_guard: ObstacleGuardConfig | None = None,
     recovery: RecoveryConfig | None = None,
     replanner: Replanner | None = None,
+    alternative_replanner: AlternativeReplanner | None = None,
 ) -> SimulationResult:
     """Track one planned path with fixed controller and vehicle settings."""
 
@@ -232,7 +234,7 @@ def run_episode(
     samples: list[TrajectorySample] = [
         TrajectorySample(0.0, state, 0.0, 0.0, path_tracking_error(path, state.pose))
     ]
-    route_progress = PathProgress(active_path, state.pose) if recovery is not None and recovery.policy_version == 2 else None
+    route_progress = PathProgress(active_path, state.pose) if recovery is not None and recovery.policy_version >= 2 else None
 
     def finish(status: SimulationStatus, elapsed: float) -> SimulationResult:
         return SimulationResult(
@@ -301,7 +303,7 @@ def run_episode(
                 cap = creep_speed_cap(grid, clearance, state.pose, state.speed, steering,
                                       vehicle, simulation_config, obstacle_guard, recovery)
             if creeping and not pending_replan:
-                if recovery.policy_version == 2:
+                if recovery.policy_version >= 2:
                     diagnostics = guard_diagnostics(grid, clearance, state.pose, state.speed,
                                                     steering, vehicle, simulation_config, obstacle_guard)
                     # Enter creep at a sustained stop; exit only with sustained
@@ -348,7 +350,7 @@ def run_episode(
                         events.append(RecoveryEvent(elapsed, 'failed', state.pose, recovery_reason))
                         return finish(SimulationStatus.RECOVERY_FAILED, elapsed)
                     replans += 1
-                    if recovery.policy_version == 2:
+                    if recovery.policy_version >= 2:
                         blocked_prefixes.append(path_prefix(active_path, state.pose))
                     planned = replanner(state.pose, goal)
                     events.append(RecoveryEvent(elapsed, 'replan', state.pose,
@@ -357,7 +359,7 @@ def run_episode(
                     if planned.path is None:
                         recovery_reason = 'planner_' + planned.status.value
                         return finish(SimulationStatus.PLANNING_FAILED, elapsed)
-                    if recovery.policy_version == 2:
+                    if recovery.policy_version >= 2:
                         candidate_prefix = path_prefix(planned.path, state.pose)
                         duplicate = any(repeated_path(candidate_prefix, previous,
                                                        recovery.repeated_path_tolerance_m)
@@ -375,7 +377,40 @@ def run_episode(
                             recovery_reason = 'repeated_blocked_path' if duplicate else 'replan_not_trackable'
                             events.append(RecoveryEvent(elapsed, 'rejected', state.pose, recovery_reason,
                                                         planned.path))
-                            return finish(SimulationStatus.RECOVERY_FAILED, elapsed)
+                            replacement = None
+                            if recovery.policy_version >= 3 and alternative_replanner is not None:
+                                rejected_prefixes = blocked_prefixes + [candidate_prefix]
+                                candidates = alternative_replanner(state.pose, goal)
+                                for index, candidate in enumerate(islice(candidates, recovery.max_alternatives)):
+                                    events.append(RecoveryEvent(elapsed, 'alternative', state.pose,
+                                                                f"{index}:{candidate.metadata.get('reason', candidate.status.value)}",
+                                                                candidate.path, candidate.planning_time_s,
+                                                                expanded_nodes=candidate.expanded_nodes))
+                                    if candidate.path is None:
+                                        continue
+                                    prefix = path_prefix(candidate.path, state.pose)
+                                    same = any(repeated_path(prefix, previous,
+                                               recovery.repeated_path_tolerance_m)
+                                               for previous in rejected_prefixes)
+                                    started = perf_counter()
+                                    accepted = not same and replan_feasible(
+                                        grid, candidate.path, goal, state.pose, vehicle,
+                                        tracker_config, simulation_config, obstacle_guard, recovery)
+                                    events.append(RecoveryEvent(elapsed,
+                                        'alternative_accepted' if accepted else 'alternative_rejected',
+                                        state.pose, 'repeated_blocked_path' if same else
+                                        ('prefix_trackable' if accepted else 'prefix_blocked'),
+                                        candidate.path, validation_time_s=perf_counter()-started))
+                                    if accepted:
+                                        replacement = candidate
+                                        break
+                                    rejected_prefixes.append(prefix)
+                            if replacement is None:
+                                if recovery.policy_version >= 3:
+                                    recovery_reason = 'alternative_budget_exhausted'
+                                return finish(SimulationStatus.RECOVERY_FAILED, elapsed)
+                            planned = replacement
+                            recovery_reason = None
                     # Never teleport to the planner's discretized start pose.
                     active_path = planned.path
                     tracker = PurePursuitController(active_path, vehicle, tracker_config)
