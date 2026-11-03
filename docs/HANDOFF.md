@@ -10,6 +10,35 @@
 각 스텝에서 구현을 마친 뒤 테스트를 묶어서 실행하고 검증 결과를 기록한다.
 RacePlan과 무관한 .pptx-build/ 및 output/ 발표 자료는 이번 커밋에서 제외한다.
 
+## 스텝1: 비교·분석·PNG 통합 명령 구현
+
+6.1-sol이 `python -m raceplan.workflow`와 `raceplan-workflow` 진입점을 추가했다.
+기존 experiment/analyze/custom_report 소스는 보존하고 각 main API를 순서대로 호출한다.
+새 output-dir 아래 comparison CSV/manifest, analysis/, comparison.png와 workflow.json을
+저장한다. 단계별 pending/running/complete/failed 및 failed_phase를 기록하고 실패 후
+후속 단계는 실행하지 않는다. 부분 결과는 보존하며 같은 폴더는 재실행하지 않는다.
+scenario/planners/custom/seeds/noise/inflation을 전달하고 baseline/report-seed/spacing을
+지원한다. 입력/기존 출력/예약 --output/seed/수치 오류는 가능한 실행 전에 거부한다.
+사용자 baseline은 plugin import 중복을 피하려고 완료 manifest에서 검증한다.
+구현 중 테스트0회, 구현 완료 후 관련9 passed(2.41s), 전체96 passed(5.51s),
+workflow smoke1회(4planner×3seed12건)를 묶어 실행했다. 전부 도달했고 충돌/timeout/
+계획실패0. 단계3개 모두 complete이며 report seed1 PNG를 시각 확인했다.
+출력은 `results/raw/workflow_step1_20261104/`에 보존한다. 통합 테스트는 custom
+import1회, 옵션 전달, 기존 출력/예약 인자/seed 거부, experiment·analysis·report
+실패 시 상태·부분 결과 보존을 확인했다. 콘솔 진입점은 pyproject에 등록했고 이번
+smoke는 `python -m raceplan.workflow`로 실행했다. Astra 독립 검토·커밋은 다음 단계다.
+기존 세 모듈 diff0, git diff --check 통과. 구현 에이전트는 stage/commit하지 않았다.
+
+Astra P3로 대시로 시작하는 합법적인 custom 이름/파일의 내부 argparse 전달을
+보완했다. baseline/custom은 --option=value로 전달하고 scenario는 절대경로로 전달한다.
+`--foo.py:UserPlanner`, `--baseline=--mine`, `-- -demo.yaml`을 함께 실행하는 통합
+경계 회귀1개를 추가했다. 수정 완료 뒤 묶어서 관련10 passed(2.24s), 전체97 passed
+(4.53s)를 확인했다. 이전 smoke와 출력은 보존했고 새 smoke는 재실행하지 않았다.
+Astra 최종 승인 완료. 수정 전 기본 경로는 12건 smoke로, 최종 옵션 전달 수정은
+실제 시나리오·플러그인·baseline을 함께 실행하는 E2E 회귀로 검증했다.
+관련10/전체97 통과, 기존 세 모듈 변경0을 확인했고 잔여 차단 결함은 없다.
+스텝1을 완료했으며 다음 개발 스텝은 사용자 플래너 오류 처리·실측 계획시간이다.
+
 ## 최신: 기본 기능 안내와 연구 기능 정리
 
 사용자 요청으로 기본 사용 흐름을 비교 실행 → 저장 결과 분석 → PNG로 정리했다.

@@ -11,14 +11,31 @@ Python 3.11 or newer, from the repository root:
 
 ```powershell
 python -m pip install -e ".[dev]"
-python -m raceplan.experiment scenarios/demo.yaml --simulation-seeds 0 1 2 --output results/raw/comparison.csv
-python -m raceplan.analyze results/raw/comparison.csv --baseline astar --output-dir results/analysis/comparison
-python -m raceplan.custom_report results/raw/comparison.csv --output results/figures/comparison.png
+python -m raceplan.workflow scenarios/demo.yaml --simulation-seeds 0 1 2 --output-dir results/raw/comparison
 ```
 
-Use new output names for each run; existing results are rejected.
-Analysis and reporting read saved artifacts. PNG outcome counts cover every seed;
-the first seed is displayed by default, with `--seed N` available.
+This runs the comparison, analyzes saved results, and renders a PNG. After installation,
+`raceplan-workflow` accepts the same arguments. Choose a new `--output-dir` for each run;
+existing folders are rejected. Outputs are `comparison.csv`, path/trajectory CSVs and a
+manifest, `analysis/`, `comparison.png`, and per-phase status in `workflow.json`.
+
+PNG counts cover every seed; `--report-seed N` selects the displayed trajectory.
+`--baseline astar` selects the analysis reference. The default is A* when selected,
+otherwise the first selected baseline. `--spacing 0.1` controls analysis path sampling
+in metres. The runner's noise and `--inflation-radius` options are supported.
+
+Input and seed errors are rejected before execution where possible. Custom baseline
+names are checked against the completed manifest so custom code is imported only once.
+On failure, later phases stop; `workflow.json` records `failed_phase` and partial outputs
+remain available. There is no automatic retry in the same folder. Lower-level output
+arguments such as `--output` are not accepted by the workflow command.
+
+To analyze or render existing results independently:
+
+```powershell
+python -m raceplan.analyze results/raw/comparison/comparison.csv --baseline astar --output-dir results/analysis/reanalysis
+python -m raceplan.custom_report results/raw/comparison/comparison.csv --seed 1 --output results/figures/selected_seed.png
+```
 
 The shared simulator uses Pure Pursuit, speed PID, a bicycle model, and rectangular
 vehicle collision checks. Success means reaching within 0.5 m of the goal with no
@@ -33,8 +50,7 @@ Successful paths contain world-coordinate poses in metres and radians.
 The template delegates to A* to demonstrate integration.
 
 ```powershell
-python -m raceplan.experiment scenarios/demo.yaml --custom-planner examples/my_planner.py:MyPlanner --simulation-seeds 0 1 2 --output results/raw/custom.csv
-python -m raceplan.custom_report results/raw/custom.csv --output results/figures/custom.png
+python -m raceplan.workflow scenarios/demo.yaml --custom-planner examples/my_planner.py:MyPlanner --simulation-seeds 0 1 2 --output-dir results/raw/custom
 ```
 
 Select baselines using `--planners astar hybrid_astar`; repeat `--custom-planner`
@@ -57,7 +73,7 @@ The manifest records settings, source hashes, map provenance, and environment.
 Summary, path, and trajectory CSVs preserve planning failures and driving outcomes.
 See [map conventions](maps/README.md) for map inputs.
 
-Run `python -m pytest -q` after installation. The last full verification passed 91 tests.
+Run `python -m pytest -q` after installation. The last full verification passed 97 tests.
 Experimental candidates and historical runners are indexed separately in
 [feature scope](docs/FEATURE_SCOPE.md) (Korean), [results](results/README.md), and
 [handoff](docs/HANDOFF.md). Earlier README content is retained under

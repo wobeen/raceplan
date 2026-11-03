@@ -21,14 +21,30 @@ Python 3.11 이상에서 저장소 루트에서 실행합니다.
 
 ```powershell
 python -m pip install -e ".[dev]"
-python -m raceplan.experiment scenarios/demo.yaml --simulation-seeds 0 1 2 --output results/raw/comparison.csv
-python -m raceplan.analyze results/raw/comparison.csv --baseline astar --output-dir results/analysis/comparison
-python -m raceplan.custom_report results/raw/comparison.csv --output results/figures/comparison.png
+python -m raceplan.workflow scenarios/demo.yaml --simulation-seeds 0 1 2 --output-dir results/raw/comparison
 ```
 
-기존 출력은 덮어쓰지 않으므로 새 실행에는 새 이름을 사용합니다.
-분석과 PNG 생성은 저장된 결과를 읽습니다. PNG의 집계는 전체 seed 기준이며,
-기본 첫 seed의 궤적을 표시합니다. `--seed 1`로 표시할 궤적을 바꿀 수 있습니다.
+한 명령으로 비교 실행 → 저장 결과 분석 → PNG 생성까지 진행합니다. 설치 후에는
+`raceplan-workflow`도 같은 인자를 받습니다. 기존 폴더는 덮어쓰지 않으므로 새 실행에는
+새 `--output-dir`을 지정합니다. 폴더에 `comparison.csv`, 경로·궤적 CSV와 manifest,
+`analysis/`, `comparison.png`, 단계별 상태를 기록한 `workflow.json`이 생깁니다.
+
+PNG의 집계는 전체 seed 기준이며 기본 첫 seed의 궤적을 표시합니다.
+`--report-seed 1`로 표시할 궤적, `--baseline astar`로 분석 기준을 선택합니다.
+기준을 생략하면 선택된 A*, A*가 없으면 첫 baseline을 사용합니다. `--spacing 0.1`은
+분석 경로 샘플 간격(m)입니다. 잡음과 `--inflation-radius` 옵션도 기존 실행기와 같습니다.
+
+입력·seed 오류는 가능한 실행 전에 거부합니다. 사용자 플래너를 두 번 import하지 않도록
+사용자 baseline 이름은 실행 완료 manifest에서 확인합니다. 단계가 실패하면 후속 단계를
+멈추고 `workflow.json`의 `failed_phase`와 부분 산출물을 보존합니다. 같은 폴더의 자동
+재시도는 하지 않습니다. `--output` 같은 개별 모듈 출력 인자는 통합 명령에서 받지 않습니다.
+
+저장 결과만 다시 분석하거나 PNG를 만들 때는 개별 명령을 사용합니다.
+
+```powershell
+python -m raceplan.analyze results/raw/comparison/comparison.csv --baseline astar --output-dir results/analysis/reanalysis
+python -m raceplan.custom_report results/raw/comparison/comparison.csv --seed 1 --output results/figures/selected_seed.png
+```
 
 `uv`를 사용하는 환경은 `uv sync --python 3.13 --extra dev` 후 각 명령을
 `uv run --python 3.13 python -m ...`으로 실행할 수 있습니다.
@@ -41,8 +57,7 @@ python -m raceplan.custom_report results/raw/comparison.csv --output results/fig
 성공 경로는 월드 좌표 미터와 radian을 사용하는 `Pose2D` 목록입니다.
 
 ```powershell
-python -m raceplan.experiment scenarios/demo.yaml --custom-planner examples/my_planner.py:MyPlanner --simulation-seeds 0 1 2 --output results/raw/custom.csv
-python -m raceplan.custom_report results/raw/custom.csv --output results/figures/custom.png
+python -m raceplan.workflow scenarios/demo.yaml --custom-planner examples/my_planner.py:MyPlanner --simulation-seeds 0 1 2 --output-dir results/raw/custom
 ```
 
 `--planners astar hybrid_astar`로 baseline을 선택하고 `--custom-planner`를
@@ -67,7 +82,7 @@ Dijkstra/A*는 점의 격자 연결성, Hybrid A*는 회전한 차량 footprint�
 
 ## 개발과 연구 자료
 
-테스트는 설치 후 `python -m pytest -q`로 실행합니다. 마지막 전체 검증은 91 passed입니다.
+테스트는 설치 후 `python -m pytest -q`로 실행합니다. 마지막 전체 검증은 97 passed입니다.
 
 효과가 확인되지 않은 후보와 버전별 실험은 기본 사용 안내에서 제외했습니다.
 연구 기능의 상태·보존 이유·이전 문서 위치는 [기능 범위](docs/FEATURE_SCOPE.md),

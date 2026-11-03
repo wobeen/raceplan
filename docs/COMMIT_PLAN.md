@@ -14,6 +14,22 @@ push는 별도 요청 시 진행한다. 관련 없는 사용자 파일은 커밋
 
 각 스텝의 테스트는 코드 작성 완료 후 묶어서 실행한다. 아래는 과거 커밋 안내다.
 
+### 스텝1 — 비교 실행·분석·PNG 통합
+
+`src/raceplan/workflow.py`, 진입점 pyproject, workflow 회귀 테스트와 한/영 README를
+한 단위로 묶는다. 기존 experiment/analyze/custom_report는 변경하지 않는다.
+새 폴더·단계별 상태·부분 결과 보존, custom import1회 및 기존 옵션 전달을 검증한다.
+구현 에이전트가 코드 작성 후 관련/전체 pytest와 smoke를 묶어 실행하고, Astra 독립
+검증 후 주 에이전트가 해당 스텝을 커밋한다. .pptx-build/output 사용자 자료는 제외한다.
+구현 후 관련9 passed(2.41s), 전체96 passed(5.51s), workflow smoke12건 모두 도달.
+출력 `results/raw/workflow_step1_20261104/`, PNG 시각 확인과 diff --check 완료.
+구현 에이전트는 staging/commit하지 않았고 Astra 독립 검토 대기다.
+Astra P3 전달 경계 수정 후 관련10 passed(2.24s), 전체97 passed(4.53s).
+기존 실행기/분석기/렌더러는 그대로 보존했다. Astra 최종 승인 완료: 초기 smoke는
+기본 경로를, 수정 후 E2E 회귀는 최종 옵션 전달을 검증했다. 스텝1 완료 후 커밋한다.
+
+## 과거 안내 (현재 커밋 원칙으로 대체됨)
+
 커밋과 staging은 사용자가 수행한다. 이전 분석/보고 커밋은 9758b8f 및
 6bc0b84로 반영되었다. 아래는 그 이후 작업의 권장 단위다.
 
