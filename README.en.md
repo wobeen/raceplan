@@ -57,6 +57,12 @@ Select baselines using `--planners astar hybrid_astar`; repeat `--custom-planner
 for multiple implementations with distinct names. Loading a Python file executes
 it, so use trusted code. See the [interface guide](docs/CUSTOM_PLANNER_COMPARISON.md)
 (in Korean) for configuration and failure handling.
+Ordinary custom `plan` exceptions and invalid results are recorded as `planning_error`
+with an error type/message for every seed; the remaining comparison continues. Long diagnostics
+are bounded and marked as truncated. Import/config
+errors and builtin bugs still stop execution. `KeyboardInterrupt` and `SystemExit` are not
+converted into planning failures. Workflow `complete` means processing finished, not that
+every planner reached the goal.
 
 ## Interpretation
 
@@ -64,8 +70,11 @@ Every planner and simulation uses the same inflated grid; inflation defaults to
 zero. Grid planners check point connectivity, while Hybrid A* checks an oriented
 vehicle footprint. Planning representations therefore differ.
 
-Each planner plans once and reuses its path across seeds. Planning time is
-self-reported, not independent timing per seed. The legacy `path_cost_m` column
+Each planner plans once and reuses its path across seeds. `planning_time_ms` remains
+planner-reported. `runner_planning_time_ms` measures wall time around the plan call only,
+excluding loading, grid copies, result validation, and driving. Both values are reused
+across seeds, not independent timing samples. Legacy batches show runner timing as n/a.
+The legacy `path_cost_m` column
 contains planner-defined cost; analysis computes geometric length separately.
 Custom planner timeouts require cooperation from the implementation.
 
@@ -73,7 +82,7 @@ The manifest records settings, source hashes, map provenance, and environment.
 Summary, path, and trajectory CSVs preserve planning failures and driving outcomes.
 See [map conventions](maps/README.md) for map inputs.
 
-Run `python -m pytest -q` after installation. The last full verification passed 97 tests.
+Run `python -m pytest -q` after installation. The last full verification passed 104 tests.
 Experimental candidates and historical runners are indexed separately in
 [feature scope](docs/FEATURE_SCOPE.md) (Korean), [results](results/README.md), and
 [handoff](docs/HANDOFF.md). Earlier README content is retained under

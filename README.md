@@ -64,6 +64,11 @@ python -m raceplan.workflow scenarios/demo.yaml --custom-planner examples/my_pla
 반복해 여러 사용자 플래너를 추가할 수 있습니다. 이름은 서로 달라야 합니다.
 사용자 파일은 Python 코드로 실행되므로 신뢰할 수 있는 파일을 지정합니다.
 인터페이스·설정·실패 처리는 [사용자 플래너 안내](docs/CUSTOM_PLANNER_COMPARISON.md)를 참고하세요.
+사용자 `plan`의 일반 예외나 잘못된 반환값은 모든 seed에 `planning_error`와 원인
+유형·message를 기록하고 나머지 비교를 계속합니다. 긴 진단은 truncation 표시와 함께
+저장 길이를 제한합니다. import/config 오류와 내부 baseline 버그는 실행을 중단하며
+`KeyboardInterrupt`·`SystemExit`도 계획 실패로 바꾸지 않습니다.
+`workflow.json`의 complete는 실행·분석·그림 처리 완료이며 모든 플래너의 도달을 뜻하지 않습니다.
 
 ## 비교 조건과 해석
 
@@ -71,8 +76,11 @@ python -m raceplan.workflow scenarios/demo.yaml --custom-planner examples/my_pla
 Dijkstra/A*는 점의 격자 연결성, Hybrid A*는 회전한 차량 footprint를 검사합니다.
 탐색의 충돌 제약은 서로 다르며 실제 주행 충돌은 공통 시뮬레이터로 평가합니다.
 
-계획은 플래너당 한 번 실행해 여러 주행 seed에 재사용합니다. 계획시간은 플래너의
-자체 보고값이고 seed별 독립 측정이 아닙니다. `path_cost_m`은 기존 컬럼명이며
+계획은 플래너당 한 번 실행해 여러 주행 seed에 재사용합니다. `planning_time_ms`는
+플래너 자체 보고값, `runner_planning_time_ms`는 실행기가 plan 호출만 실측한 wall time입니다.
+로딩·지도 복사·결과 검증·주행 시간은 실측 계획시간에 포함하지 않습니다. 두 시간 모두
+같은 plan을 seed에 재사용한 값이며 seed별 독립 측정이 아닙니다. 구 batch의 실측값은 n/a입니다.
+`path_cost_m`은 기존 컬럼명이며
 플래너별 비용 정의가 다를 수 있습니다. 실제 경로 길이는 분석에서 별도로 계산합니다.
 사용자 플래너의 timeout은 구현이 협조해야 적용됩니다.
 
@@ -82,7 +90,7 @@ Dijkstra/A*는 점의 격자 연결성, Hybrid A*는 회전한 차량 footprint�
 
 ## 개발과 연구 자료
 
-테스트는 설치 후 `python -m pytest -q`로 실행합니다. 마지막 전체 검증은 97 passed입니다.
+테스트는 설치 후 `python -m pytest -q`로 실행합니다. 마지막 전체 검증은 104 passed입니다.
 
 효과가 확인되지 않은 후보와 버전별 실험은 기본 사용 안내에서 제외했습니다.
 연구 기능의 상태·보존 이유·이전 문서 위치는 [기능 범위](docs/FEATURE_SCOPE.md),

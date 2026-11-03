@@ -14,15 +14,14 @@ from pathlib import Path
 
 import numpy as np
 
-from raceplan.common import (
-    OccupancyGrid, PlannerResult, inflate_obstacles, load_occupancy_map, load_scenario,
-)
+from raceplan.common import OccupancyGrid, inflate_obstacles, load_occupancy_map, load_scenario
 from raceplan.defaults import (
     baseline_hybrid_astar, baseline_simulation_config,
     baseline_tracker_config, baseline_vehicle,
 )
 from raceplan.planners import AStarPlanner, DijkstraPlanner
 from raceplan.planners.custom import load_custom_planner
+from raceplan.planners.execution import ERROR_MESSAGE_LIMIT, ERROR_TYPE_LIMIT, TRUNCATION_MARKER, plan_once
 from raceplan.simulator import NoiseConfig, run_episode
 
 PLANNER_FACTORIES = {
@@ -36,6 +35,7 @@ FIELDS = (
     "simulation_status", "reached", "collision", "completion_time_s",
     "goal_distance_m", "tracking_rmse_m", "max_tracking_error_m",
     "steering_total_variation_rad", "steering_saturation_fraction",
+    "runner_planning_time_ms", "planning_error_type", "planning_error_message", "planning_error_truncated",
 )
 TRAJECTORY_FIELDS = (
     "episode_id", "step", "time_s", "x_m", "y_m", "yaw_rad", "speed_mps",
@@ -140,6 +140,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         parser.error(f'invalid planner configuration: {exc}')
     manifest = {
         "schema_version": 1,
+        "experiment_revision": 2,
         "status": "running",
         "scenario": {**asdict(scenario), "map_path": str(scenario.map_path)},
         "scenario_file": str(args.scenario.resolve()),
@@ -162,7 +163,11 @@ def main(argv: Sequence[str] | None = None) -> int:
         "custom_planner_sources": custom_sources,
         "planning_repetitions": 1,
         "planning_note": "One plan per planner reused across seeds; times are not independent repeats",
-        "planning_time_note": "planning_time_ms is planner-reported planning_time_s * 1000; the runner does not measure wall time",
+        "planning_time_note": "planning_time_ms is planner-reported planning_time_s * 1000; blank when a custom call or result contract failed",
+        "runner_planning_time_note": "runner_planning_time_ms is perf_counter wall time around one plan() call; excludes loading, grid copy, result validation and driving; reused across seeds, not independent repeats",
+        "custom_planning_error_policy": "continue after custom plan Exception or invalid result data contract; record planning_error and type/message for every seed; imports/config, builtin bugs, KeyboardInterrupt and SystemExit still abort",
+        "planning_error_diagnostic_limits": {"type_characters": ERROR_TYPE_LIMIT, "message_characters": ERROR_MESSAGE_LIMIT,
+                                             "truncation": f"planning_error_truncated=True and {TRUNCATION_MARKER} suffix"},
         "path_cost_note": "path_cost_m is a legacy column name; cost units are planner-defined, not necessarily metres",
         "python": platform.python_version(),
         "numpy": np.__version__,
@@ -193,10 +198,10 @@ def main(argv: Sequence[str] | None = None) -> int:
             # A plugin can make its numpy array writable; keep simulation and other
             # planners independent even when an implementation edits its input.
             planning_grid = OccupancyGrid(grid.occupied, grid.resolution, grid.origin_x, grid.origin_y)
-            planned = planner.plan(planning_grid, scenario.start, scenario.goal, timeout_s=scenario.timeout_s)
-            if not isinstance(planned, PlannerResult):
-                raise TypeError(f'{planner.name}.plan must return raceplan.common.PlannerResult')
             plan_id = planner.name
+            outcome = plan_once(planner, planning_grid, scenario.start, scenario.goal,
+                                timeout_s=scenario.timeout_s, is_custom=plan_id in custom_sources)
+            planned = outcome.result
             if planned.path is not None:
                 for index, pose in enumerate(planned.path.poses):
                     path_writer.writerow(dict(zip(PATH_FIELDS, (plan_id, index, pose.x, pose.y, pose.yaw))))
@@ -205,11 +210,14 @@ def main(argv: Sequence[str] | None = None) -> int:
                 row = dict.fromkeys(FIELDS, "")
                 row.update(
                     episode_id=episode_id, plan_id=plan_id, scenario=scenario.name,
-                    map_seed=scenario.map_seed, simulation_seed=seed, planner=planner.name,
+                    map_seed=scenario.map_seed, simulation_seed=seed, planner=plan_id,
                     planning_status=planned.status.value,
                     path_cost_m="" if planned.path is None else planned.path.cost,
-                    expanded_nodes=planned.expanded_nodes,
-                    planning_time_ms=planned.planning_time_s * 1000.0,
+                    expanded_nodes=planned.expanded_nodes if outcome.reported_time_available else "",
+                    planning_time_ms=planned.planning_time_s * 1000.0 if outcome.reported_time_available else "",
+                    runner_planning_time_ms=outcome.runner_planning_time_ms,
+                    planning_error_type=outcome.error_type, planning_error_message=outcome.error_message,
+                    planning_error_truncated=outcome.error_truncated,
                     simulation_status="not_run", reached=False, collision=False,
                 )
                 if planned.path is not None:

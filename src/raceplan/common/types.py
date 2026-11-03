@@ -41,6 +41,7 @@ class PlannerStatus(StrEnum):
     INVALID_START = "invalid_start"
     INVALID_GOAL = "invalid_goal"
     TIMEOUT = "timeout"
+    ERROR = "planning_error"
 
 
 @dataclass(frozen=True, slots=True)

@@ -10,6 +10,42 @@
 각 스텝에서 구현을 마친 뒤 테스트를 묶어서 실행하고 검증 결과를 기록한다.
 RacePlan과 무관한 .pptx-build/ 및 output/ 발표 자료는 이번 커밋에서 제외한다.
 
+## 스텝2: 사용자 계획 오류 계속 처리·runner 실측 구현
+
+6.1-sol이 plan 호출/데이터 계약 검증 adapter를 추가했다. custom의 일반 예외/잘못된
+결과는 planning_error와 type/message를 모든 seed에 기록하고 다음 planner를 계속한다.
+builtin 예외·계약 오류, KeyboardInterrupt/SystemExit는 계획 오류로 바꾸지 않는다.
+loader/config 사전 오류도 기존대로 중단한다. 유한 타입/값·상태/경로 일관성만 검증하고
+차량 안전성/최적성 판정은 추가하지 않았다. 검증한 path는 tuple snapshot으로 저장한다.
+
+기존 reported planning_time_ms는 유지하고 runner_planning_time_ms로 plan 호출1회의
+perf_counter 실측을 별도 기록한다. 로딩/grid copy/결과 검증/주행은 제외하며 같은
+plan 시간을 seed에 재사용한다. schema1/experiment_revision2의 additive 변경이며
+분석/PNG는 구 batch의 실측 누락을 n/a/null로 처리한다. planning_error는 전체 실패와
+별도 오류수에 포함하고 모든 계획 실패 batch도 분석·PNG를 완료한다.
+기존 sealed runner/raw/protocol/source hash 기록은 그대로 보존한다. 현재 src는 후속
+버전이라 당시 live-source hash 불일치는 정상이다. 이번 회귀·smoke는 구현 완료 뒤
+묶어서 실행하며 검증·Astra·커밋 기록은 다음 단계다. 구현 에이전트 staging/commit 없음.
+
+구현 완료 뒤 관련23 passed(6.16s), 전체103 passed(9.98s), workflow smoke18행을
+한 묶음으로 실행했다. 정상12행 도달·의도한 planning_error6행 not_run, 충돌/timeout/
+통상 계획실패0이다. 모든 planner의 runner 측정은1개씩이고3seed에 동일하게 기록한다.
+오류 뒤 MyPlanner3건도 도달했으며 A*와 paired 주행 delta0. workflow/analysis/PNG
+모두 complete, seed1 PNG 시각 확인 완료. 출력 `results/raw/workflow_step2_20261104/`.
+전체 실패·legacy 컬럼·builtin/control-exception 전파 회귀를 통과했고 기존 sealed
+runner/raw/protocol 파일 diff0. git diff --check 통과, Astra 검토·커밋은 다음 단계다.
+
+Astra P2/P3 수정으로 오류 type128자/message4096자 제한과 `planning_error_truncated`
+및 접미사를 기록한다. 짧은 개행 원문은 CSV에 보존하고 PNG만 한 줄로 정규화하며,
+긴 줄은 이진 탐색으로 폭을 맞춘다. reported seconds→ms도 finite인지 검사한다.
+수정 완료 뒤 관련24 passed(4.89s), 전체104 passed(7.14s)를 묶어 실행했다.
+개행/NUL·14만자 진단·ms overflow 후에도 정상 planner/분석/PNG를 완료하는 E2E와
+폭 측정 호출수 회귀를 통과했다. 이전18행 smoke 보존, 별도 재실행 없음. 최종 승인
+기록과 커밋은 주 에이전트가 진행하며 구현 에이전트 staging/commit은 없다.
+Astra 최종 승인 완료: 초기18건 smoke는 일반 경로, 수정 후 E2E는 긴/개행 오류와
+ms overflow 경계를 검증했다. 관련24/전체104 통과이며 잔여 차단 결함은 없다.
+스텝2 완료 후 커밋한다. 다음 스텝은 설정 파일 기반 여러 시나리오 일괄 비교다.
+
 ## 스텝1: 비교·분석·PNG 통합 명령 구현
 
 6.1-sol이 `python -m raceplan.workflow`와 `raceplan-workflow` 진입점을 추가했다.

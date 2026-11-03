@@ -34,6 +34,8 @@ def _write(path, rows):
 
 def failure_class(row):
     if row['planning_status'] != 'success':
+        if row['planning_status'] == 'planning_error':
+            return 'planning_error'
         return 'planning_' + row['planning_status']
     status = row['simulation_status']
     if status == 'collision':
@@ -173,8 +175,15 @@ def main(argv=None):
         aggregate = dict(planner=planner, episodes=len(rows), reached=len(successes),
                          reach_rate=len(successes) / len(rows),
                          planning_failures=sum(v for k, v in counts.items() if k.startswith('planning_')),
+                         planning_errors=counts['planning_error'],
                          initial_collisions=counts['initial_collision'],
                          driving_collisions=counts['driving_collision'], timeouts=counts['timeout'])
+        # One saved plan is reused across the seeds in this single-scenario batch.
+        # Do not turn duplicated per-seed durations into independent timing samples.
+        aggregate['planning_calls'] = len({row['plan_id'] for row in rows})
+        for metric in ('planning_time_ms', 'runner_planning_time_ms'):
+            value = rows[0].get(metric, '')
+            aggregate[metric] = float(value) if value else None
         for metric in ('tracking_rmse_m', 'completion_time_s', 'steering_saturation_fraction'):
             values = [float(row[metric]) for row in successes]
             for name, quantile in [('median', 0.5), ('q25', 0.25), ('q75', 0.75), ('q90', 0.9)]:
@@ -220,6 +229,8 @@ def main(argv=None):
         'clearance': 'minimum sampled footprint distance; zero for overlap or contact; not swept clearance',
         'diameter_proxy': 'twice minimum reference-point clearance / width; NOT map bottleneck width',
         'aggregation': 'one batch only; all failures counted; continuous quantiles on reached episodes only',
+        'planning_errors': 'planning_error is a custom plan exception or invalid result data contract; included in planning_failures',
+        'planning_times': 'one reported/runner duration per plan, reused across seeds; missing runner timing in legacy batches is null, not zero',
         'pair_delta': 'planner minus baseline, continuous metrics only when both reached',
         'driving_clearance': 'all recorded true poses including failures; no temporal resampling or swept guarantee',
         'driving_clearance_aggregation': 'all driven episodes including collision and timeout; lower tail q10',

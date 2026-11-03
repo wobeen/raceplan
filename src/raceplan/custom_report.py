@@ -9,6 +9,7 @@ from collections import defaultdict
 from collections.abc import Sequence
 from math import hypot
 from pathlib import Path
+import unicodedata
 
 from PIL import Image, ImageDraw, ImageFont
 
@@ -35,6 +36,22 @@ def _font(size: int):
 
 def _number(value: str) -> str:
     return f'{float(value):.3f}' if value else '-'
+
+
+def _fit_line(draw, text, font, width):
+    """Display one line and use logarithmically many width measurements."""
+    text = ''.join(' ' if unicodedata.category(char).startswith('C') else char for char in text)
+    text = ' '.join(text.split())
+    if draw.textlength(text, font=font) <= width:
+        return text
+    low, high = 0, len(text)
+    while low < high:
+        middle = (low + high + 1) // 2
+        if draw.textlength(text[:middle] + '...', font=font) <= width:
+            low = middle
+        else:
+            high = middle - 1
+    return text[:low] + '...'
 
 
 def render_report(summary: Path, output: Path, seed: int | None = None) -> Path:
@@ -95,7 +112,8 @@ def render_report(summary: Path, output: Path, seed: int | None = None) -> Path:
     canvas = Image.new('RGB', (1200, 125 + panel_h * len(selected)), '#f7f9fc')
     draw = ImageDraw.Draw(canvas)
     font, small, title = _font(18), _font(16), _font(26)
-    draw.text((24, 17), f'RacePlan | {manifest["scenario"]["name"]} | seed {seed}', fill='#14253d', font=title)
+    heading = _fit_line(draw, f'RacePlan | {manifest["scenario"]["name"]} | seed {seed}', title, 1150)
+    draw.text((24, 17), heading, fill='#14253d', font=title)
     draw.text((24, 56), f'All-seed counts: {len(manifest["simulation_seeds"])} paired seeds per planner; one plan reused.',
               fill='#526279', font=small)
     draw.text((24, 81), 'Development run | physical map shown | planning and driving use recorded inflation.',
@@ -134,23 +152,27 @@ def render_report(summary: Path, output: Path, seed: int | None = None) -> Path:
         collisions = sum(r['collision'] == 'True' for r in group)
         timeouts = sum(r['simulation_status'] == 'timeout' for r in group)
         failures = sum(r['planning_status'] != 'success' for r in group)
+        errors = sum(r['planning_status'] == 'planning_error' for r in group)
+        runner_time = row.get('runner_planning_time_ms', '')
+        runner_label = _number(runner_time) + ' ms' if runner_time else 'n/a'
         waypoints = paths[row['plan_id']]
         length = sum(hypot(float(b['x_m']) - float(a['x_m']), float(b['y_m']) - float(a['y_m']))
                      for a, b in zip(waypoints, waypoints[1:])) if waypoints else None
         lines = [
             planner,
-            f'All seeds: reached {reached}/{len(group)} | collisions {collisions} | timeouts {timeouts} | plan failures {failures}',
+            f'All seeds: reached {reached}/{len(group)} | collision {collisions} | timeout {timeouts} | plan fail {failures} / errors {errors}',
             f'Seed {seed}: plan {row["planning_status"]} | drive {row["simulation_status"]}',
             f'Planner cost: {_number(row["path_cost_m"])} | XY path length: {length:.3f} m' if length is not None else 'No planned path',
-            f'Planning (planner-reported): {_number(row["planning_time_ms"])} ms | expanded: {row["expanded_nodes"]}',
+            f'Planning: reported {_number(row["planning_time_ms"])} ms | runner wall {runner_label} | expanded: {row["expanded_nodes"]}',
             f'Elapsed: {_number(row["completion_time_s"])} s | goal distance: {_number(row["goal_distance_m"])} m',
-            f'Tracking RMSE: {_number(row["tracking_rmse_m"])} m',
+            (f'Error: {row.get("planning_error_type", "")} | {row.get("planning_error_message", "")}'
+             if row['planning_status'] == 'planning_error'
+             else f'Tracking RMSE: {_number(row["tracking_rmse_m"])} m'),
             'Grey: plan | teal: driven | green/red dots: start/goal',
             'Planner cost units depend on the algorithm; elapsed includes failed driving.',
         ]
         for n, line in enumerate(lines):
-            while draw.textlength(line, font=font) > 755:
-                line = line[:-4] + '...'
+            line = _fit_line(draw, line, font, 755)
             draw.text((405, top + 8 + n * 31), line, fill='#14253d', font=font)
     output.parent.mkdir(parents=True, exist_ok=True)
     with output.open('xb') as stream:

@@ -28,6 +28,21 @@ Astra P3 전달 경계 수정 후 관련10 passed(2.24s), 전체97 passed(4.53s)
 기존 실행기/분석기/렌더러는 그대로 보존했다. Astra 최종 승인 완료: 초기 smoke는
 기본 경로를, 수정 후 E2E 회귀는 최종 옵션 전달을 검증했다. 스텝1 완료 후 커밋한다.
 
+### 스텝2 — custom 오류와 runner 실측
+
+common 상태/plan adapter, experiment의 별도 실측·오류 필드, analysis/report의 오류
+집계와 legacy 호환, 핵심 계약·계속 실행·전체 실패 회귀 및 README/인터페이스를 묶는다.
+기존 sealed runner/raw/protocol/hash 기록은 수정하지 않으며 현재 src는 후속 버전이다.
+구현 완료 후 관련/전체 pytest와 정상·실패 custom workflow smoke를 묶어서 실행하고
+Astra 독립 검증 후 주 에이전트가 커밋한다. 구현 에이전트는 stage/commit하지 않는다.
+구현 후 관련23 passed(6.16s), 전체103 passed(9.98s), workflow smoke18행 중 정상12도달/
+의도한 planning_error6 not_run. 출력 `results/raw/workflow_step2_20261104/`, PNG 시각
+확인과 diff --check 완료. Astra 독립 검토 대기다.
+Astra P2/P3 진단 길이·개행 표시·ms finite 수정 후 관련24 passed(4.89s),
+전체104 passed(7.14s). 최종 소스는 E2E 회귀로 확인했고 이전 smoke를 보존했다.
+Astra 최종 승인 완료. 관련24/전체104 통과, 초기 smoke와 최종 수정 E2E를 구분해
+기록했다. 잔여 차단 결함 없이 스텝2를 커밋한다.
+
 ## 과거 안내 (현재 커밋 원칙으로 대체됨)
 
 커밋과 staging은 사용자가 수행한다. 이전 분석/보고 커밋은 9758b8f 및

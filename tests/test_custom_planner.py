@@ -42,8 +42,8 @@ class NoPathPlanner(Planner):
         ('no_path', '0'), ('no_path', '1')}
     assert all(r['planning_status'] == 'success' for r in rows[:4])
     for baseline, custom in zip(rows[:2], rows[2:4]):
-        assert {k: v for k, v in baseline.items() if k not in {'episode_id', 'plan_id', 'planner', 'planning_time_ms'}} == {
-            k: v for k, v in custom.items() if k not in {'episode_id', 'plan_id', 'planner', 'planning_time_ms'}}
+        assert {k: v for k, v in baseline.items() if k not in {'episode_id', 'plan_id', 'planner', 'planning_time_ms', 'runner_planning_time_ms'}} == {
+            k: v for k, v in custom.items() if k not in {'episode_id', 'plan_id', 'planner', 'planning_time_ms', 'runner_planning_time_ms'}}
     assert all(r['planning_status'] == 'no_path' and r['simulation_status'] == 'not_run' for r in rows[4:])
     manifest = json.loads(output.with_name('comparison_manifest.json').read_text())
     assert manifest['custom_planner_sources']['user_planner']['sha256'] == hashlib.sha256(plugin.read_bytes()).hexdigest()

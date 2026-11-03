@@ -30,8 +30,23 @@ def plan(self, grid, start, goal, *, timeout_s=None) -> PlannerResult:
 성공 시 `PlannerResult(PlannerStatus.SUCCESS, Path(...))`에 월드 좌표 미터와
 radian의 `Pose2D`를 넣는다. 실패 시 `NO_PATH`, `INVALID_START`, `INVALID_GOAL`,
 `TIMEOUT` 중 상태를 반환하고 path는 넣지 않는다. 정상적인 계획 실패는 모든 seed에
-`simulation_status=not_run`으로 남는다. 예외 또는 잘못된 반환형은 batch를 중단하고,
-완료되지 않은 manifest/부분 CSV를 남긴다. 리포트는 완료된 batch만 읽는다.
+`simulation_status=not_run`으로 남는다. 2026-11-04 experiment revision2부터 사용자
+`plan`의 일반 예외 또는 데이터 계약을 어기는 반환값은 `planning_error`로 전환하고
+나머지 planner 비교를 계속한다. 모든 seed에 `planning_error_type/message`, 실측 시간과
+`not_run`을 기록하며 유효하지 않은 경로·미검증 reported time/expanded nodes는 저장하지 않는다.
+리포트는 완료된 batch만 읽는다. 전체 planner가 실패해도 완료된 batch는 분석·PNG를 만든다.
+
+계약 검사는 PlannerResult/PlannerStatus, 성공 시 비어 있지 않은 Pose2D sequence,
+유한 좌표·비용·reported time, 비음수 비용·시간·정수 탐색량, 실패 시 path 없음 등이다.
+reported seconds를 milliseconds로 변환한 값까지 유한해야 한다.
+유효한 list/tuple 경로는 tuple snapshot으로 복사한다. 충돌 안전성·최적성·추종 가능성이나
+목표 도달을 데이터 계약 검사에서 추가 판정하지 않는다. `planning_error`는 일반적인
+`no_path`/`timeout`과 구분되고 분석에서 전체 planning_failures에도 포함된다.
+
+import/생성/config 오류와 builtin 내부 예외·계약 오류는 batch를 중단하며 부분 CSV와
+미완료 manifest를 보존한다. `KeyboardInterrupt`·`SystemExit`는 plan adapter 밖으로
+전파하고 이후 planner를 실행하지 않는다. workflow는 이 중단을 failed phase로 기록한다.
+custom 오류 뒤에도 처리된 batch의 workflow complete는 모든 planner 성공을 뜻하지 않는다.
 
 선택적인 `config`는 manifest에 저장한다. JSON 호환 mapping과 dataclass는 중첩된
 값까지 보존하며 tuple은 JSON 배열로 기록한다. 문자열 key, 문자열·bool·정수·유한
@@ -44,8 +59,12 @@ radian의 `Pose2D`를 넣는다. 실패 시 `NO_PATH`, `INVALID_START`, `INVALID
 - 각 플래너는 한 번 계획하고 그 경로를 모든 주행 seed에서 재사용한다. 계획시간을
   seed 수만큼 독립 반복한 것으로 해석하지 않는다. 확률적 플래너의 별도 seed API는 없다.
 - `planning_time_ms`는 플래너가 반환한 `planning_time_s`를 ms로 바꾼 자체 보고값이다.
-  실행기가 wall time을 측정하지 않으므로 미계측 사용자 플래너의 기본값 0은 실제
-  계산시간 0을 뜻하지 않는다. PNG에도 planner-reported로 표시한다.
+  미계측 사용자 플래너의 기본값0은 실제 계산시간0을 뜻하지 않는다. 유효한 결과를
+  얻지 못한 custom 오류의 reported time과 expanded nodes는 비어 있다.
+- `runner_planning_time_ms`는 실행기의 perf_counter로 plan 호출1회만 실측한 값이다.
+  호출의 예외 unwind를 포함하며 로딩/지도 사본/반환 데이터 검증/주행은 제외한다.
+  모든 seed에 같은 측정값을 기록하고 분석 집계는 saved plan1회로 세어 중복 표본을 만들지 않는다.
+  PNG는 reported와 runner wall을 따로 표시한다. 구 batch에 없는 실측값은 n/a/null이다.
 - 플래너별 지도 사본을 제공하므로 사용자 코드가 배열 쓰기를 켜서 수정해도 다른
   플래너와 시뮬레이터의 지도에 영향을 주지 않는다. 실행 시간 제한은 cooperative
   `timeout_s`이며 외부 프로세스에 의한 강제 중단은 제공하지 않는다.
@@ -65,6 +84,54 @@ radian의 `Pose2D`를 넣는다. 실패 시 `NO_PATH`, `INVALID_START`, `INVALID
 
 성공 기준은 충돌 없이 목표 위치 0.5m 이내 진입이며 yaw는 참고값이다. 이 데모는
 연결·저장·리포트 확인을 위한 개발 실행이고 held-out 일반화나 실차 성능의 근거가 아니다.
+
+## 저장 형식과 과거 결과 호환
+
+manifest의 schema_version1은 유지하고 `experiment_revision=2`로 이번 추가 필드와
+오류 정책을 구분한다. CSV에 runner timing과 오류 type/message/truncated를 추가하며 구 batch는
+새 컬럼 없이도 분석/PNG를 읽는다. 분석의 `planning_errors`는 `planning_failures`의
+부분집합이다. 실패 baseline과의 paired 결과도 행을 남기고 양쪽 도달/주행 조건을
+충족하지 못한 연속 지표는 비워 둔다. PNG의 오류 message는 공간상 잘릴 수 있지만
+원본 CSV는 아래 저장 길이 제한 내의 문자열을 보존한다. 짧은 진단의 개행 원문은
+CSV에 그대로 남기고 PNG에서만 개행/제어문자를 한 줄로 정규화한다.
+
+오류 type은128자, message는4096자로 제한하며 자르면 `... [truncated]` 접미사와
+`planning_error_truncated=True`를 기록한다. 전체 길이/자세한 원문은 자동 보관하지 않는다.
+새 진단 필드가 CSV 기본 field limit을 넘지 않도록 하며, PNG 폭 맞춤은 문자별 재측정
+대신 이진 탐색을 사용한다. 표시가 잘린 PNG와 저장 길이 제한은 별도 동작이다.
+
+2026-11-04 스텝2는 현재 실행 소스의 후속 버전이다. 기존 sealed runner/raw/protocol과
+source hash 기록은 바꾸지 않는다. 당시 src hash가 현재 src와 다른 것은 정상이며,
+과거 sealed 실행의 live-source 검증/재개는 현재 코드로 거부될 수 있다. 과거 결과의
+재현은 당시 커밋 소스나 저장 패키지를 사용한다. 저장 결과를 읽는 분석·PNG는 새 코드로
+가능하지만 원본 파일을 덮어쓰지 않고 새 출력 이름을 사용한다.
+
+## 스텝2 실행 확인
+
+반환 계약/예외 경계, fake clock의 plan-only 실측, 오류 뒤 정상 planner 계속 실행,
+모든 planning 실패 및 구 batch의 missing timing 처리를 구현 후 한 묶음으로 검증한다.
+`examples/error_planners.py`는 일반 예외와 잘못된 반환값을 의도적으로 발생시키는
+개발 확인용 클래스다. 정상 `MyPlanner`와 함께 workflow smoke에 사용하며 성능 후보가 아니다.
+검증 결과와 Astra 독립 검토는 완료 후 기록한다.
+
+구현 중 테스트0회, 구현 완료 뒤 관련pytest1회 **23 passed (6.16s)**, 전체1회
+**103 passed (9.98s)**, 정상/예외/잘못된 반환 custom을 포함한 workflow smoke1회를
+묶어서 실행했다. smoke는6planner×3seed18행으로 정상12행 모두 도달, 의도한
+planning_error6행은not_run, 충돌/timeout/통상 계획실패0이다. 각 planner는1번 호출했고
+그 실측을3seed에 재사용했다. 오류 뒤 MyPlanner도3건 도달하고 A*와 paired 주행
+delta0을 유지했다. workflow/analysis/report 모두 complete이며 seed1 PNG 시각 확인 완료.
+
+출력은 `results/raw/workflow_step2_20261104/`에 보존했다. 새 회귀는 계약 오류·
+control exception/builtin propagation, 정상 경로 snapshot, plan-only fake-clock 실측,
+오류 뒤 계속 실행·전체 실패·구 컬럼 호환을 확인했다. Astra 독립 검토는 다음 단계다.
+
+Astra P2/P3 지적 후 진단 저장 길이/표시 및 milliseconds finite 검증을 보완했다.
+수정 구현 완료 뒤 관련pytest1회 **24 passed (4.89s)**, 전체1회 **104 passed (7.14s)**를
+묶어서 실행했다. 새 E2E는 개행/NUL message 보존·한 줄 PNG,14만자 type/message의
+저장 제한과 truncation, ms overflow 거부, 이후 정상 planner 계속 실행과 분석/PNG 완료를
+확인했다. 폭 맞춤의 측정 호출수도 제한해 문자별 반복 측정 회귀를 막았다. 이전18행
+smoke는 보존했고 별도 smoke 재실행 없이 최종 소스를 E2E로 검증했다.
+최종 승인 기록과 커밋은 주 에이전트가 진행한다.
 
 ## 이어서 진행할 개발 계획
 

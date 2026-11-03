@@ -97,26 +97,25 @@ class UserPlanner(AStarPlanner):
     assert manifest['scenario_file'] == str(tmp_path / '-demo.yaml')
 
 
-def test_experiment_failure_preserves_partial_outputs_and_skips_later_phases(tmp_path):
-    plugin = tmp_path / 'broken.py'
-    plugin.write_text('''from raceplan.planners import AStarPlanner
-class Broken(AStarPlanner):
-    name = "broken"
-    def plan(self, *args, **kwargs):
-        raise RuntimeError("candidate failed during planning")
-''', encoding='utf-8')
+def test_builtin_failure_preserves_partial_outputs_and_skips_later_phases(tmp_path, monkeypatch):
+    class BrokenBuiltin:
+        name = 'astar'
+
+        def plan(self, *args, **kwargs):
+            raise RuntimeError('internal planner failed during planning')
+
+    monkeypatch.setitem(workflow.experiment.PLANNER_FACTORIES, 'astar', BrokenBuiltin)
     output = tmp_path / 'partial'
-    assert workflow.main([str(SCENARIO), '--output-dir', str(output), '--planners', 'astar',
-                          '--custom-planner', f'{plugin}:Broken']) == 1
+    assert workflow.main([str(SCENARIO), '--output-dir', str(output), '--planners', 'astar']) == 1
     status = state(output)
     assert status['status'] == 'failed' and status['failed_phase'] == 'experiment'
     assert status['phases']['analysis']['status'] == status['phases']['report']['status'] == 'pending'
     assert status['error']['type'] == 'RuntimeError'
-    assert 'candidate failed' in status['error']['message']
+    assert 'internal planner failed' in status['error']['message']
     manifest = json.loads((output / 'comparison_manifest.json').read_text(encoding='utf-8'))
     assert manifest['status'] == 'running'
     with (output / 'comparison.csv').open(newline='', encoding='utf-8') as stream:
-        assert [r['planner'] for r in csv.DictReader(stream)] == ['astar']
+        assert list(csv.DictReader(stream)) == []
     assert not (output / 'analysis').exists() and not (output / 'comparison.png').exists()
 
 
