@@ -1,0 +1,6 @@
+split,planner,episodes,reached,collisions,timeouts,planning_failures,planning_calls,success_median_tracking_rmse_m,success_median_completion_time_s,all_driven_min_clearance_m,planning_time_ms_median,planning_time_ms_p95,expanded_nodes_median,expanded_nodes_p95
+evaluation,dijkstra,12,0,12,0,0,4,,,0.0,11.661949916742742,13.44218491576612,1390.0,1426.5
+evaluation,astar,12,0,12,0,0,4,,,0.0,3.359499969519675,4.070330050308257,398.5,467.84999999999997
+evaluation,hybrid_astar,12,6,6,0,0,4,0.03768301318432832,10.450000000000001,0.0,119.69874997157604,131.43025496974587,540.0,649.15
+evaluation,turn_aware_astar,12,3,9,0,0,4,0.030127346748462187,11.15,0.0,18.05114990565926,22.170930088032037,1244.5,1800.7999999999997
+evaluation,turn_aware_zero,12,0,12,0,0,4,,,0.0,19.815599895082414,22.546975105069578,1804.5,2307.85

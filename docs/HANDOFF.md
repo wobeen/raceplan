@@ -1,4 +1,127 @@
-# 작업 인계 — 2026-10-14
+# 작업 인계 — 2026-11-04
+
+## 현재 커밋 원칙과 다음 개발
+
+2026-11-04 사용자 지시: 지금까지 RacePlan 작업을 커밋하고, 이후에는 개발 스텝
+하나를 완료·검증할 때마다 해당 변경을 커밋한다. 과거의 사용자 직접 staging/commit
+원칙은 이 지시로 대체된다. push는 별도 요청 시 진행한다.
+다음 스텝은 실행 명령 통합 → 사용자 플래너 오류 처리·실측 계획시간 → 여러 시나리오
+일괄 비교 → 결과 화면 개선 → 설치·문서·보관 기준 마무리 순서다.
+각 스텝에서 구현을 마친 뒤 테스트를 묶어서 실행하고 검증 결과를 기록한다.
+RacePlan과 무관한 .pptx-build/ 및 output/ 발표 자료는 이번 커밋에서 제외한다.
+
+## 최신: 기본 기능 안내와 연구 기능 정리
+
+사용자 요청으로 기본 사용 흐름을 비교 실행 → 저장 결과 분석 → PNG로 정리했다.
+README 두 언어판과 results 안내의 중복·오래된 상태·실험별 실행 명령을 줄이고
+이전 전문은 docs/archive/에 보관했다. 상세 판단은 docs/FEATURE_SCOPE.md 참고.
+Clearance/방향-state 후보와 버전별 guard/recovery는 연구 보관으로 분류했다.
+신규 후보의 자동 구현·평가를 다음 기본 작업으로 이어가지 않는다.
+실행 코드와 봉인된 산출물은 변경하지 않았고 테스트 재실행 없이 문서 diff를 확인했다.
+아래 기록은 이전 개발·평가 이력이다. staging/commit 없음.
+
+## 최신: 신규 split 단일 실행·숫자형 identity 교정·Astra 검증 완료
+
+Astra P2로 v1 query hash가 설계 yaw 정수0과 재로딩 실수0.0을 구분하는 결함을
+확인했다. 원래 runner/raw/protocol/seal/사전 snapshot은 그대로 보존하고 별도
+`results/turn_aware_query_identity_v2.py`에 숫자 정규화와 저장 scenario round-trip
+검증을 구현했다. 교정 기록은
+`results/analysis/turn_aware_holdout_20261103_correction_v2/`에 저장했다.
+구현 후 관련15 passed(1.34s), 전체91 passed(3.88s), 읽기 전용 감사1회 완료.
+source41/input22/artifact120 hash 일치, 기존8개 query의 v1 stored/design은 일치하나
+round-trip8개 불일치. v2 canonical design/round-trip은8개 모두 일치했고 지도·좌표와
+실행 manifest도 동등했다. v1 source seal과 실행 결과는 바꾸지 않았으며 evaluation
+planner/simulation 재실행0회다. 의미상 query fingerprint의 사후 정정이고 기존
+봉인을 대체하지 않는다. 지도 신규성·주행 수치 결론은 유지된다.
+
+6.1-sol이 `results/turn_aware_holdout.py`와 사전 프로토콜
+`docs/TURN_AWARE_HOLDOUT.md`를 구현했다. 신규10.4×7.2m/0.2m 지도4개와8query,
+2family×2split×2query×3seed×5planner 120건을 결과 확인 전 봉인했다. 과거 source16query,
+map fingerprint52항목(원본 생성16+저장 YAML36, 중복 포함)과 대조해 exact 중복0.
+source41/input22 hash를 각 query 전후 검사했다.
+후보0.20은 변경하지 않았고 validation 후 evaluation 각1회, 재튜닝/재실행0회다.
+
+구현 중 테스트/실험0회, 코드 완료 후 관련12 passed(1.53s), 전체88 passed(2.95s),
+단일 실행120건을 묶어 완료했다. Validation 도달/충돌: Dijkstra0/12, A*6/6,
+Hybrid8/4, 후보0/12, weight0 6/6. Evaluation: Dijkstra0/12, A*0/12,
+Hybrid6/6, 후보3/9, weight0 0/12. 각 planner 분모12이며 두 split 모두 timeout/계획실패0.
+후보 A* 대비 validation6패·evaluation3승이나 양쪽 동시 도달pair0이므로 RMSE/시간delta 없음.
+평가 승리3건은 offset_islands/q0의 세 seed에 한정. 일반 개선으로 승격하지 않는다.
+
+원본 `results/raw/turn_aware_holdout_20261103/`의seal/complete에protocol과
+산출물120개 hash 보존. 공유용 표/paired/worst/지도/query는
+`results/analysis/turn_aware_holdout_20261103/`, PNG8장
+`results/figures/turn_aware_holdout_20261103/`. 대표2장 시각검토 완료. planning4회씩/split,
+후보 evaluation median/P95 18.051/22.171ms(A*3.359/4.070), 전체 wall5.758s.
+이미 노출한 evaluation은 차기 후보의 미사용 평가로 재사용하지 않는다. Astra는
+원본120건과 v2 교정을 독립 재계산해 source41/input22/artifact120 봉인, canonical
+query8개 고유성, 실제 입력·manifest 일치를 확인하고 최종 승인했다.
+기존 변경/산출물 보존, stage/commit 없음.
+
+## 최신 후속: 방향-state 사용자 후보 구현·Astra 독립 검증 완료
+
+계속 진행 요청에 따라 6.1-sol이 `examples/turn_aware_planner.py`에 비위임 A*를
+구현했다. `(cell,incoming_direction)` 상태와 길이+방향변화0.20m/rad 비용이며,
+가중치0 ablation도 제공한다. 값은 실행 전 고정했고 기존 MyPlanner 예제는 보존했다.
+목표 yaw/차량 운동학/footprint를 탐색에서 보장하지 않는 점-grid 후보이며,
+기존 clearance 후보의 반복 튜닝은 아니다. `docs/TURN_AWARE_CANDIDATE.md` 참고.
+
+구현 중 테스트/실험0회. 구현 후 관련8 passed(2.73s), 전체84 passed(3.74s),
+`results/turn_aware_comparison.py`의 demo 무잡음/고정잡음2조건×5planner×3seed30건을
+한 묶음으로 실행해30/30 도달·충돌/timeout/계획실패0을 확인했다. PNG2장 시각검토와
+기존 analyze 완료. 사전 protocol·설계 사본과 산출물 hash를 저장했다.
+후보는 A*와 같은11.07107m 길이에서 회전합4.71239→2.35619rad, 고정잡음 중앙값
+RMSE0.12881→0.08030m지만 완료시간12.85→13.20s, 실제 최소 clearance0.28295→
+0.26693m로 trade-off다. 최대 이산 곡률은 더 크다. weight0은 이번 두 조건의
+paired 주행 delta0. 이미 사용한 demo의 개발 결과라 held-out 개선 근거가 아니다.
+
+원본 `results/raw/turn_aware_20261103/`, 공유용 요약/설계/hash 복사본
+`results/analysis/turn_aware_20261103/`, 이미지
+`results/figures/turn_aware_20261103/{clean,noise}.png`. 기존 결과·PPTX/사용자 변경을
+보존했고 stage/commit하지 않았다. Astra는 랜덤 소형 격자100개의 양의 가중치와
+가중치0 총200건을 독립 Dijkstra oracle과 대조해 비용·상태 불일치0을 확인했다.
+두 batch의 소스·원본·공유 산출물 hash, 30개 주행, weight0/A* 전체 시계열과
+문서 수치도 일치해 차단 결함 없이 최종 승인했다.
+
+## 최신: 사용자 플래너 비교 구현·Astra 독립 검증 완료
+
+재개 HEAD `112c3dc`(인계 이후 README 변경 커밋 2개). 기존 미커밋 사용자 플래너
+연결/리포트 초안을 이어서 6.1-sol이 구현했다. `--custom-planner FILE.py:CLASS`로
+기본 세 planner와 동일 지도/query/차량/controller/seed에서 비교한다. 파일 bytes와
+hash가 일치하도록 로드하고 planner별 지도 사본으로 입력 변경을 격리한다.
+기존 CSV 컬럼·기본 회복 v2 및 frozen 실험은 유지한다.
+
+`raceplan.custom_report`는 완료된 batch와 지도 hash를 확인하고 저장 query를 사용해
+전체 seed 성공·충돌·timeout·계획실패 수와 선택 seed의 경로/궤적을 PNG로 만든다.
+legacy `path_cost_m`의 planner 정의 비용과 XY 경로 길이를 구분한다.
+구현 중 테스트0회, 구현 후 전체 pytest1회 **79 passed (4.72s)**.
+첫 standalone smoke는 `.venv`에 프로젝트 미설치로 모듈 탐색 단계 종료(산출물0).
+프로세스 `PYTHONPATH=src` 설정 후 demo 4 planner×3 seed **12건 전부 도달**, 충돌/
+timeout/계획실패0. A* 위임 MyPlanner의 paired 지표는 A*와 동일하며 개선 주장이 아니다.
+무잡음 반복이므로 독립 성능 표본이 아니다. PNG·기존 analyze 실행 및 이미지 검토 완료.
+
+출력 `results/raw/custom_planner_20261103*`,
+`results/figures/custom_planner_20261103.png`,
+`results/analysis/custom_planner_20261103/`. 상세 인터페이스·범위·검증·후속 계획은
+`docs/CUSTOM_PLANNER_COMPARISON.md` 참고.
+
+Astra 1차 검토의 P2(config 유실·JSON 직렬화 실패)를 수정했다. JSON 호환
+mapping/dataclass/중첩 설정은 snapshot으로 보존하고 Path·ndarray 등의 미지원 값은
+플래너 이름·설정 위치를 표시하며 결과 디렉터리/파일 생성 전에 거부한다. manifest의
+전체 직렬화도 파일을 열기 전에 끝낸다. 계획시간은 planner 자체 보고값임을 PNG/
+manifest/문서에 명시하고, clearance delta는 양쪽 주행만 있으면 계산되는 예외를
+문서에 반영했다. 수정 코드 완료 뒤 묶어서 **관련8 passed (1.33s), 전체80 passed
+(2.53s)**. 최종 소스로 새 smoke12건 모두 도달·충돌/timeout/계획실패0, PNG와
+analyze도 성공했다. 최종 출력은 `results/raw/custom_planner_20261103_reviewed*`,
+`results/figures/custom_planner_20261103_reviewed.png`,
+`results/analysis/custom_planner_20261103_reviewed/`이며 이전 출력도 보존했다.
+Astra는 최종 소스·지도·시나리오·분석 입력·예제 SHA-256 47개를 reviewed 출력과
+대조해 불일치0을 확인했다. 12/12가 목표거리0.5m 이내·충돌0이며 A*와 MyPlanner의
+저장 경로 및 seed별 258개 전체 궤적 sample이 일치한다. PNG 구조/크기와 P2 수정도
+재검토해 차단 사항 없이 최종 승인했다.
+
+기존 미커밋 변경과 `.pptx-build/`, `output/` 등 산출물 보존, stage/commit 없음.
+아래 2026-10-14 이전 회복 기록은 historical 결과이며 새 평가와 합치지 않는다.
 
 ## 현재 후속 작업: 회복 v4 코드 완료, Astra 검증 대기
 

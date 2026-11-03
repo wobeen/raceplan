@@ -1,0 +1,223 @@
+{
+  "version": 1,
+  "suite": "turn_aware_holdout_20261103",
+  "members": [
+    {
+      "split": "validation",
+      "family": "staggered_windows",
+      "query": 0,
+      "scenario": "inputs/validation/staggered_windows/q0.yaml",
+      "map_fingerprint": "467815f9c0d5f4172696bfc9c6c0a87abe3fb583eb90a7ca3db1b1045b49133f",
+      "query_fingerprint": "5c406ddfc61ccf854f21747eb17838c074430f70d1f5cbf9705fbae642ae7d51"
+    },
+    {
+      "split": "validation",
+      "family": "staggered_windows",
+      "query": 1,
+      "scenario": "inputs/validation/staggered_windows/q1.yaml",
+      "map_fingerprint": "467815f9c0d5f4172696bfc9c6c0a87abe3fb583eb90a7ca3db1b1045b49133f",
+      "query_fingerprint": "563f8665909e74f1941f553028134324ede2591f3753d21d0080973182b7a46a"
+    },
+    {
+      "split": "validation",
+      "family": "offset_islands",
+      "query": 0,
+      "scenario": "inputs/validation/offset_islands/q0.yaml",
+      "map_fingerprint": "45d863a18f83eab9a24ff85a61abf74142253c07c2aa2e244daf60b1708de9cf",
+      "query_fingerprint": "88427d80be5ae9b84242f71748c0d60b773549a8e6cfc923f266514c7853b3b2"
+    },
+    {
+      "split": "validation",
+      "family": "offset_islands",
+      "query": 1,
+      "scenario": "inputs/validation/offset_islands/q1.yaml",
+      "map_fingerprint": "45d863a18f83eab9a24ff85a61abf74142253c07c2aa2e244daf60b1708de9cf",
+      "query_fingerprint": "71e458fd52415042790293206eab7a734a45ddf9bb03306010dcbb35c9874a31"
+    },
+    {
+      "split": "evaluation",
+      "family": "staggered_windows",
+      "query": 0,
+      "scenario": "inputs/evaluation/staggered_windows/q0.yaml",
+      "map_fingerprint": "4f393912f98d23a59d75a9ab19753a65398259be950c1adb64f860cb0a1508df",
+      "query_fingerprint": "9da8a2a820528923cac876ed5519503cd820df09917c740a2a7131789fd868d2"
+    },
+    {
+      "split": "evaluation",
+      "family": "staggered_windows",
+      "query": 1,
+      "scenario": "inputs/evaluation/staggered_windows/q1.yaml",
+      "map_fingerprint": "4f393912f98d23a59d75a9ab19753a65398259be950c1adb64f860cb0a1508df",
+      "query_fingerprint": "bed2ff2b6bb4ac145681b55bbbf6733a90a8d3ba7cd8e033c4a72099ef977a20"
+    },
+    {
+      "split": "evaluation",
+      "family": "offset_islands",
+      "query": 0,
+      "scenario": "inputs/evaluation/offset_islands/q0.yaml",
+      "map_fingerprint": "066eee35236f3b280e857d66c6eeeea4e219d0530fbd0642e4420878c60c5163",
+      "query_fingerprint": "b7660911664c1d103196e8c091b2e8a0b5b7ddc33aec78adadf3bcc3ba162895"
+    },
+    {
+      "split": "evaluation",
+      "family": "offset_islands",
+      "query": 1,
+      "scenario": "inputs/evaluation/offset_islands/q1.yaml",
+      "map_fingerprint": "066eee35236f3b280e857d66c6eeeea4e219d0530fbd0642e4420878c60c5163",
+      "query_fingerprint": "94b1afabccff6134bc2c965301285a85f285ffed39456f1563e7b1090064f9bc"
+    }
+  ],
+  "split_seeds": {
+    "validation": [
+      11,
+      12,
+      13
+    ],
+    "evaluation": [
+      21,
+      22,
+      23
+    ]
+  },
+  "planners": [
+    "dijkstra",
+    "astar",
+    "hybrid_astar",
+    "turn_aware_astar",
+    "turn_aware_zero"
+  ],
+  "noise": {
+    "initial-position-std-m": 0.02,
+    "initial-yaw-std-rad": 0.02,
+    "steering-std-rad": 0.01,
+    "speed-measurement-std-mps": 0.02
+  },
+  "turn_weight_m_per_rad": 0.2,
+  "ablation_weight": 0,
+  "planning_timeout_s": 2.0,
+  "planning_calls_per_query_planner": 1,
+  "episodes": 120,
+  "maps_per_split": 2,
+  "queries_per_map": 2,
+  "inflation_radius_m": 0.0,
+  "collision_grid": "original physical grid for every planner and simulator",
+  "planning_representation_limit": "grid point vs Hybrid rotated footprint; not equivalent",
+  "vehicle": {
+    "wheelbase": 0.33,
+    "length": 0.58,
+    "width": 0.31,
+    "rear_axle_to_center": 0.1
+  },
+  "tracker": {
+    "lookahead_distance": 0.8,
+    "target_speed": 0.8,
+    "max_steering_angle": 0.45,
+    "speed_pid": {
+      "kp": 2.0,
+      "ki": 0.2,
+      "kd": 0.05,
+      "output_min": -3.0,
+      "output_max": 2.0,
+      "integral_limit": 2.0
+    },
+    "approach_distance": null,
+    "approach_min_speed": 0.15
+  },
+  "simulation": {
+    "dt": 0.05,
+    "max_time_s": 30.0,
+    "max_speed": 2.0,
+    "max_acceleration": 2.0,
+    "max_deceleration": 3.0,
+    "max_steering_angle": 0.45,
+    "goal_tolerance": 0.5,
+    "goal_yaw_tolerance": null
+  },
+  "hybrid": {
+    "xy_resolution": 0.5,
+    "yaw_bins": 36,
+    "goal_position_tolerance": 0.5,
+    "goal_yaw_tolerance": 0.35,
+    "primitives": {
+      "max_steering_angle": 0.45,
+      "steering_samples": 5,
+      "travel_distance": 0.5,
+      "sample_distance": 0.1,
+      "allow_reverse": false
+    },
+    "clearance_cost_weight": 0.0,
+    "steering_cost_weight": 0.0,
+    "max_expanded_nodes": null
+  },
+  "success": "collision-free position within 0.5 m; yaw descriptive",
+  "execution_policy": "validation once then evaluation once; no selection or tuning; no resume",
+  "worst_policy": "all failures plus top 3 reached by RMSE and lowest 3 driving clearances per split/planner",
+  "timing_policy": "4 once-reported plans per split/planner; seed duplicates removed; no speed inference",
+  "source_sha256": {
+    "C:\\Users\\sinub\\OneDrive\\Desktop\\PROJECT\\raceplan\\src\\raceplan\\__init__.py": "5d2d7e8371c0db0f9a7e73ec3e58f359851dd24c2bdbffefd0b0deb491d93687",
+    "C:\\Users\\sinub\\OneDrive\\Desktop\\PROJECT\\raceplan\\src\\raceplan\\analyze.py": "3af57c94ac16accaf4885ad8f9d7bccdcabceb01175dc099397da65dde46459c",
+    "C:\\Users\\sinub\\OneDrive\\Desktop\\PROJECT\\raceplan\\src\\raceplan\\common\\__init__.py": "782d6d0a4da361e00b5f082b221ac50ddb49cdd2665bef1ccd0659fca8d93967",
+    "C:\\Users\\sinub\\OneDrive\\Desktop\\PROJECT\\raceplan\\src\\raceplan\\common\\grid.py": "2448e48546a556a477fea2dd4d5dc5bbf4e73f2b91d83ce7ebed152b5243fcff",
+    "C:\\Users\\sinub\\OneDrive\\Desktop\\PROJECT\\raceplan\\src\\raceplan\\common\\inflation.py": "1c72f0f20f6c4e180271a0b9bcbe50c5bd5c31f2036182587ca168931130f632",
+    "C:\\Users\\sinub\\OneDrive\\Desktop\\PROJECT\\raceplan\\src\\raceplan\\common\\map_io.py": "3ef36fe1d2dd0ca4accc9010a22f80e7ba988993a2ad68247ee06c0c2a6765fe",
+    "C:\\Users\\sinub\\OneDrive\\Desktop\\PROJECT\\raceplan\\src\\raceplan\\common\\planning_space.py": "6bbe25eabda436f04654abdbd9ba86649df920ef459ba30672b81daada1091d5",
+    "C:\\Users\\sinub\\OneDrive\\Desktop\\PROJECT\\raceplan\\src\\raceplan\\common\\scenario.py": "7cc0957df709464ae470219613a5c6457bb2f8b803c1eee3fd3c8c829f180da3",
+    "C:\\Users\\sinub\\OneDrive\\Desktop\\PROJECT\\raceplan\\src\\raceplan\\common\\types.py": "17915571b17500339e70c027f794f0ce6e4b60d08a07f4e344e23bd72f497171",
+    "C:\\Users\\sinub\\OneDrive\\Desktop\\PROJECT\\raceplan\\src\\raceplan\\common\\vehicle.py": "45a2219db7e7f806112d4664bd260f953736dd4b79f59185ee5f5342a32c7cb6",
+    "C:\\Users\\sinub\\OneDrive\\Desktop\\PROJECT\\raceplan\\src\\raceplan\\compare.py": "0ca00da47111a92704fbe092d78377724f04276968afc8f62eaac823ab159647",
+    "C:\\Users\\sinub\\OneDrive\\Desktop\\PROJECT\\raceplan\\src\\raceplan\\controllers\\__init__.py": "1c292461e11bf01634d3dba7da8312700e91f13564482b668a2915cd57f8c77b",
+    "C:\\Users\\sinub\\OneDrive\\Desktop\\PROJECT\\raceplan\\src\\raceplan\\controllers\\pid.py": "c969845a32be2a871d1844d244dc234bacc42ca68993c67a17090d446078ef03",
+    "C:\\Users\\sinub\\OneDrive\\Desktop\\PROJECT\\raceplan\\src\\raceplan\\controllers\\pure_pursuit.py": "67e21048d79b4cb73ccbe11d14fd915c377c9e507ad199e265210393265fad37",
+    "C:\\Users\\sinub\\OneDrive\\Desktop\\PROJECT\\raceplan\\src\\raceplan\\corridor_suite.py": "8da2ce005b149243451f0b1bec467f72a558e50ebe43118a053af99c4a032f05",
+    "C:\\Users\\sinub\\OneDrive\\Desktop\\PROJECT\\raceplan\\src\\raceplan\\custom_report.py": "a14038cab39b1feb7c50bcd18b3d77fa07b4fa2a251ba1e6fff00ef42ed8d867",
+    "C:\\Users\\sinub\\OneDrive\\Desktop\\PROJECT\\raceplan\\src\\raceplan\\defaults.py": "9b95bfbb128a20c0a6f096c3d13d96c520bf0b86815127bdcca7e4c184198d90",
+    "C:\\Users\\sinub\\OneDrive\\Desktop\\PROJECT\\raceplan\\src\\raceplan\\experiment.py": "9b23ac5db982058061731f2ade7d1cc4f9531392aebf080e3b80785e9a5bb776",
+    "C:\\Users\\sinub\\OneDrive\\Desktop\\PROJECT\\raceplan\\src\\raceplan\\metrics.py": "90b534dbabdc1059285eb3f4687275a0fa11642060a13cd066dab18cc79a2bf3",
+    "C:\\Users\\sinub\\OneDrive\\Desktop\\PROJECT\\raceplan\\src\\raceplan\\planners\\__init__.py": "b7aee579f8a1c636aa147312f0edb552ac27405c2069373a8b944be2826d16a2",
+    "C:\\Users\\sinub\\OneDrive\\Desktop\\PROJECT\\raceplan\\src\\raceplan\\planners\\_grid_search.py": "7e1046db4e06780a10816a67b1fff42b34eb4edfb9c9f1589b3a4e024e05c4b9",
+    "C:\\Users\\sinub\\OneDrive\\Desktop\\PROJECT\\raceplan\\src\\raceplan\\planners\\astar.py": "7cbdca328f7515f77bd682f6cf72bbbf232b7ae644a282aea9343a97fc07297e",
+    "C:\\Users\\sinub\\OneDrive\\Desktop\\PROJECT\\raceplan\\src\\raceplan\\planners\\base.py": "16da300edb5eda95334944bc01d34320e6b360412c3cbda78d4c63eeb3e157f0",
+    "C:\\Users\\sinub\\OneDrive\\Desktop\\PROJECT\\raceplan\\src\\raceplan\\planners\\clearance_astar.py": "fda7b9db44499bfa3615f9a35925841ad1e91aebf30a6ae81d9b5c29fe2d64c7",
+    "C:\\Users\\sinub\\OneDrive\\Desktop\\PROJECT\\raceplan\\src\\raceplan\\planners\\custom.py": "e3c728c126715e91c4b6c41d09f7f3151385242978a2a973428491c21b8642a6",
+    "C:\\Users\\sinub\\OneDrive\\Desktop\\PROJECT\\raceplan\\src\\raceplan\\planners\\dijkstra.py": "3a8be426c296c37047bb0b96cdeb90010887eb6faaa0137515d5886bd26d8e8c",
+    "C:\\Users\\sinub\\OneDrive\\Desktop\\PROJECT\\raceplan\\src\\raceplan\\planners\\hybrid_astar.py": "0a182f81955ddd73f76226fdefd5a3dbbc2d9f3cddda6b8b3b9306ba5b4e7d4f",
+    "C:\\Users\\sinub\\OneDrive\\Desktop\\PROJECT\\raceplan\\src\\raceplan\\planners\\hybrid_primitives.py": "093dedf28c93ff475a923c23cc74a44e68f905092504beb9f9a63fb390bf0ba6",
+    "C:\\Users\\sinub\\OneDrive\\Desktop\\PROJECT\\raceplan\\src\\raceplan\\planners\\recovery_alternatives.py": "334dc86953dea6a386e64a4adeec67c7b336eb28b1489f56ebebe5341adb5151",
+    "C:\\Users\\sinub\\OneDrive\\Desktop\\PROJECT\\raceplan\\src\\raceplan\\plot_comparison.py": "d6fc3bc00d546809f510e4f4ec05c680f0521ac9aaa7dd7f07b5a273629b7a46",
+    "C:\\Users\\sinub\\OneDrive\\Desktop\\PROJECT\\raceplan\\src\\raceplan\\research_analytic.py": "b1d5e8c41956a13e646185a4f99f08e7f8bf73a13f59a233a45077db340b94ce",
+    "C:\\Users\\sinub\\OneDrive\\Desktop\\PROJECT\\raceplan\\src\\raceplan\\research_design.py": "f2fe5eadf4d25edcf31d921fae54150fad2e23732ab03609b97ddd72313e8f87",
+    "C:\\Users\\sinub\\OneDrive\\Desktop\\PROJECT\\raceplan\\src\\raceplan\\research_engine.py": "69cbeecd9af069118766223d9f69155718729804666bdf4f837acff4490100f0",
+    "C:\\Users\\sinub\\OneDrive\\Desktop\\PROJECT\\raceplan\\src\\raceplan\\research_features.py": "5f779f19c35d15f83b25dfbf85309053e080e0da53c69577d2c46b3a0cc76a1e",
+    "C:\\Users\\sinub\\OneDrive\\Desktop\\PROJECT\\raceplan\\src\\raceplan\\simulator\\__init__.py": "a9b297684b2e680695ecbd08f33bbc52fa14d62d8a7fa0868bf93ee58866f51b",
+    "C:\\Users\\sinub\\OneDrive\\Desktop\\PROJECT\\raceplan\\src\\raceplan\\simulator\\kinematic.py": "44623238dc84ba23f13a8c10c677f2355719943fecacc6b03fcb313e076c43da",
+    "C:\\Users\\sinub\\OneDrive\\Desktop\\PROJECT\\raceplan\\src\\raceplan\\simulator\\noise.py": "b5ec24989f947eaa99e5d660dfba79d46bb4d6ebbf64b8dbde76192bcc5fe347",
+    "C:\\Users\\sinub\\OneDrive\\Desktop\\PROJECT\\raceplan\\src\\raceplan\\simulator\\obstacle_guard.py": "172bcf4e48c5f02155b352f0d03d92fad89028c7e2abb8a9a6bcfd3d093b0e43",
+    "C:\\Users\\sinub\\OneDrive\\Desktop\\PROJECT\\raceplan\\src\\raceplan\\simulator\\recovery.py": "5844f7984d3c0fb1a2377335da361196cec99a96d9c7fc0327864c0ed890e215",
+    "C:\\Users\\sinub\\OneDrive\\Desktop\\PROJECT\\raceplan\\examples\\turn_aware_planner.py": "6070c245348a1964c8c4149134a789c8340c9c435e1b264d7e30bd3382ea28dc",
+    "C:\\Users\\sinub\\OneDrive\\Desktop\\PROJECT\\raceplan\\results\\turn_aware_holdout.py": "24abe8e6ff10fdf99467fdec22375252e35954972f6cd86233ae6c2350a11a05"
+  },
+  "input_sha256": {
+    "design_snapshot.md": "ee0473271c10efb568de4941d8f2f112405e3813749280ad9a55159258284d25",
+    "inputs\\evaluation\\offset_islands\\geometry.json": "415b1f12e5d28d3b1e4dc5d0c8afc2e86dde9e5301aa7035325855a77a75b49d",
+    "inputs\\evaluation\\offset_islands\\map.pgm": "7fd3e7f43ba55e5c37f66b3343685e7e0fdb67a939b4ddb600762a97e3d990da",
+    "inputs\\evaluation\\offset_islands\\map.yaml": "c053c27ed871fed4db8480b5b7f75cbb1a054aad560ad25a6a14c2ad945cc94a",
+    "inputs\\evaluation\\offset_islands\\q0.yaml": "bacabbe8d9647f3584f50b055e93491f077d82b6202357bd5842f5abaf487a0c",
+    "inputs\\evaluation\\offset_islands\\q1.yaml": "acf93483e16e1b43c07d36ea44ef6b2f5654f2841bf33401800f77c1b870869e",
+    "inputs\\evaluation\\staggered_windows\\geometry.json": "c46119cba82d4f3afef1e16c1a9f0a28e5ff8a8bec51aa16c9c8092aba6ff6fe",
+    "inputs\\evaluation\\staggered_windows\\map.pgm": "fb7b51b7f236ac1ac2b4235513c7933818790fd96a61012de87af103f72395db",
+    "inputs\\evaluation\\staggered_windows\\map.yaml": "c053c27ed871fed4db8480b5b7f75cbb1a054aad560ad25a6a14c2ad945cc94a",
+    "inputs\\evaluation\\staggered_windows\\q0.yaml": "fea7b7a89e72b2cefa939d962479a8358dec5283f712200e2d14ddd52658361c",
+    "inputs\\evaluation\\staggered_windows\\q1.yaml": "55c362a6b7ec2b96f852bf19ccce919875f3ee6795765486b3b9cfbfefdd7e01",
+    "inputs\\validation\\offset_islands\\geometry.json": "c2cdfb4e9658d99d5038d95c6a53d5d434f1f9af231ca453f4b9e51f60357a9d",
+    "inputs\\validation\\offset_islands\\map.pgm": "f6f0d96dad6a69c6b195f0b8eb78e8ef04065cbf982ebb10d0bd458029acd8b5",
+    "inputs\\validation\\offset_islands\\map.yaml": "c053c27ed871fed4db8480b5b7f75cbb1a054aad560ad25a6a14c2ad945cc94a",
+    "inputs\\validation\\offset_islands\\q0.yaml": "94740854b19c4cb5cf3bf41739430b15c5d9208ef4ef174f186faac5131a869f",
+    "inputs\\validation\\offset_islands\\q1.yaml": "e79ad045a7f086316158a704ebbe722ac4877bd0aca7ad830cb06e64309c857d",
+    "inputs\\validation\\staggered_windows\\geometry.json": "3013d84643527ac29cb78f90eb6d127f9066954756e7a751eed1a17d37fb5ab1",
+    "inputs\\validation\\staggered_windows\\map.pgm": "1ab609bb4c77419cc646c66c84f8e3edb5205b55f5c08717d0ad261ad2aa3fb1",
+    "inputs\\validation\\staggered_windows\\map.yaml": "c053c27ed871fed4db8480b5b7f75cbb1a054aad560ad25a6a14c2ad945cc94a",
+    "inputs\\validation\\staggered_windows\\q0.yaml": "18db448f681ff3b03f2a8a1d12f2814ecc2398c92bd83844c0df74f87c826db7",
+    "inputs\\validation\\staggered_windows\\q1.yaml": "6a8631658d2487295bb7f9c4a2f73e6736eff1678fc2ff00a15f032b3647974e",
+    "novelty.json": "3d44e972c43397bc74e3040a5bf9d55eedc0deafc774cbdc0b571c0091458955"
+  }
+}

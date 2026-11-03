@@ -1,0 +1,5 @@
+split,planner,baseline,pairs,reach_wins,reach_losses,both_reached,delta_tracking_rmse_m_median,delta_tracking_rmse_m_pairs,delta_completion_time_s_median,delta_completion_time_s_pairs,delta_driving_min_sampled_clearance_m_median,delta_driving_min_sampled_clearance_m_pairs,reach_rate_delta
+validation,dijkstra,astar,12,0,6,0,,0,,0,-0.007516375345808443,12,-0.5
+validation,hybrid_astar,astar,12,2,0,6,-0.0437207339174745,6,-0.05000000000000071,6,0.013992978070731299,12,0.16666666666666666
+validation,turn_aware_astar,astar,12,0,6,0,,0,,0,-0.007516375345808443,12,-0.5
+validation,turn_aware_zero,astar,12,0,0,6,0.0,6,0.0,6,0.0,12,0.0

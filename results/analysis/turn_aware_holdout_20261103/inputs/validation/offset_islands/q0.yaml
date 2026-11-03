@@ -1,0 +1,13 @@
+goal:
+- 9.3
+- 5.7
+- 0
+map: map.yaml
+map_seed: null
+name: validation_offset_islands_q0
+simulation_seed: 11
+start:
+- 1.1
+- 1.5
+- 0
+timeout_s: 2.0

@@ -1,0 +1,11 @@
+split,family,planner,episodes,reached,collisions,timeouts,planning_failures
+validation,staggered_windows,dijkstra,6,0,6,0,0
+validation,offset_islands,dijkstra,6,0,6,0,0
+validation,staggered_windows,astar,6,3,3,0,0
+validation,offset_islands,astar,6,3,3,0,0
+validation,staggered_windows,hybrid_astar,6,3,3,0,0
+validation,offset_islands,hybrid_astar,6,5,1,0,0
+validation,staggered_windows,turn_aware_astar,6,0,6,0,0
+validation,offset_islands,turn_aware_astar,6,0,6,0,0
+validation,staggered_windows,turn_aware_zero,6,3,3,0,0
+validation,offset_islands,turn_aware_zero,6,3,3,0,0

@@ -1,0 +1,35 @@
+{
+  "purpose": "development comparison on one previously used demo; not held-out evaluation",
+  "scenario": "C:\\Users\\sinub\\OneDrive\\Desktop\\PROJECT\\raceplan\\scenarios\\demo.yaml",
+  "simulation_seeds": [
+    0,
+    1,
+    2
+  ],
+  "planners": [
+    "dijkstra",
+    "astar",
+    "hybrid_astar",
+    "turn_aware_astar",
+    "turn_aware_zero"
+  ],
+  "turn_weight_m_per_rad": 0.2,
+  "conditions": {
+    "clean": {},
+    "noise": {
+      "initial-position-std-m": 0.02,
+      "initial-yaw-std-rad": 0.02,
+      "steering-std-rad": 0.01,
+      "speed-measurement-std-mps": 0.02
+    }
+  },
+  "inflation_radius_m": 0.0,
+  "success": "collision-free goal position within 0.5 m; yaw is descriptive",
+  "planning_repetitions_per_condition": 1,
+  "timing_note": "planner-reported once, reused across seeds; no timing inference",
+  "design_snapshot_sha256": "2f9586f3a739af0b33d237af5fe54c3fc16b6463fbc3ddca773e8c005e4eb9e2",
+  "source_sha256": {
+    "examples\\turn_aware_planner.py": "6070c245348a1964c8c4149134a789c8340c9c435e1b264d7e30bd3382ea28dc",
+    "results\\turn_aware_comparison.py": "60f9273fbec3c31bffdc96b21cdd06145d302b02b34747975df1fa46bef3ffab"
+  }
+}

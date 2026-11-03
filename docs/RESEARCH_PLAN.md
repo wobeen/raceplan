@@ -1,5 +1,9 @@
 # RacePlan 연구·개발 계획
 
+2026-11-04 기능 정리: 현재 기본 범위는 기존 3종/사용자 플래너 비교·공통 주행·
+저장 결과 분석·PNG다. 아래 장기 연구 계획은 보관하며 신규 후보나 추가 평가를
+자동 진행하는 작업 목록으로 사용하지 않는다. [기능 범위](FEATURE_SCOPE.md) 참고.
+
 2026-10-13 사용자 확정 기준: 이후 주행 비교의 성공은 **충돌 없이 목표 위치
 0.5m 이내 도달**이다. 최종 yaw는 참고값이며 성공 조건에서 제외한다.
 충돌, 시간초과, 계획 실패는 각각 별도로 집계한다. 과거 pose 기준의 frozen
@@ -69,8 +73,9 @@ ROS 2는 재현과 통합을 위한 수단이며 단독 연구 기여로 주장�
 | 공통 주행 계층 | 차량 footprint, 자전거 모델, Pure Pursuit, 속도 PID, 명령 제한 | 완료 |
 | 단일 실험 파이프라인 | 계획→주행→지표→CSV | 완료 |
 | 반복 실험 기반 | `map_seed`/`simulation_seed` 분리, 잡음, batch runner, trajectory 저장 | 초기 구현·재현성 파일럿 완료 |
+| 사용자 플래너 비교 | 신뢰할 수 있는 로컬 `Planner` 로딩, 같은 seed 비교, provenance·실패 저장·PNG | 2026-11-03 구현; 상세 범위·후속 계획은 [CUSTOM_PLANNER_COMPARISON.md](CUSTOM_PLANNER_COMPARISON.md) |
 | 평가 기능 | 지도 난이도, 경로 기하, clearance, 집계와 그래프 | 기하·clearance·단일 batch 집계 검증 및 파일럿 이미지 완료; 일반 그래프·병목 추출 예정 |
-| 개선 후보 | fixed multi-cost, complexity-conditioned cost 또는 planner selector | baseline 분석 후 결정 |
+| 개선 후보 | fixed multi-cost, complexity-conditioned cost 또는 planner selector | 방향-state A* 고정 후보와 weight0 ablation 개발; [후보](TURN_AWARE_CANDIDATE.md)·[신규 split 봉인](TURN_AWARE_HOLDOUT.md) |
 | 재현·통합 | 설정 고정, 환경 기록, 자동 재현, 필요 시 ROS 2 wrapper | 예정 |
 
 개발 우선순위는 기능 수가 아니라 다음 실험에서 필요한 최소 기능으로 정한다.

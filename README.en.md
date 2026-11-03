@@ -2,50 +2,63 @@
 
 # RacePlan
 
-## Project Overview
+Compare Dijkstra, A*, Hybrid A*, and your own planner in a shared 2D vehicle
+simulation. Save planned paths, driven trajectories, outcomes, and metrics.
 
-RacePlan is a 2D driving simulation project that compares Dijkstra, A*, and Hybrid A* on the same physical maps and under the same vehicle conditions. It investigates how corridor width, obstacle layout, turns, and grid resolution affect path planning and vehicle driving performance.
+## Core workflow
 
-A planned path may still lead to a collision or a stop because of the vehicle's size and steering constraints. The project therefore **evaluates planning success and actual goal arrival separately**. A run reaches the goal when the rear-axle center enters within 0.5 m of the goal position without a collision; final heading is not required.
+Python 3.11 or newer, from the repository root:
 
-### Planners and simulation
+```powershell
+python -m pip install -e ".[dev]"
+python -m raceplan.experiment scenarios/demo.yaml --simulation-seeds 0 1 2 --output results/raw/comparison.csv
+python -m raceplan.analyze results/raw/comparison.csv --baseline astar --output-dir results/analysis/comparison
+python -m raceplan.custom_report results/raw/comparison.csv --output results/figures/comparison.png
+```
 
-- **Dijkstra and A*** use grid-based planning on a map with obstacles inflated to account for vehicle size.
-- **Hybrid A*** considers vehicle position, heading, and steering constraints and checks collisions against the rectangular vehicle footprint.
-- Paths are driven in a shared simulator that models vehicle steering and motion. Differences in how the planners account for obstacles are considered when interpreting results.
+Use new output names for each run; existing results are rejected.
+Analysis and reporting read saved artifacts. PNG outcome counts cover every seed;
+the first seed is displayed by default, with `--seed N` available.
 
-### Experimental conditions
+The shared simulator uses Pure Pursuit, speed PID, a bicycle model, and rectangular
+vehicle collision checks. Success means reaching within 0.5 m of the goal with no
+collision; final heading is descriptive. Obstacle guard and recovery are disabled
+in the default runner.
 
-The baseline experiments change one map characteristic at a time while keeping the other conditions fixed:
+## Your planner
 
-- **Basic environment:** Open or sufficiently spacious maps to assess baseline performance.
-- **Corridor width:** Progressively narrower passages to compare planning, passage, and collision outcomes.
-- **Obstacle layout:** Single, consecutive, and alternating obstacles to assess detours and repeated steering.
-- **Turns:** Gentle and sharp direction changes to assess steering constraints and path tracking.
-- **Grid resolution:** Different cell sizes for the same physical environment to compare map representation and search cost.
-- **Start and goal conditions:** Different positions and initial headings on the same map.
+Copy [examples/my_planner.py](examples/my_planner.py), implement `Planner.name`
+and `plan(grid, start, goal, *, timeout_s=None)`, and return a `PlannerResult`.
+Successful paths contain world-coordinate poses in metres and radians.
+The template delegates to A* to demonstrate integration.
 
-Driving control is compared under basic path tracking, obstacle-aware slowing and stopping, and restart and replanning after a stop. These comparisons use the same initial path; replanning count and additional computation time are recorded when the path changes. The control policy for the main map comparisons will be fixed before the experiments.
+```powershell
+python -m raceplan.experiment scenarios/demo.yaml --custom-planner examples/my_planner.py:MyPlanner --simulation-seeds 0 1 2 --output results/raw/custom.csv
+python -m raceplan.custom_report results/raw/custom.csv --output results/figures/custom.png
+```
 
-Vehicle geometry and performance, start and goal, controller settings, noise configuration, and seeds are held consistent for each comparison. Runs use multiple seeds, and search-node limits, time limits, and actual computation time are recorded. Exact condition levels and repetition counts will be decided later.
+Select baselines using `--planners astar hybrid_astar`; repeat `--custom-planner`
+for multiple implementations with distinct names. Loading a Python file executes
+it, so use trusted code. See the [interface guide](docs/CUSTOM_PLANNER_COMPARISON.md)
+(in Korean) for configuration and failure handling.
 
-### Evaluation metrics
+## Interpretation
 
-- Goal arrival and collision rates; planning failures, timeouts, and recovery failures
-- Path length, goal arrival time, and path-planning computation time
-- Minimum obstacle clearance and path-tracking error
-- Stopped time, restart and replanning counts, and additional computation time
+Every planner and simulation uses the same inflated grid; inflation defaults to
+zero. Grid planners check point connectivity, while Hybrid A* checks an oriented
+vehicle footprint. Planning representations therefore differ.
 
-Driving times are also compared among successful runs so that early termination of a failure is not mistaken for better performance. Simulated driving time and actual planning computation time are reported separately.
+Each planner plans once and reuses its path across seeds. Planning time is
+self-reported, not independent timing per seed. The legacy `path_cost_m` column
+contains planner-defined cost; analysis computes geometric length separately.
+Custom planner timeouts require cooperation from the implementation.
 
-### Expected outcomes and future work
+The manifest records settings, source hashes, map provenance, and environment.
+Summary, path, and trajectory CSVs preserve planning failures and driving outcomes.
+See [map conventions](maps/README.md) for map inputs.
 
-The study aims to identify how map characteristics affect planner performance and how steering constraints and driving control affect goal arrival. It will also examine the relationship between grid resolution, path representation, and computation cost.
-
-Settings will be adjusted using development maps, then held fixed for final evaluation on separate maps not used during development. Results will be presented with comparison metrics, charts, and trajectory images. These experiments are planned; validation across all listed map conditions is not yet complete.
-
-### Results and version control
-
-Implementation, relevant tests, experimental results, and documentation are committed in meaningful units. The repository tracks source code, map and experiment settings, summary results, and representative images. Large raw datasets are stored separately, and reproduction steps are documented.
-
-For installation, command examples, and detailed project documentation, see the [main README](README.md#quick-start).
+Run `python -m pytest -q` after installation. The last full verification passed 91 tests.
+Experimental candidates and historical runners are indexed separately in
+[feature scope](docs/FEATURE_SCOPE.md) (Korean), [results](results/README.md), and
+[handoff](docs/HANDOFF.md). Earlier README content is retained under
+[docs/archive](docs/archive/README.en.before_cleanup_20261104.md).

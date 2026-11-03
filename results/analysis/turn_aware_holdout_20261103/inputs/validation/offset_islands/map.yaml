@@ -1,0 +1,8 @@
+image: map.pgm
+license: CC0-1.0
+origin:
+- 0.0
+- 0.0
+- 0.0
+resolution: 0.2
+source: RacePlan turn-aware sealed split 2026-11-03

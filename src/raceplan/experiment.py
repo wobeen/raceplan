@@ -7,18 +7,22 @@ import csv
 import hashlib
 import json
 import platform
-from collections.abc import Sequence
-from dataclasses import asdict, fields
+from collections.abc import Mapping, Sequence
+from dataclasses import asdict, fields, is_dataclass
+from math import isfinite
 from pathlib import Path
 
 import numpy as np
 
-from raceplan.common import inflate_obstacles, load_occupancy_map, load_scenario
+from raceplan.common import (
+    OccupancyGrid, PlannerResult, inflate_obstacles, load_occupancy_map, load_scenario,
+)
 from raceplan.defaults import (
     baseline_hybrid_astar, baseline_simulation_config,
     baseline_tracker_config, baseline_vehicle,
 )
 from raceplan.planners import AStarPlanner, DijkstraPlanner
+from raceplan.planners.custom import load_custom_planner
 from raceplan.simulator import NoiseConfig, run_episode
 
 PLANNER_FACTORIES = {
@@ -47,6 +51,8 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument("--inflation-radius", type=float, default=0.0)
     parser.add_argument("--planners", nargs="+", choices=tuple(PLANNER_FACTORIES),
                         default=list(PLANNER_FACTORIES))
+    parser.add_argument("--custom-planner", action="append", default=[], metavar="FILE.py:CLASS",
+                        help="load a trusted custom Planner; can be specified multiple times")
     parser.add_argument("--simulation-seeds", nargs="+", type=int,
                         help="Unique non-negative seeds; defaults to the scenario seed")
     for field in fields(NoiseConfig):
@@ -62,6 +68,32 @@ def _writer(stream, columns):
     writer = csv.DictWriter(stream, fieldnames=columns)
     writer.writeheader()
     return writer
+
+
+def _json_config(value, location: str, ancestors: frozenset[int] = frozenset()):
+    """Snapshot JSON-compatible settings without silently dropping configuration."""
+    if value is None or isinstance(value, (str, bool, int)):
+        return value
+    if isinstance(value, float):
+        if not isfinite(value):
+            raise ValueError(f'{location}: configuration numbers must be finite')
+        return float(value)
+    if id(value) in ancestors:
+        raise ValueError(f'{location}: circular configuration is not supported')
+    ancestors = ancestors | {id(value)}
+    if is_dataclass(value) and not isinstance(value, type):
+        return {field.name: _json_config(getattr(value, field.name), f'{location}.{field.name}', ancestors)
+                for field in fields(value)}
+    if isinstance(value, Mapping):
+        if not all(isinstance(key, str) for key in value):
+            raise ValueError(f'{location}: configuration mapping keys must be strings')
+        return {key: _json_config(item, f'{location}[{key!r}]', ancestors)
+                for key, item in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [_json_config(item, f'{location}[{index}]', ancestors)
+                for index, item in enumerate(value)]
+    raise ValueError(f'{location}: unsupported configuration type {type(value).__name__}; '
+                     'convert it to JSON-compatible values')
 
 
 def main(argv: Sequence[str] | None = None) -> int:
@@ -80,6 +112,16 @@ def main(argv: Sequence[str] | None = None) -> int:
     tracker_config = baseline_tracker_config()
     simulation_config = baseline_simulation_config()
     planners = [PLANNER_FACTORIES[name]() for name in args.planners]
+    custom_sources = {}
+    for spec in args.custom_planner:
+        try:
+            custom, source = load_custom_planner(spec)
+        except (ValueError, TypeError, OSError) as exc:
+            parser.error(str(exc))
+        if custom.name in {planner.name for planner in planners}:
+            parser.error(f'duplicate planner name: {custom.name}')
+        planners.append(custom)
+        custom_sources[custom.name] = source
     output = args.output.resolve()
     trajectory_output = output.with_name(output.stem + "_trajectory.csv")
     path_output = output.with_name(output.stem + "_paths.csv")
@@ -89,7 +131,13 @@ def main(argv: Sequence[str] | None = None) -> int:
         parser.error("output paths must be distinct")
     if any(path.exists() for path in outputs):
         parser.error("output artifacts already exist; choose a new --output filename")
-    output.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        planner_metadata = {planner.name: {
+            "class": f"{type(planner).__module__}.{type(planner).__qualname__}",
+            "config": _json_config(getattr(planner, "config", {}), f'planner {planner.name!r} config'),
+        } for planner in planners}
+    except (ValueError, RecursionError) as exc:
+        parser.error(f'invalid planner configuration: {exc}')
     manifest = {
         "schema_version": 1,
         "status": "running",
@@ -110,12 +158,12 @@ def main(argv: Sequence[str] | None = None) -> int:
         "simulation": asdict(simulation_config),
         "inflation_radius_m": args.inflation_radius,
         "collision_grid": "shared inflated grid for planning and simulation",
-        "planners": {planner.name: {
-            "class": f"{type(planner).__module__}.{type(planner).__qualname__}",
-            "config": asdict(planner.config) if hasattr(planner, "config") else {},
-        } for planner in planners},
+        "planners": planner_metadata,
+        "custom_planner_sources": custom_sources,
         "planning_repetitions": 1,
         "planning_note": "One plan per planner reused across seeds; times are not independent repeats",
+        "planning_time_note": "planning_time_ms is planner-reported planning_time_s * 1000; the runner does not measure wall time",
+        "path_cost_note": "path_cost_m is a legacy column name; cost units are planner-defined, not necessarily metres",
         "python": platform.python_version(),
         "numpy": np.__version__,
         "platform": platform.platform(),
@@ -126,7 +174,15 @@ def main(argv: Sequence[str] | None = None) -> int:
         "artifacts": {"summary": output.name, "trajectory": trajectory_output.name,
                       "paths": path_output.name},
     }
-    manifest_output.write_text(json.dumps(manifest, indent=2), encoding="utf-8")
+    # Finish serialization before opening any artifact: invalid settings must not
+    # leave an empty manifest or a result directory behind.
+    try:
+        manifest_json = json.dumps(manifest, indent=2, allow_nan=False)
+    except (TypeError, ValueError) as exc:
+        parser.error(f'manifest is not JSON-compatible: {exc}')
+    output.parent.mkdir(parents=True, exist_ok=True)
+    with manifest_output.open("x", encoding="utf-8") as stream:
+        stream.write(manifest_json)
     with output.open("x", newline="", encoding="utf-8") as summary_stream, \
             trajectory_output.open("x", newline="", encoding="utf-8") as trajectory_stream, \
             path_output.open("x", newline="", encoding="utf-8") as path_stream:
@@ -134,7 +190,12 @@ def main(argv: Sequence[str] | None = None) -> int:
         trajectory_writer = _writer(trajectory_stream, TRAJECTORY_FIELDS)
         path_writer = _writer(path_stream, PATH_FIELDS)
         for planner in planners:
-            planned = planner.plan(grid, scenario.start, scenario.goal, timeout_s=scenario.timeout_s)
+            # A plugin can make its numpy array writable; keep simulation and other
+            # planners independent even when an implementation edits its input.
+            planning_grid = OccupancyGrid(grid.occupied, grid.resolution, grid.origin_x, grid.origin_y)
+            planned = planner.plan(planning_grid, scenario.start, scenario.goal, timeout_s=scenario.timeout_s)
+            if not isinstance(planned, PlannerResult):
+                raise TypeError(f'{planner.name}.plan must return raceplan.common.PlannerResult')
             plan_id = planner.name
             if planned.path is not None:
                 for index, pose in enumerate(planned.path.poses):
@@ -179,7 +240,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 path_stream.flush()
                 print(f"{episode_id}: plan={row['planning_status']} drive={row['simulation_status']}")
     manifest["status"] = "complete"
-    manifest_output.write_text(json.dumps(manifest, indent=2), encoding="utf-8")
+    manifest_output.write_text(json.dumps(manifest, indent=2, allow_nan=False), encoding="utf-8")
     print(f"summary={output}\ntrajectory={trajectory_output}\npaths={path_output}\nmanifest={manifest_output}")
     print("note=development settings; not an official benchmark")
     return 0
