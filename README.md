@@ -49,6 +49,17 @@ python -m raceplan.custom_report results/raw/comparison/comparison.csv --seed 1 
 `uv`를 사용하는 환경은 `uv sync --python 3.13 --extra dev` 후 각 명령을
 `uv run --python 3.13 python -m ...`으로 실행할 수 있습니다.
 
+## 여러 시나리오 일괄 실행
+
+```powershell
+python -m raceplan.suite examples/suite.yaml --output-dir results/raw/my_suite
+```
+
+YAML의 공통 설정으로 case별 workflow를 순차 실행하고 episodes/planning/paired 및
+전체·시나리오별 집계 CSV를 만듭니다. 상대경로는 설정 파일 기준입니다. 실패 case는
+부분 결과와 누락 coverage를 남기고 일반 오류 후 다음 case를 진행하며 최종 nonzero를
+반환합니다. [설정·출력·중단 정책](docs/SUITE.md)을 참고하세요.
+
 ## 사용자 플래너
 
 [examples/my_planner.py](examples/my_planner.py)를 복사해 `Planner`의
@@ -90,7 +101,7 @@ Dijkstra/A*는 점의 격자 연결성, Hybrid A*는 회전한 차량 footprint�
 
 ## 개발과 연구 자료
 
-테스트는 설치 후 `python -m pytest -q`로 실행합니다. 마지막 전체 검증은 104 passed입니다.
+테스트는 설치 후 `python -m pytest -q`로 실행합니다. 마지막 전체 검증은 108 passed입니다.
 
 효과가 확인되지 않은 후보와 버전별 실험은 기본 사용 안내에서 제외했습니다.
 연구 기능의 상태·보존 이유·이전 문서 위치는 [기능 범위](docs/FEATURE_SCOPE.md),

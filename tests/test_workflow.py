@@ -111,6 +111,7 @@ def test_builtin_failure_preserves_partial_outputs_and_skips_later_phases(tmp_pa
     assert status['status'] == 'failed' and status['failed_phase'] == 'experiment'
     assert status['phases']['analysis']['status'] == status['phases']['report']['status'] == 'pending'
     assert status['error']['type'] == 'RuntimeError'
+    assert status['error']['control_exception'] is False
     assert 'internal planner failed' in status['error']['message']
     manifest = json.loads((output / 'comparison_manifest.json').read_text(encoding='utf-8'))
     assert manifest['status'] == 'running'

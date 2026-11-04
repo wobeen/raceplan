@@ -1,4 +1,4 @@
-# 작업 인계 — 2026-11-04
+# 작업 인계 — 2026-11-05
 
 ## 현재 커밋 원칙과 다음 개발
 
@@ -9,6 +9,36 @@
 일괄 비교 → 결과 화면 개선 → 설치·문서·보관 기준 마무리 순서다.
 각 스텝에서 구현을 마친 뒤 테스트를 묶어서 실행하고 검증 결과를 기록한다.
 RacePlan과 무관한 .pptx-build/ 및 output/ 발표 자료는 이번 커밋에서 제외한다.
+
+## 스텝3: 설정 YAML suite 구현
+
+6.1-sol이 새 `raceplan.suite`/`raceplan-suite`를 추가했다. strict YAML/schema와 안전
+고유 case id, 설정 기준 상대경로, 공통 옵션을 사전 검증하고 기존 workflow를 순차 호출한다.
+완료 case만 episodes/planning/paired와 전체·case별 집계에 합치며 plan 시간은 seed 중복을
+제거한다. 실패 case는 예상/raw/포함/missing coverage를 기록하고 빈 episode를 만들지 않는다.
+일반 case 오류는 다음 case를 실행한 뒤 최종 nonzero, control exception은 suite 중단과
+not_run coverage로 처리한다. 기존 실험/분석/리포트/봉인 파일을 보존했고 workflow의
+구조화된 control_exception 필드만 additive로 추가했다.
+예제 `examples/suite.yaml`, 사용·스키마·정책 `docs/SUITE.md`, 핵심 회귀4개를 작성했다.
+구현 완료 뒤 관련/전체 pytest와 demo/open suite smoke를 한 묶음으로 실행한다.
+구현 에이전트 staging/commit 없음. 검증·Astra·커밋 기록은 다음 단계다.
+
+구현 중 테스트0회, 구현 완료 뒤 관련17 passed(6.72s), 전체108 passed(8.95s),
+예제 suite smoke1회를 묶어 실행했다. demo/open2case16행 모두 도달, 실패/missing0,
+planning8행(각case/planner1회), paired12행을 확인했다. 두 PNG 시각검토 완료.
+출력 `results/raw/suite_step3_20261105/`. 상대경로·대시 이름·custom 오류·strict 입력·
+부분 실패 coverage·control exception 회귀를 통과했다. 초기 구현 시 기존 모듈 diff0,
+diff --check 통과. 이후 workflow 중단 필드를 아래와 같이 보완했다.
+
+Astra P2로 workflow에 error.control_exception bool을 추가하고 suite가 해당 플래그로
+중단을 판정한다. CustomInterrupt/CustomExit도130/7로 중단하고 일반 RuntimeError는
+False임을 E2E로 확인했다. 첫 수정 후 관련 묶음은 os.replace의 WinError5로1실패·16통과,
+전체 미실행이었다. 추가 코드 수정 없이 관련+전체를 다시 묶어 실행해 관련17 passed
+(3.95s), 전체108 passed(7.12s)를 확인했다. 초기16행 smoke는 수정 전 출력으로 보존했고
+최종 중단 수정은 서브클래스 E2E로 구분한다. Astra 최종 승인 완료: 초기 smoke의
+입력8·소스42 hash와16 episode/8 plan/12 pair 집계, 최종 중단 수정과 테스트를
+독립 확인했고 잔여 차단 결함은 없다. 스텝3 완료 후 커밋한다.
+다음 개발은 스텝4 결과 비교표와 대표 성공·실패 궤적 개선이다.
 
 ## 스텝2: 사용자 계획 오류 계속 처리·runner 실측 구현
 

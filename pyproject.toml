@@ -21,6 +21,7 @@ raceplan-plot = "raceplan.plot_comparison:main"
 raceplan-run = "raceplan.experiment:main"
 raceplan-analyze = "raceplan.analyze:main"
 raceplan-workflow = "raceplan.workflow:main"
+raceplan-suite = "raceplan.suite:main"
 
 [project.optional-dependencies]
 dev = [

@@ -145,7 +145,8 @@ def main(argv: Sequence[str] | None = None) -> int:
                 exc.code if isinstance(exc, SystemExit) and isinstance(exc.code, int) and exc.code != 0 else 1)
             phase.update(status='failed', finished_at_utc=_timestamp(), duration_s=perf_counter() - started)
             state.update(status='failed', failed_phase=name, finished_at_utc=_timestamp(),
-                         error={'type': type(exc).__name__, 'message': str(exc), 'exit_code': code})
+                         error={'type': type(exc).__name__, 'message': str(exc), 'exit_code': code,
+                                'control_exception': isinstance(exc, (KeyboardInterrupt, SystemExit))})
             _save_state(status_path, state)
             print(f'workflow failed during {name}; partial outputs preserved in {output}: {exc}', file=sys.stderr)
             return code

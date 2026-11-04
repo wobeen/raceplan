@@ -42,6 +42,18 @@ vehicle collision checks. Success means reaching within 0.5 m of the goal with n
 collision; final heading is descriptive. Obstacle guard and recovery are disabled
 in the default runner.
 
+## Multiple scenarios
+
+```powershell
+python -m raceplan.suite examples/suite.yaml --output-dir results/raw/my_suite
+```
+
+The YAML applies common settings to sequential case workflows and writes combined
+episodes, deduplicated planning, paired data, and case/overall summaries. Relative paths
+are resolved from the config file. Failed cases preserve partial outputs and explicit
+missing coverage; ordinary case errors allow later cases to run and produce a nonzero
+final exit. See the [schema and interruption policy](docs/SUITE.md) (Korean).
+
 ## Your planner
 
 Copy [examples/my_planner.py](examples/my_planner.py), implement `Planner.name`
@@ -82,7 +94,7 @@ The manifest records settings, source hashes, map provenance, and environment.
 Summary, path, and trajectory CSVs preserve planning failures and driving outcomes.
 See [map conventions](maps/README.md) for map inputs.
 
-Run `python -m pytest -q` after installation. The last full verification passed 104 tests.
+Run `python -m pytest -q` after installation. The last full verification passed 108 tests.
 Experimental candidates and historical runners are indexed separately in
 [feature scope](docs/FEATURE_SCOPE.md) (Korean), [results](results/README.md), and
 [handoff](docs/HANDOFF.md). Earlier README content is retained under

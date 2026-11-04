@@ -1,0 +1,17 @@
+version: 1
+cases:
+  - id: demo
+    scenario: ../scenarios/demo.yaml
+  - id: open
+    scenario: ../scenarios/validation_open.yaml
+planners: [dijkstra, astar, hybrid_astar]
+custom_planners:
+  - my_planner.py:MyPlanner
+simulation_seeds: [0, 1]
+baseline: astar
+report_seed: 1
+inflation_radius_m: 0.0
+spacing_m: 0.1
+noise:
+  initial_position_std_m: 0.01
+  steering_std_rad: 0.01
