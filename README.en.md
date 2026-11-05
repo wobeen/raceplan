@@ -42,6 +42,16 @@ vehicle collision checks. Success means reaching within 0.5 m of the goal with n
 collision; final heading is descriptive. Obstacle guard and recovery are disabled
 in the default runner.
 
+For an outcome-first table and representative success/failure trajectories from saved results:
+
+```powershell
+python -m raceplan.report results/raw/comparison --output-dir results/reports/comparison
+```
+
+Open the generated `index.html`; copy the whole folder to share its local PNGs and HTML.
+Coverage, denominators, and deterministic selection are documented in the
+[saved report guide](docs/SAVED_REPORT.md) (Korean).
+
 ## Multiple scenarios
 
 ```powershell
@@ -94,7 +104,7 @@ The manifest records settings, source hashes, map provenance, and environment.
 Summary, path, and trajectory CSVs preserve planning failures and driving outcomes.
 See [map conventions](maps/README.md) for map inputs.
 
-Run `python -m pytest -q` after installation. The last full verification passed 108 tests.
+Run `python -m pytest -q` after installation. The last full verification passed 113 tests.
 Experimental candidates and historical runners are indexed separately in
 [feature scope](docs/FEATURE_SCOPE.md) (Korean), [results](results/README.md), and
 [handoff](docs/HANDOFF.md). Earlier README content is retained under

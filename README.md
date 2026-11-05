@@ -49,6 +49,15 @@ python -m raceplan.custom_report results/raw/comparison/comparison.csv --seed 1 
 `uv`를 사용하는 환경은 `uv sync --python 3.13 --extra dev` 후 각 명령을
 `uv run --python 3.13 python -m ...`으로 실행할 수 있습니다.
 
+저장된 결과를 비교표와 대표 성공·실패 궤적으로 보려면 HTML 리포트를 만듭니다.
+
+```powershell
+python -m raceplan.report results/raw/comparison --output-dir results/reports/comparison
+```
+
+생성한 `index.html`을 열고 폴더 전체를 공유할 수 있습니다. 실패·누락 coverage와
+통계 분모, 고정 대표 선정 규칙은 [저장 리포트 안내](docs/SAVED_REPORT.md)를 참고하세요.
+
 ## 여러 시나리오 일괄 실행
 
 ```powershell
@@ -101,7 +110,7 @@ Dijkstra/A*는 점의 격자 연결성, Hybrid A*는 회전한 차량 footprint�
 
 ## 개발과 연구 자료
 
-테스트는 설치 후 `python -m pytest -q`로 실행합니다. 마지막 전체 검증은 108 passed입니다.
+테스트는 설치 후 `python -m pytest -q`로 실행합니다. 마지막 전체 검증은 113 passed입니다.
 
 효과가 확인되지 않은 후보와 버전별 실험은 기본 사용 안내에서 제외했습니다.
 연구 기능의 상태·보존 이유·이전 문서 위치는 [기능 범위](docs/FEATURE_SCOPE.md),

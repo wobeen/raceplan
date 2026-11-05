@@ -22,6 +22,7 @@ raceplan-run = "raceplan.experiment:main"
 raceplan-analyze = "raceplan.analyze:main"
 raceplan-workflow = "raceplan.workflow:main"
 raceplan-suite = "raceplan.suite:main"
+raceplan-report = "raceplan.report:main"
 
 [project.optional-dependencies]
 dev = [

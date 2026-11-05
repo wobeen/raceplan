@@ -10,6 +10,29 @@
 각 스텝에서 구현을 마친 뒤 테스트를 묶어서 실행하고 검증 결과를 기록한다.
 RacePlan과 무관한 .pptx-build/ 및 output/ 발표 자료는 이번 커밋에서 제외한다.
 
+## 스텝4: 저장 결과 정적 HTML·대표 궤적 구현
+
+새 `raceplan.report`/`raceplan-report`가 workflow/batch/suite의 저장 결과만 읽어
+새 output-dir에 실패 우선 비교표·coverage·조건부 paired 통계와 대표 PNG를 만든다.
+planner당 worst-RMSE 성공/주행 실패/계획 실패 각1개로 제한하고 case/seed/outcome/이유와
+마지막 실제 pose를 표시한다. 실패 suite case는 coverage/사유로 남기고 집계에 넣지 않는다.
+원본 입력/지도 hash를 검증하고 source/input hash를 provenance에 기록한다. 당시 소스가
+현재와 달라도 허용하며 모든 링크는 생성한 로컬 상대경로다. 재계획/주행 재실행은 없다.
+기존 selected-seed PNG와 실행 모듈을 보존했다. Astra가 지적한 파생 CSV 검증 누락을
+수정했다. 원본 요약으로 episode 결과 분류를 확인하고, 같은 case/seed baseline과의 짝에서
+coverage, 결과, 도달/주행 조건, 유한 delta를 검증한다. Clearance는 저장 episode 값을 쓴다.
+
+초기 묶음은 Windows 기본 인코딩으로 인한 테스트 읽기 오류를 UTF-8 지정으로 수정했다.
+이후 OneDrive WinError 5와 샌드박스 TEMP 권한 오류를 피해 승인된 Windows TEMP에서
+관련 14개, 전체 112개와 저장 리포트 smoke 3건을 통과했다. P2 수정 후 같은 방식으로
+관련 **15 passed (9.18s)**, 전체 **113 passed (12.72s)**와 저장 smoke 3건을 확인했다.
+최종 산출물은 `results/raw/report_step4_{suite,errors,collision}_20261105_reviewed/`에 있다.
+각각 16행·PNG 4장, 18행·PNG 6장, 15행·PNG 5장이다. 오류 batch의 대표 계획 실패
+두 건에는 종료 pose가 없고, holdout batch의 대표 충돌 두 건은 마지막 저장 pose를 표시한다.
+세 산출물 모두 계획/시뮬레이션 호출 0회이며 초기 smoke는 별도 경로에 보존했다.
+Astra가 최종 입력·생성기·출력 hash, 집계 분모, 대표 선정과 종료 좌표를 대조하고
+승인했다. 다음 스텝은 새 환경 설치 검증과 사용 문서·데이터 보관 기준 마무리다.
+
 ## 스텝3: 설정 YAML suite 구현
 
 6.1-sol이 새 `raceplan.suite`/`raceplan-suite`를 추가했다. strict YAML/schema와 안전
@@ -38,7 +61,7 @@ False임을 E2E로 확인했다. 첫 수정 후 관련 묶음은 os.replace의 W
 최종 중단 수정은 서브클래스 E2E로 구분한다. Astra 최종 승인 완료: 초기 smoke의
 입력8·소스42 hash와16 episode/8 plan/12 pair 집계, 최종 중단 수정과 테스트를
 독립 확인했고 잔여 차단 결함은 없다. 스텝3 완료 후 커밋한다.
-다음 개발은 스텝4 결과 비교표와 대표 성공·실패 궤적 개선이다.
+스텝4의 결과 비교표와 대표 성공·실패 궤적은 위 절에 기록했다.
 
 ## 스텝2: 사용자 계획 오류 계속 처리·runner 실측 구현
 
