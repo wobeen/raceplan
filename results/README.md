@@ -1,20 +1,33 @@
 # 결과 폴더
 
-기본 실행은 `python -m raceplan.experiment`, 분석은 `python -m raceplan.analyze`,
-이미지는 `python -m raceplan.custom_report`를 사용한다.
-실행 예시는 [프로젝트 README](../README.md)를 참고한다.
+`raceplan-workflow`는 한 시나리오의 비교·분석·PNG를, `raceplan-suite`는 여러
+시나리오의 개별 결과와 집계를 저장한다. `raceplan-report`는 저장된 결과에서 공유용
+HTML과 대표 PNG를 만든다. 실행 예시는 [프로젝트 README](../README.md)를 참고한다.
 
 | 위치·파일 | 내용 |
 |---|---|
-| raw/<이름>.csv | episode 요약 |
-| raw/<이름>_paths.csv | 계획 경로 |
-| raw/<이름>_trajectory.csv | 전체 주행 궤적 |
-| raw/<이름>_manifest.json | 설정·입력·소스 hash·완료 상태 |
-| analysis/<이름>/ | episodes / planners / paired / clearance 및 분석 provenance |
-| figures/<이름>.png | 저장 경로·궤적과 전체 seed 결과 |
+| `raw/<실행>/` | workflow/suite 상태, episode·경로·전체 궤적 CSV, manifest, 분석, PNG. 예전 실행은 `raw/` 바로 아래에도 보관 |
+| `reports/<리포트>/` | 공유할 `index.html`, `images/`, `provenance.json` |
+| `analysis/`, `figures/` | Git에 선별해 기록한 연구 요약·그림. 상세 시계열과 일부 중간 결과는 Git 제외 |
+| `packages/` | 별도로 만든 재현용 보관본. Git 제외 |
 
-summary와 companion 파일은 함께 유지한다. 기존 출력 이름은 재사용하지 않는다.
-raw와 packages 및 상세 시계열은 Git 제외 로컬 자료여서 별도 백업이 필요하다.
+## 공유와 백업
+
+공유할 때는 HTML 리포트 폴더 전체를 복사한다. `index.html`을 열면 로컬 PNG와
+provenance가 상대경로로 연결된다. provenance에는 생성 당시 입력과 소스의 경로·hash가
+포함된다. 저장 결과에서 리포트를 다시 생성하려면 원본 요약·경로·궤적·분석과 manifest가
+참조하는 지도 YAML·이미지가 필요하다.
+
+`raw/`, `reports/`, `packages/`, 일부 상세 시계열·중간 결과는 로컬 산출물이며 Git에서
+제외한다. Git에는 코드·입력 예제·문서와 선별한 연구 요약을 기록한다. 실험을 보존하려면
+summary와 companion 파일, 상태·manifest·분석, 사용한 설정·지도·시나리오·custom 소스,
+Git 커밋과 `uv.lock`을 함께 백업한다. 외부 입력과 로컬 소스 수정본도 백업에 포함하고,
+manifest의 경로와 hash로 원본 일치를 확인한다. 실행이나 리포트 생성마다 새 출력 폴더를 쓴다.
+
+봉인한 실행은 `protocol.json`, `seal.json`, 실행 전 설계와 당시 소스·입력, 원시 결과 및
+검증 기록을 함께 보존한다. 원본은 읽기 전용으로 취급하고 정정은 별도 파일에 남긴다.
+재현에는 당시 소스·입력과 기록된 실행 환경을 사용하며 이미 실행한 봉인 폴더는 재사용하지
+않는다. [holdout 봉인·정정 기록](../docs/TURN_AWARE_HOLDOUT.md)을 참고한다.
 
 ## 보관된 연구 결과
 

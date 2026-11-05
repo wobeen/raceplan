@@ -10,6 +10,31 @@
 각 스텝에서 구현을 마친 뒤 테스트를 묶어서 실행하고 검증 결과를 기록한다.
 RacePlan과 무관한 .pptx-build/ 및 output/ 발표 자료는 이번 커밋에서 제외한다.
 
+## 스텝5: 새 Windows 환경 설치 및 결과 보관 기준
+
+Windows x64의 CPython 3.13.7과 uv 0.12.10을 사용했다. 임시 폴더에 프로젝트
+소스·`uv.lock`·로컬 캐시를 복사하고 `uv sync --locked --offline --extra dev --no-editable`로
+새 가상환경에 설치했다. setuptools 84.0.0이 만든 `py3-none-any` wheel을 설치했고
+`raceplan`이 새 환경의 `site-packages`에서 로드됨을 확인했다. NumPy 2.5.4,
+Pillow 12.3.0, PyYAML 6.0.3, pytest 9.1.1을 사용했다. 기존 `.venv`와 원본 lock은
+그대로 유지했다.
+
+저장소 밖의 작업 디렉터리에서 `PYTHONPATH`를 제거하고 pytest의 `pythonpath` 설정을
+비활성화한 상태로 전체 **113 passed (18.20s)**와 설치 콘솔 명령을 한 묶음으로 검증했다.
+
+| 명령 | 검증 결과 | 로컬 출력 |
+|---|---|---|
+| `raceplan-workflow` | 데모 9/9 도달, PNG 생성 | `results/raw/install_step5_20261105/workflow/` |
+| `raceplan-suite` | 데모·open 두 case 완료, 사용자 예제 포함 16/16 도달, 누락 0 | `results/raw/install_step5_20261105/suite/` |
+| `raceplan-report` | 저장 suite 16행 포함, 대표 PNG 4장, 계획·주행 재실행 0회 | `results/reports/install_step5_20261105/index.html` |
+
+새 설치 검증 범위는 Windows CPython 3.13.7의 uv 잠금 설치다. README의 pip 경로와 다른
+Python 버전·운영체제는 이번에 별도로 검증하지 않았다. 예제 입력은 저장소 파일을 사용했다.
+설치·진입점·예제 코드 수정 없이 README 한·영 사용 흐름과 결과 보관 정책을 정리했다.
+`results/reports/`를 Git 제외 목록에 추가했다. 기존 원본과 봉인 산출물은 보존했다.
+Astra가 설치 메타데이터, 설치 소스 43개 hash, 콘솔 산출물과 보관 기준을 대조해
+최종 승인했다. 이번 설치 검증으로 계획한 스텝 1~5를 모두 마쳤다.
+
 ## 스텝4: 저장 결과 정적 HTML·대표 궤적 구현
 
 새 `raceplan.report`/`raceplan-report`가 workflow/batch/suite의 저장 결과만 읽어
@@ -31,7 +56,7 @@ coverage, 결과, 도달/주행 조건, 유한 delta를 검증한다. Clearance�
 두 건에는 종료 pose가 없고, holdout batch의 대표 충돌 두 건은 마지막 저장 pose를 표시한다.
 세 산출물 모두 계획/시뮬레이션 호출 0회이며 초기 smoke는 별도 경로에 보존했다.
 Astra가 최종 입력·생성기·출력 hash, 집계 분모, 대표 선정과 종료 좌표를 대조하고
-승인했다. 다음 스텝은 새 환경 설치 검증과 사용 문서·데이터 보관 기준 마무리다.
+승인했다. 새 환경 설치와 데이터 보관 기준은 스텝5에 기록했다.
 
 ## 스텝3: 설정 YAML suite 구현
 

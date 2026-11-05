@@ -17,17 +17,24 @@ Dijkstra, A*, Hybrid A*와 직접 만든 플래너를 같은 지도·차량·제
 
 ## 설치와 실행
 
-Python 3.11 이상에서 저장소 루트에서 실행합니다.
+Windows PowerShell에서 Python 3.11 이상을 사용합니다. 저장소 루트에서 새 가상환경을
+만들고, 데모 한 건과 예제 suite를 실행한 뒤 저장된 suite로 HTML 리포트를 만듭니다.
 
 ```powershell
-python -m pip install -e ".[dev]"
-python -m raceplan.workflow scenarios/demo.yaml --simulation-seeds 0 1 2 --output-dir results/raw/comparison
+python -m venv .venv
+.\.venv\Scripts\python.exe -m pip install ".[dev]"
+.\.venv\Scripts\raceplan-workflow.exe scenarios/demo.yaml --simulation-seeds 0 1 2 --output-dir results/raw/comparison
+.\.venv\Scripts\raceplan-suite.exe examples/suite.yaml --output-dir results/raw/my_suite
+.\.venv\Scripts\raceplan-report.exe results/raw/my_suite --output-dir results/reports/my_suite
 ```
 
-한 명령으로 비교 실행 → 저장 결과 분석 → PNG 생성까지 진행합니다. 설치 후에는
-`raceplan-workflow`도 같은 인자를 받습니다. 기존 폴더는 덮어쓰지 않으므로 새 실행에는
-새 `--output-dir`을 지정합니다. 폴더에 `comparison.csv`, 경로·궤적 CSV와 manifest,
-`analysis/`, `comparison.png`, 단계별 상태를 기록한 `workflow.json`이 생깁니다.
+`uv`로 잠긴 의존성을 설치하려면 위 두 설치 명령 대신
+`uv sync --locked --python 3.13 --extra dev --no-editable`을 실행합니다.
+예제의 지도·시나리오·설정·사용자 플래너 파일은 저장소에서 읽습니다.
+
+`raceplan-workflow`는 비교 실행, 저장 결과 분석, PNG 생성을 한 명령으로 처리합니다.
+새 실행에는 새 `--output-dir`을 지정합니다. 폴더에 `comparison.csv`, 경로·궤적 CSV와
+manifest, `analysis/`, `comparison.png`, 단계별 상태를 기록한 `workflow.json`이 생깁니다.
 
 PNG의 집계는 전체 seed 기준이며 기본 첫 seed의 궤적을 표시합니다.
 `--report-seed 1`로 표시할 궤적, `--baseline astar`로 분석 기준을 선택합니다.
@@ -42,27 +49,15 @@ PNG의 집계는 전체 seed 기준이며 기본 첫 seed의 궤적을 표시합
 저장 결과만 다시 분석하거나 PNG를 만들 때는 개별 명령을 사용합니다.
 
 ```powershell
-python -m raceplan.analyze results/raw/comparison/comparison.csv --baseline astar --output-dir results/analysis/reanalysis
-python -m raceplan.custom_report results/raw/comparison/comparison.csv --seed 1 --output results/figures/selected_seed.png
+.\.venv\Scripts\raceplan-analyze.exe results/raw/comparison/comparison.csv --baseline astar --output-dir results/analysis/reanalysis
+.\.venv\Scripts\python.exe -m raceplan.custom_report results/raw/comparison/comparison.csv --seed 1 --output results/figures/selected_seed.png
 ```
 
-`uv`를 사용하는 환경은 `uv sync --python 3.13 --extra dev` 후 각 명령을
-`uv run --python 3.13 python -m ...`으로 실행할 수 있습니다.
-
-저장된 결과를 비교표와 대표 성공·실패 궤적으로 보려면 HTML 리포트를 만듭니다.
-
-```powershell
-python -m raceplan.report results/raw/comparison --output-dir results/reports/comparison
-```
-
-생성한 `index.html`을 열고 폴더 전체를 공유할 수 있습니다. 실패·누락 coverage와
-통계 분모, 고정 대표 선정 규칙은 [저장 리포트 안내](docs/SAVED_REPORT.md)를 참고하세요.
+`raceplan-report`는 저장된 단일 workflow 폴더도 받습니다. 생성한 `index.html`을 열고
+리포트 폴더 전체를 공유할 수 있습니다. 실패·누락 coverage와 통계 분모, 대표 선정
+규칙은 [저장 리포트 안내](docs/SAVED_REPORT.md)를 참고하세요.
 
 ## 여러 시나리오 일괄 실행
-
-```powershell
-python -m raceplan.suite examples/suite.yaml --output-dir results/raw/my_suite
-```
 
 YAML의 공통 설정으로 case별 workflow를 순차 실행하고 episodes/planning/paired 및
 전체·시나리오별 집계 CSV를 만듭니다. 상대경로는 설정 파일 기준입니다. 실패 case는
@@ -77,7 +72,7 @@ YAML의 공통 설정으로 case별 workflow를 순차 실행하고 episodes/pla
 성공 경로는 월드 좌표 미터와 radian을 사용하는 `Pose2D` 목록입니다.
 
 ```powershell
-python -m raceplan.workflow scenarios/demo.yaml --custom-planner examples/my_planner.py:MyPlanner --simulation-seeds 0 1 2 --output-dir results/raw/custom
+.\.venv\Scripts\raceplan-workflow.exe scenarios/demo.yaml --custom-planner examples/my_planner.py:MyPlanner --simulation-seeds 0 1 2 --output-dir results/raw/custom
 ```
 
 `--planners astar hybrid_astar`로 baseline을 선택하고 `--custom-planner`를
@@ -110,7 +105,8 @@ Dijkstra/A*는 점의 격자 연결성, Hybrid A*는 회전한 차량 footprint�
 
 ## 개발과 연구 자료
 
-테스트는 설치 후 `python -m pytest -q`로 실행합니다. 마지막 전체 검증은 113 passed입니다.
+테스트는 설치 후 `.\.venv\Scripts\python.exe -m pytest -q`로 실행합니다.
+마지막 전체 검증은 113개 테스트가 통과했습니다.
 
 효과가 확인되지 않은 후보와 버전별 실험은 기본 사용 안내에서 제외했습니다.
 연구 기능의 상태·보존 이유·이전 문서 위치는 [기능 범위](docs/FEATURE_SCOPE.md),

@@ -65,6 +65,16 @@ control_exception 플래그만 추가한다. 구현 완료 뒤 관련/전체 pyt
 통과했다. 저장 정상 suite, 계획 오류 batch, 충돌 holdout batch의 HTML 3건을 새
 `_reviewed` 폴더에 생성했다. Astra 최종 승인으로 스텝4 검증을 마쳤다.
 
+### 스텝5 — 새 환경 설치·사용 문서·결과 보관
+
+한·영 README의 Windows 새 환경 설치부터 workflow·suite·HTML까지의 흐름,
+`results/README.md`의 Git·공유·백업·봉인 기준과 `results/reports/`의 Git 제외를 묶는다.
+Windows CPython 3.13.7에서 캐시만 사용한 uv 잠금 wheel 설치 후 저장소 밖에서
+전체 113개 테스트(18.20s)와 설치 콘솔 명령을 한 묶음으로 통과했다. Workflow 9건,
+suite 16건이 도달했고 report는 누락 0과 대표 PNG 4장을 기록했다. 출력과 환경은
+[HANDOFF](HANDOFF.md)에 기록했다. Astra가 비편집 설치와 실행 결과를 독립 검증해
+승인했다. 스텝5 검증을 마쳤다.
+
 ## 과거 안내 (현재 커밋 원칙으로 대체됨)
 
 커밋과 staging은 사용자가 수행한다. 이전 분석/보고 커밋은 9758b8f 및

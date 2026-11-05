@@ -7,17 +7,24 @@ simulation. Save planned paths, driven trajectories, outcomes, and metrics.
 
 ## Core workflow
 
-Python 3.11 or newer, from the repository root:
+Use Python 3.11 or newer in Windows PowerShell. From the repository root, create a fresh
+virtual environment, run the demo and example suite, then generate HTML from the saved suite.
 
 ```powershell
-python -m pip install -e ".[dev]"
-python -m raceplan.workflow scenarios/demo.yaml --simulation-seeds 0 1 2 --output-dir results/raw/comparison
+python -m venv .venv
+.\.venv\Scripts\python.exe -m pip install ".[dev]"
+.\.venv\Scripts\raceplan-workflow.exe scenarios/demo.yaml --simulation-seeds 0 1 2 --output-dir results/raw/comparison
+.\.venv\Scripts\raceplan-suite.exe examples/suite.yaml --output-dir results/raw/my_suite
+.\.venv\Scripts\raceplan-report.exe results/raw/my_suite --output-dir results/reports/my_suite
 ```
 
-This runs the comparison, analyzes saved results, and renders a PNG. After installation,
-`raceplan-workflow` accepts the same arguments. Choose a new `--output-dir` for each run;
-existing folders are rejected. Outputs are `comparison.csv`, path/trajectory CSVs and a
-manifest, `analysis/`, `comparison.png`, and per-phase status in `workflow.json`.
+To install locked dependencies with `uv`, replace the first two commands with
+`uv sync --locked --python 3.13 --extra dev --no-editable`. The examples read their maps,
+scenarios, configuration, and custom planner from the repository.
+
+`raceplan-workflow` runs the comparison, analyzes saved results, and renders a PNG.
+Choose a new `--output-dir` for each run. Outputs are `comparison.csv`, path and trajectory
+CSVs, a manifest, `analysis/`, `comparison.png`, and per-phase status in `workflow.json`.
 
 PNG counts cover every seed; `--report-seed N` selects the displayed trajectory.
 `--baseline astar` selects the analysis reference. The default is A* when selected,
@@ -33,8 +40,8 @@ arguments such as `--output` are not accepted by the workflow command.
 To analyze or render existing results independently:
 
 ```powershell
-python -m raceplan.analyze results/raw/comparison/comparison.csv --baseline astar --output-dir results/analysis/reanalysis
-python -m raceplan.custom_report results/raw/comparison/comparison.csv --seed 1 --output results/figures/selected_seed.png
+.\.venv\Scripts\raceplan-analyze.exe results/raw/comparison/comparison.csv --baseline astar --output-dir results/analysis/reanalysis
+.\.venv\Scripts\python.exe -m raceplan.custom_report results/raw/comparison/comparison.csv --seed 1 --output results/figures/selected_seed.png
 ```
 
 The shared simulator uses Pure Pursuit, speed PID, a bicycle model, and rectangular
@@ -42,21 +49,12 @@ vehicle collision checks. Success means reaching within 0.5 m of the goal with n
 collision; final heading is descriptive. Obstacle guard and recovery are disabled
 in the default runner.
 
-For an outcome-first table and representative success/failure trajectories from saved results:
-
-```powershell
-python -m raceplan.report results/raw/comparison --output-dir results/reports/comparison
-```
-
-Open the generated `index.html`; copy the whole folder to share its local PNGs and HTML.
+`raceplan-report` also accepts a saved single-workflow folder. Open the generated
+`index.html` and copy the whole report folder to share the HTML and its local PNGs.
 Coverage, denominators, and deterministic selection are documented in the
 [saved report guide](docs/SAVED_REPORT.md) (Korean).
 
 ## Multiple scenarios
-
-```powershell
-python -m raceplan.suite examples/suite.yaml --output-dir results/raw/my_suite
-```
 
 The YAML applies common settings to sequential case workflows and writes combined
 episodes, deduplicated planning, paired data, and case/overall summaries. Relative paths
@@ -72,7 +70,7 @@ Successful paths contain world-coordinate poses in metres and radians.
 The template delegates to A* to demonstrate integration.
 
 ```powershell
-python -m raceplan.workflow scenarios/demo.yaml --custom-planner examples/my_planner.py:MyPlanner --simulation-seeds 0 1 2 --output-dir results/raw/custom
+.\.venv\Scripts\raceplan-workflow.exe scenarios/demo.yaml --custom-planner examples/my_planner.py:MyPlanner --simulation-seeds 0 1 2 --output-dir results/raw/custom
 ```
 
 Select baselines using `--planners astar hybrid_astar`; repeat `--custom-planner`
@@ -104,7 +102,7 @@ The manifest records settings, source hashes, map provenance, and environment.
 Summary, path, and trajectory CSVs preserve planning failures and driving outcomes.
 See [map conventions](maps/README.md) for map inputs.
 
-Run `python -m pytest -q` after installation. The last full verification passed 113 tests.
+Run `.\.venv\Scripts\python.exe -m pytest -q` after installation. The last full verification passed 113 tests.
 Experimental candidates and historical runners are indexed separately in
 [feature scope](docs/FEATURE_SCOPE.md) (Korean), [results](results/README.md), and
 [handoff](docs/HANDOFF.md). Earlier README content is retained under
