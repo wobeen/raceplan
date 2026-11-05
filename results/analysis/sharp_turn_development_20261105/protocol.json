@@ -1,0 +1,27 @@
+{
+  "kind": "development_selection_not_held_out_evaluation",
+  "source_split": "turn_aware_holdout_20261103/validation only",
+  "families": ["offset_islands", "staggered_windows"],
+  "queries_per_family": 2,
+  "seeds": [11, 12, 13],
+  "planners": ["astar", "sharp_turn_low", "sharp_turn_astar", "sharp_turn_high", "sharp_turn_combined"],
+  "noise": {
+    "initial-position-std-m": 0.02,
+    "initial-yaw-std-rad": 0.02,
+    "steering-std-rad": 0.01,
+    "speed-measurement-std-mps": 0.02
+  },
+  "episodes": 60,
+  "wall_time_s": 3.4905222000088543,
+  "source_sha256": {
+    "examples\\sharp_turn_planner.py": "b5fa925ebe3778c1a96d7481e310715d27a8c73ad091596c6a28ca5bb3a04b3d",
+    "results\\sharp_turn_development.py": "9ed415e68f7098217bf3dbc5e5b48ac2a0d90ec3a5a685c39c96a3b788bdf164"
+  },
+  "input_sha256": {
+    "results\\analysis\\turn_aware_holdout_20261103\\inputs\\validation\\offset_islands\\q0.yaml": "94740854b19c4cb5cf3bf41739430b15c5d9208ef4ef174f186faac5131a869f",
+    "results\\analysis\\turn_aware_holdout_20261103\\inputs\\validation\\offset_islands\\q1.yaml": "e79ad045a7f086316158a704ebbe722ac4877bd0aca7ad830cb06e64309c857d",
+    "results\\analysis\\turn_aware_holdout_20261103\\inputs\\validation\\staggered_windows\\q0.yaml": "18db448f681ff3b03f2a8a1d12f2814ecc2398c92bd83844c0df74f87c826db7",
+    "results\\analysis\\turn_aware_holdout_20261103\\inputs\\validation\\staggered_windows\\q1.yaml": "6a8631658d2487295bb7f9c4a2f73e6736eff1678fc2ff00a15f032b3647974e"
+  },
+  "selection_rule": "prefer no reach-rate regression vs A*; then lower median successful RMSE and max discrete curvature; evaluation remains unused"
+}

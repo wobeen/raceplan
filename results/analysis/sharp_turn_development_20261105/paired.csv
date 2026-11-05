@@ -1,0 +1,5 @@
+planner,baseline,pairs,reach_wins,reach_losses,both_reached,delta_tracking_rmse_m_median,delta_completion_time_s_median,delta_driving_clearance_m_median
+sharp_turn_low,astar,12,0,3,3,-0.0488213319717639,0.6500000000000004,0.0
+sharp_turn_astar,astar,12,0,6,0,,,-0.007516375345808443
+sharp_turn_high,astar,12,0,3,3,-0.04805677002601725,0.6500000000000004,0.0
+sharp_turn_combined,astar,12,0,3,3,-0.0488213319717639,0.6500000000000004,0.0
