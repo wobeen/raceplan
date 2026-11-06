@@ -1,0 +1,247 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8"><title>RacePlan Explorer 목업 v5</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#f5f6fa}
+.wrap{container-type:inline-size;width:100%}
+.app{--paper:rgba(255,255,255,.55);--card:rgba(255,255,255,.6);--ink:#1c1c1e;--mut:#6e6e73;--line:rgba(60,60,67,.13);--acc:#007aff;--red:#ff3b30;--teal:#1fa34a;--amb:#e8830c;--vio:#a94fd8;
+ --glass:linear-gradient(145deg,rgba(255,255,255,.78),rgba(255,255,255,.46));
+ --rim:inset 0 1px 0 rgba(255,255,255,.95),inset 1px 0 0 rgba(255,255,255,.5),inset 0 -1px 0 rgba(255,255,255,.35);
+ --lift:0 .55em 1.9em rgba(40,52,90,.11),0 .08em .3em rgba(40,52,90,.06);
+ position:relative;width:100%;aspect-ratio:16/9;font:clamp(6px,.95cqw,16px) -apple-system,"SF Pro Text","Segoe UI Variable Text","Segoe UI","Malgun Gothic",system-ui,sans-serif;color:var(--ink);overflow:hidden;
+ background:radial-gradient(38% 52% at 10% 14%,#d9e8ff 0,transparent 72%),radial-gradient(34% 46% at 90% 10%,#fde6f1 0,transparent 72%),radial-gradient(44% 56% at 72% 96%,#d8f5ea 0,transparent 72%),radial-gradient(36% 44% at 24% 94%,#ece7ff 0,transparent 72%),#f8f9fc;
+ display:grid;grid-template-columns:15.5% 1fr 19%;grid-template-rows:auto 1fr 25%;grid-template-areas:"top top top" "rail work insp" "rail time insp";gap:.8em;padding:.8em}
+.top{grid-area:top;display:flex;align-items:center;gap:.8em}
+.brand{display:flex;align-items:center;gap:.5em;font-weight:700;font-size:1.3em;letter-spacing:-.02em}
+.flag{width:1.5em;height:1.5em;border-radius:.42em;background:conic-gradient(#1c1c1e 25%,#fff 0 50%,#1c1c1e 0 75%,#fff 0) 0 0/50% 50%;box-shadow:0 .1em .4em rgba(40,52,90,.25),inset 0 0 0 1px rgba(255,255,255,.6)}
+.crumb,.search,.ghost{background:var(--glass);backdrop-filter:blur(20px) saturate(180%);-webkit-backdrop-filter:blur(20px) saturate(180%);border:1px solid rgba(255,255,255,.8);box-shadow:var(--lift),var(--rim);border-radius:2em}
+.crumb{display:flex;gap:.35em;align-items:center;padding:.3em .4em .3em 1em}
+.crumb b{font-weight:600}.crumb span{color:var(--mut)}
+.pill{background:rgba(118,118,128,.1);border-radius:2em;padding:.2em .85em;cursor:pointer;color:var(--ink)!important}.pill:hover{background:rgba(118,118,128,.18)}
+.sp{flex:1}
+.search{padding:.4em 1em;color:var(--mut);min-width:18%;cursor:pointer}
+.search kbd{float:right;font:inherit;font-size:.85em;background:rgba(118,118,128,.12);padding:0 .5em;border-radius:.4em}
+.ghost{padding:.4em 1em;font:inherit;cursor:pointer;color:var(--ink)}.ghost:hover{background:rgba(255,255,255,.9)}
+.go{background:linear-gradient(180deg,#2f95ff,#007aff);color:#fff;border:1px solid rgba(255,255,255,.35);border-radius:2em;padding:.45em 1.3em;font:inherit;font-weight:600;cursor:pointer;box-shadow:0 .4em 1.1em rgba(0,122,255,.32),inset 0 1px 0 rgba(255,255,255,.55)}
+.go:hover{filter:brightness(1.06)}.go:active{transform:scale(.97)}
+.card{position:relative;background:var(--glass);backdrop-filter:blur(26px) saturate(180%);-webkit-backdrop-filter:blur(26px) saturate(180%);border:1px solid rgba(255,255,255,.8);border-radius:1.5em;box-shadow:var(--lift),var(--rim);display:flex;flex-direction:column;min-height:0;min-width:0;overflow:hidden}
+.card::before{content:"";position:absolute;left:0;right:0;top:0;height:3.2em;background:linear-gradient(180deg,rgba(255,255,255,.55),transparent);pointer-events:none;border-radius:1.5em 1.5em 0 0}
+.card>*{position:relative}
+.card>h3{display:flex;align-items:center;gap:.5em;margin:0;padding:.6em 1em .45em;font-size:1em;font-weight:600;letter-spacing:-.01em;color:var(--ink);flex:none;cursor:grab;user-select:none;white-space:nowrap}
+.card>h3 .g{letter-spacing:-.2em;color:#b4b6be}.card>h3 em{margin-left:auto;font-style:normal;font-weight:400;font-size:.88em;color:var(--mut)}
+.cb{flex:1;min-height:0;padding:0 1em .8em;display:flex;flex-direction:column;gap:.45em}
+.rail{grid-area:rail;display:flex;flex-direction:column;gap:.8em;min-height:0}
+.runs{flex:0 0 auto}
+.mini{display:flex;height:.36em;border-radius:1em;overflow:hidden;margin-top:.4em;background:rgba(118,118,128,.14)}
+.grid{flex:1}.slot{display:flex;align-items:center;gap:.65em;padding:.45em .55em;border-radius:1em;margin-bottom:.3em;cursor:pointer;border:1px solid transparent;transition:background .15s}
+.slot:hover{background:rgba(255,255,255,.55)}.slot.off{opacity:.38}.slot.sel{background:rgba(255,255,255,.82);border-color:rgba(255,255,255,.95);box-shadow:0 .25em .9em rgba(40,52,90,.1),var(--rim)}
+.num{width:2.1em;height:2.1em;border-radius:.62em;color:#fff;font-weight:700;display:grid;place-items:center;flex:none;font-size:.95em;box-shadow:0 .15em .45em rgba(40,52,90,.22),inset 0 1px 0 rgba(255,255,255,.5);background-image:linear-gradient(180deg,rgba(255,255,255,.22),transparent)}
+.slot b{display:block;line-height:1.15;font-weight:600}.slot small{color:var(--mut)}
+.work{grid-area:work;display:grid;grid-template-columns:repeat(12,1fr);grid-template-rows:.8fr 1.2fr;gap:.8em;min-height:0}
+.insp{grid-area:insp;display:flex;flex-direction:column;gap:.8em;min-height:0}
+.time{grid-area:time;min-height:0}
+.kv{display:grid;grid-template-columns:1fr auto;gap:.3em .6em;font-size:.95em}
+.kv span:nth-child(odd){color:var(--mut)}.kv span:nth-child(even){text-align:right;font-variant-numeric:tabular-nums;font-weight:600}
+.tag{display:inline-block;padding:.15em .8em;border-radius:2em;font-weight:600;font-size:.9em}
+.t-ok{background:rgba(52,199,89,.16);color:var(--teal)}.t-col{background:rgba(255,59,48,.13);color:var(--red)}.t-pe{background:rgba(175,82,222,.14);color:var(--vio)}
+.cmd{font-family:"SF Mono",Consolas,monospace;font-size:.82em;background:rgba(255,255,255,.6);color:#3a3a3c;border:1px solid rgba(255,255,255,.9);box-shadow:inset 0 .05em .3em rgba(40,52,90,.1);border-radius:.8em;padding:.55em .75em;line-height:1.45;word-break:break-all}
+.lb{display:grid;grid-template-columns:2.2em 2.4em 1fr 6em 5em;gap:.3em .6em;align-items:center;font-size:.95em}
+.lb .hd{color:var(--mut);font-size:.85em}
+.lb .row{display:contents;cursor:pointer}.lb .row:hover b{color:var(--acc)}
+.lb b{font-weight:600}
+.bar{display:flex;height:.72em;border-radius:1em;overflow:hidden;background:rgba(118,118,128,.14);margin-top:.12em}
+svg.f{flex:1;min-height:0;width:100%;background:rgba(255,255,255,.5);border:1px solid rgba(255,255,255,.85);box-shadow:inset 0 .05em .5em rgba(40,52,90,.07);border-radius:1em}
+.note{color:var(--mut);font-size:.85em;flex:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lanes{position:relative;flex:1;min-height:0;display:flex;flex-direction:column;justify-content:space-around}
+.lane{display:flex;align-items:center;gap:.7em}.lane .lab{width:11em;display:flex;align-items:center;gap:.5em;white-space:nowrap}.lane .lab b{font-weight:600}
+.rail2{position:relative;flex:1;height:1.15em;background:rgba(118,118,128,.12);border-radius:1em;box-shadow:inset 0 .05em .2em rgba(40,52,90,.1)}
+.fillb{position:absolute;left:0;top:0;bottom:0;border-radius:1em;background-image:linear-gradient(180deg,rgba(255,255,255,.4),transparent 60%);box-shadow:inset 0 1px 0 rgba(255,255,255,.5)}
+.ev{position:absolute;top:50%;transform:translate(-50%,-50%);font-weight:800;font-size:1em;line-height:1;background:#fff;border-radius:50%;width:1.55em;height:1.55em;display:grid;place-items:center;border:1.5px solid;box-shadow:0 .1em .4em rgba(40,52,90,.25)}
+.scrub{position:absolute;top:0;bottom:0;width:2px;background:var(--acc);border-radius:2px;box-shadow:0 0 .4em rgba(0,122,255,.55);pointer-events:none;z-index:3}.scrub::before{content:attr(data-t);position:absolute;top:.1em;left:-.3em;transform:translateX(-100%);background:var(--acc);color:#fff;font-size:.8em;font-weight:600;padding:.05em .55em;border-radius:1em;white-space:nowrap}
+.scr{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:ew-resize;z-index:4;margin:0}
+.axis{display:flex;justify-content:space-between;color:var(--mut);font-size:.8em;margin-left:11.7em}
+.ph{display:flex;align-items:center;gap:.6em;flex:none}.ph .btn{background:rgba(0,122,255,.12);color:var(--acc);border:0;border-radius:2em;padding:.22em .95em;font:inherit;font-weight:600;cursor:pointer}.ph .btn:hover{background:rgba(0,122,255,.2)}
+.seg{display:flex;padding:.14em;background:rgba(118,118,128,.14);border-radius:2em;margin-left:auto}.seg span{padding:.12em .85em;cursor:pointer;border-radius:2em;font-weight:500;color:var(--ink)}.seg span.on{background:#fff;box-shadow:0 .1em .4em rgba(40,52,90,.2);font-weight:600}
+.card.over{outline:2px solid var(--acc);outline-offset:-3px;box-shadow:0 0 0 .3em rgba(0,122,255,.16),var(--rim)}
+.lnk{cursor:pointer;color:var(--acc);font-weight:500}.lnk:hover{text-decoration:underline}
+.cl{margin-left:.4em;cursor:pointer;color:var(--mut);font-weight:400;width:1.5em;height:1.5em;display:grid;place-items:center;border-radius:50%;background:rgba(118,118,128,.12);font-size:.8em}.cl:hover{background:rgba(255,59,48,.15);color:var(--red)}
+.pop,.mbox,.pal{background:linear-gradient(145deg,rgba(255,255,255,.9),rgba(255,255,255,.72));backdrop-filter:blur(34px) saturate(190%);-webkit-backdrop-filter:blur(34px) saturate(190%);border:1px solid rgba(255,255,255,.9);box-shadow:0 1.2em 3.4em rgba(40,52,90,.22),var(--rim)}
+.pop{position:absolute;z-index:90;border-radius:1.3em;padding:.55em;display:none;min-width:22%}
+.pop.on{display:block}.pop h4{margin:.2em .5em .4em;font-size:.85em;font-weight:500;color:var(--mut)}
+.mi{display:flex;align-items:center;gap:.7em;padding:.4em .55em;border-radius:.9em;cursor:pointer}.mi:hover{background:rgba(118,118,128,.1)}.mi.on{background:rgba(0,122,255,.13)}.mi.on b{color:var(--acc)}
+.mi b{font-weight:600}.mi small{color:var(--mut);display:block}.mi svg{width:4.2em;height:2.9em;background:rgba(255,255,255,.8);border-radius:.5em;flex:none;box-shadow:inset 0 0 0 1px var(--line)}
+.pop label{display:flex;align-items:center;gap:.6em;padding:.3em .5em;cursor:pointer}
+.setrow{padding:.55em .75em;border-radius:1em;border:1px solid transparent;margin-bottom:.35em;cursor:pointer;transition:background .15s}
+.setrow:hover{background:rgba(255,255,255,.55)}.setrow.on{background:rgba(255,255,255,.82);border-color:rgba(255,255,255,.95);box-shadow:0 .25em .9em rgba(40,52,90,.1),var(--rim)}.setrow b{display:block;font-weight:600}.setrow small{color:var(--mut)}
+.modal{position:absolute;inset:0;background:rgba(240,243,250,.45);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);z-index:100;display:none;place-items:center}.modal.on{display:grid}
+.mbox{border-radius:1.7em;padding:1.2em 1.4em;width:44%;display:flex;flex-direction:column;gap:.6em}
+.mbox h2{margin:0;font-size:1.35em;font-weight:700;letter-spacing:-.02em}.mbox input[type=text]{font:inherit;border:0;border-radius:.8em;padding:.45em .75em;background:rgba(118,118,128,.12);outline:0;color:inherit}.mbox input[type=text]:focus{box-shadow:0 0 0 .2em rgba(0,122,255,.3)}
+.mrow{display:flex;gap:.5em 1.2em;flex-wrap:wrap}.mrow label{display:flex;gap:.5em;align-items:center;cursor:pointer}.mbox .lab{font-size:.85em;color:var(--mut);font-weight:500}
+.mbtns{display:flex;gap:.6em;justify-content:flex-end}.mbtns .btn2{background:rgba(118,118,128,.12);border:0;border-radius:2em;padding:.45em 1.2em;font:inherit;font-weight:500;cursor:pointer;color:var(--ink)}
+.pal{position:absolute;left:50%;top:10%;transform:translateX(-50%);width:40%;z-index:99;display:none;border-radius:1.3em;overflow:hidden}
+.pal.on{display:block}.pal input{width:100%;border:0;border-bottom:1px solid var(--line);font:inherit;padding:.75em 1.1em;background:transparent;outline:0;color:inherit}
+.pal .i{padding:.45em 1.1em;cursor:pointer}.pal .i:hover,.pal .i.f{background:rgba(0,122,255,.13);color:var(--acc)}
+.app input[type=checkbox]{appearance:none;-webkit-appearance:none;font-size:inherit;width:1.8em;height:1.8em;margin:0;flex:none;cursor:pointer;border-radius:.55em;background:rgba(255,255,255,.75);border:1.5px solid rgba(60,60,67,.28);box-shadow:inset 0 .05em .2em rgba(40,52,90,.12);transition:background .12s,transform .12s}
+.app input[type=checkbox]:hover{border-color:var(--acc)}.app input[type=checkbox]:active{transform:scale(.9)}
+.app input[type=checkbox]:checked{border-color:transparent;box-shadow:0 .15em .5em rgba(0,122,255,.38),inset 0 1px 0 rgba(255,255,255,.45);background:linear-gradient(180deg,#2f95ff,#007aff) no-repeat}
+.app input[type=checkbox]:checked{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Cpath d='M5 10.5l3.4 3.4L15 6.8' fill='none' stroke='%23fff' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E"),linear-gradient(180deg,#2f95ff,#007aff)}
+.app input[type=checkbox]:focus-visible{outline:.18em solid rgba(0,122,255,.45);outline-offset:.1em}
+</style></head><body>
+<div class="wrap"><div class="app" id="app">
+ <div class="top">
+  <div class="brand"><div class="flag"></div>RacePlan</div>
+  <div class="crumb"><span>실험 셋</span><b id="setName">기본 비교</b><span>›</span><span class="pill" id="mapPill">지도: demo ▾</span><span class="pill" id="seedPill">seed 1</span></div>
+  <div class="sp"></div><button class="ghost" id="pbtn">▦ 패널 ▾</button><div class="search" id="srch">명령·에피소드 검색<kbd>Ctrl K</kbd></div>
+  <button class="go">▶ 새 비교 실행</button>
+ </div>
+
+ <div class="rail">
+  <div class="card runs"><h3>실험 셋 <em><span class="lnk" id="newset">＋ 새 셋</span></em></h3><div class="cb" id="runs"></div></div>
+  <div class="card grid"><h3>Starting grid <em>선택 → Inspector</em></h3><div class="cb" id="grid"></div></div>
+ </div>
+
+ <div class="work" id="work">
+  <div class="card" data-id="lb"><h3 draggable="true"><span class="g">⋮⋮</span>리더보드 <em>트랙 표시: <span class="lnk" data-all="1">모두</span> · <span class="lnk" data-all="0">없음</span></em><b class="cl" data-cl="lb">✕</b></h3><div class="cb" id="lb"></div></div>
+  <div class="card" data-id="track"><h3 draggable="true"><span class="g">⋮⋮</span>트랙 · 체크한 planner 동시 주행 <em id="trk"></em><b class="cl" data-cl="track">✕</b></h3><div class="cb"><svg class="f" id="track" viewBox="0 0 520 360"></svg><div class="note">점선 = 계획 경로 · 실선 = 실제 궤적 · 타임라인과 같은 시각</div></div></div>
+  <div class="card" data-id="delta"><h3 draggable="true"><span class="g">⋮⋮</span>Paired Δ RMSE <em>− = 개선 · 기준 A*</em><b class="cl" data-cl="delta">✕</b></h3><div class="cb"><svg class="f" id="delta" viewBox="0 0 400 190"></svg></div></div>
+  <div class="card" data-id="sc"><h3 draggable="true"><span class="g">⋮⋮</span>계획시간 × RMSE <em>클릭 → 에피소드 선택</em><b class="cl" data-cl="sc">✕</b></h3><div class="cb"><svg class="f" id="sc" viewBox="0 0 400 190"></svg></div></div>
+ </div>
+
+ <div class="insp">
+  <div class="card" style="flex:1"><h3>Inspector</h3><div class="cb" id="insp"></div></div>
+ </div>
+
+ <div class="card time"><h3><span class="g">⋮⋮</span>텔레메트리 타임라인 <em style="margin-left:.8em;font-weight:500">같은 시각 기준 · 끌어서 이동</em>
+   <div class="ph" style="margin-left:auto"><button class="btn" id="play">▶ 재생</button><div class="seg" id="seeds"><span class="on" data-s="0">seed 0</span><span data-s="1">seed 1</span></div></div></h3>
+  <div class="cb"><div class="lanes" id="lanes"></div><div class="axis"><span>0 s</span><span>5</span><span>10</span><span>15 s</span></div></div></div>
+
+ <div class="pop" id="mapMenu" style="left:25%;top:7%"></div>
+ <div class="pop" id="panMenu" style="right:19%;top:7%"></div>
+ <div class="modal" id="modal"><div class="mbox">
+  <h2>새 실험 셋</h2>
+  <div class="lab">이름</div><input type="text" id="mname" value="새 실험 셋">
+  <div class="lab">지도 (파일에서 선택)</div><div class="mrow" id="mmaps"></div>
+  <div class="lab">Planner</div><div class="mrow" id="mpl"></div>
+  <div class="lab">Seed 범위</div><input type="text" id="mseed" value="0-2">
+  <div class="mbtns"><button class="btn2" id="mcancel">취소</button><button class="go" id="mok">만들기</button></div>
+ </div></div>
+ <div class="pal" id="pal"><input id="pin" placeholder="무엇을 할까요?  (예: hybrid 충돌, 산점도, CSV)"><div id="plist"></div></div>
+</div></div>
+<script>
+const $=id=>document.getElementById(id);
+const P=[{k:'dijkstra',n:'01',c:'#007aff',l:'Dijkstra'},{k:'astar',n:'02',c:'#00a08a',l:'A*'},{k:'hybrid_astar',n:'03',c:'#e8830c',l:'Hybrid A*'},{k:'MyPlanner',n:'04',c:'#a94fd8',l:'MyPlanner'}];
+const col={};P.forEach(p=>col[p.k]=p);
+let seed=7;const rnd=()=>(seed=(seed*16807)%2147483647)/2147483647;
+const wall=[[150,0,24,170],[150,230,24,130],[310,90,24,270],[310,0,24,50]];
+const base=[[30,310],[100,310],[120,200],[240,200],[262,300],[380,300],[400,120],[480,60]];
+const R=[];
+P.forEach(p=>[0,1].forEach(sd=>{const r=p.k==='MyPlanner'?'planning_error':(p.k==='hybrid_astar'&&sd===1?'collision':'reached'),ok=r!=='planning_error';
+ R.push({p:p.k,sd,r,rmse:ok?+(0.07+rnd()*0.08+(p.k==='hybrid_astar'?.06:0)).toFixed(3):null,tm:r==='collision'?9.1:ok?+(12.6+rnd()*1.4+(p.k==='hybrid_astar'?.8:0)).toFixed(2):null,
+  cl:ok?+(0.24+rnd()*.06).toFixed(3):null,pms:+(p.k==='hybrid_astar'?18+rnd()*5:p.k==='dijkstra'?.35:p.k==='astar'?.16:.2).toFixed(2),j:rnd()*8-4})}));
+const ep=(p,s)=>R.find(x=>x.p===p&&x.sd===s);
+const OUT={reached:['t-ok','도달','✓',col.astar.c],collision:['t-col','충돌','✕','#ff3b30'],planning_error:['t-pe','계획 오류','!','#a94fd8']};
+const TMAX=15;let S={seed:0,sel:'hybrid_astar',t:100,on:{dijkstra:1,astar:1,hybrid_astar:1,MyPlanner:1}};
+/* 좌측 */
+/* 리더보드 */
+/* 트랙 */
+function track(){const T=S.t/100*TMAX;let s='';MAPS[S.map].w.forEach(([a,b,c,d])=>s+=`<rect x="${a}" y="${b}" width="${c}" height="${d}" fill="#ccd1db" rx="3"/>`);
+ s+=`<polyline points="${base.map(q=>q.join(',')).join(' ')}" fill="none" stroke="#a3a8b4" stroke-dasharray="6 5" stroke-width="2"/>`;
+ P.forEach(p=>{if(!S.on[p.k])return;const x=ep(p.k,S.seed);if(x.r==='planning_error')return;const k=3*(p.k==='hybrid_astar'?1.6:1),pts=base.map(([a,b],i)=>[a+Math.sin(i*1.7+x.j)*k,b+Math.cos(i*1.3+x.j)*k]);
+  const f=Math.min(1,T/x.tm),lim=x.r==='collision'?5:pts.length-1,pos=f*lim,i=Math.floor(pos),fr=pos-i,a=pts[i],b=pts[Math.min(i+1,pts.length-1)];
+  const cur=[a[0]+(b[0]-a[0])*fr,a[1]+(b[1]-a[1])*fr],tr=pts.slice(0,i+1).concat([cur]);
+  s+=`<polyline points="${tr.map(q=>q.join(',')).join(' ')}" fill="none" stroke="${p.c}" stroke-width="${S.sel===p.k?6:3.5}" stroke-linecap="round" opacity="${S.sel===p.k?1:.7}"/>`;
+  s+=`<g transform="translate(${cur[0]},${cur[1]})"><rect x="-13" y="-11" width="26" height="22" rx="6" fill="${p.c}" stroke="#fff" stroke-width="2"/><text y="5" text-anchor="middle" font-size="13" font-weight="800" fill="#fff">${p.n}</text></g>`;
+  if(f>=1&&x.r==='collision')s+=`<circle cx="${cur[0]}" cy="${cur[1]}" r="22" fill="none" stroke="#ff3b30" stroke-width="4"/><text x="${cur[0]+26}" y="${cur[1]-14}" font-size="15" font-weight="800" fill="#ff3b30">충돌</text>`;
+  if(f>=1&&x.r==='reached')s+=`<circle cx="${cur[0]}" cy="${cur[1]}" r="19" fill="none" stroke="${p.c}" stroke-width="3" stroke-dasharray="3 3"/>`});
+ s+=`<circle cx="30" cy="310" r="9" fill="none" stroke="#1c1c1e" stroke-width="3"/><text x="44" y="315" font-size="16" font-weight="700">START</text><circle cx="480" cy="60" r="14" fill="none" stroke="#1c1c1e" stroke-width="3" stroke-dasharray="5 3"/><text x="418" y="48" font-size="16" font-weight="700">GOAL</text>`;
+ $('track').innerHTML=s;$('trk').textContent=`${T.toFixed(1)} s · seed ${S.seed}`}
+/* 차트 */
+function delta(){seed=97;let h='<line x1="200" y1="12" x2="200" y2="160" stroke="#a3a8b4" stroke-dasharray="3 3"/><text x="204" y="22" font-size="10" fill="#6e6e73">0 (= A*)</text>';
+ [['dijkstra',-.03],['hybrid_astar',.06]].forEach(([k,mu],i)=>{const y=62+i*62;h+=`<text x="6" y="${y+4}" font-size="12" font-weight="700" fill="${col[k].c}">${col[k].n} ${col[k].l}</text>`;
+  for(let q=0;q<8;q++){const v=mu+(rnd()-.5)*.05;h+=`<circle cx="${200+v*1400}" cy="${y+(rnd()-.5)*24}" r="5" fill="${col[k].c}" opacity=".85"/>`}
+  h+=`<line x1="${200+mu*1400}" x2="${200+mu*1400}" y1="${y-20}" y2="${y+20}" stroke="${col[k].c}" stroke-width="3"/>`});
+ $('delta').innerHTML=h+'<text x="200" y="182" font-size="10" fill="#6e6e73" text-anchor="middle">← 더 정확 · 덜 정확 →  (제외 쌍 2)</text>'}
+function sc(){let h='<line x1="40" y1="155" x2="390" y2="155" stroke="#a3a8b4"/><line x1="40" y1="10" x2="40" y2="155" stroke="#a3a8b4"/><text x="215" y="176" font-size="10" fill="#6e6e73" text-anchor="middle">계획시간 ms (log)</text><text x="10" y="90" font-size="10" fill="#6e6e73" transform="rotate(-90 10 90)">RMSE m</text>';
+ R.forEach(x=>{if(x.rmse===null)return;h+=`<circle cx="${40+Math.log10(x.pms*10+1)*95}" cy="${155-(x.rmse-.05)*1000}" r="${x.p===S.sel?9:6}" fill="${col[x.p].c}" opacity=".9" stroke="#fff" stroke-width="2" style="cursor:pointer" data-k="${x.p}" data-s="${x.sd}"/>`});
+ $('sc').innerHTML=h}
+$('sc').onclick=e=>{const c=e.target.closest('circle');if(c){S.sel=c.dataset.k;S.seed=+c.dataset.s;seg();all()}};
+/* Inspector */
+function insp(){const x=ep(S.sel,S.seed),p=col[S.sel],o=OUT[x.r];
+ $('insp').innerHTML=`<div style="display:flex;align-items:center;gap:.6em"><div class="num" style="background:${p.c}">${p.n}</div><div><b style="font-size:1.15em">${p.l}</b><br><small style="color:var(--mut)">demo · seed ${x.sd}</small></div></div>
+ <div><span class="tag ${o[0]}">${o[2]} ${o[1]}</span></div>
+ <div class="kv"><span>RMSE</span><span>${x.rmse??'—'} m</span><span>완료시간</span><span>${x.tm??'—'} s</span><span>최소 clearance</span><span>${x.cl??'—'} m</span><span>계획시간(runner)</span><span>${x.pms} ms</span><span>경로 길이</span><span>${x.r==='planning_error'?'—':'11.07 m'}</span></div>
+ ${x.r==='planning_error'?'<div class="tag t-pe" style="border-radius:.6em;font-weight:500">IndexError: list index out of range<br><small>(계획 오류, 다음 planner 계속)</small></div>':''}
+ <div style="color:var(--mut);font-size:.8em;text-transform:uppercase;letter-spacing:.08em;margin-top:.3em">Provenance</div>
+ <div class="kv"><span>입력 hash</span><span style="color:var(--teal)">✔ 일치</span><span>소스</span><span>a91c3e…</span><span>scenario</span><span>demo.yaml</span></div>
+ <div style="color:var(--mut);font-size:.8em;text-transform:uppercase;letter-spacing:.08em;margin-top:.3em">재현 명령</div>
+ <div class="cmd">raceplan-workflow demo.yaml --seeds ${x.sd} --custom-planner my.py:MyPlanner</div>`}
+/* 타임라인 */
+function lanes(){const T=S.t/100*TMAX;$("lanes").innerHTML=P.filter(p=>S.on[p.k]).map(p=>{const x=ep(p.k,S.seed),o=OUT[x.r],end=x.tm?x.tm/TMAX*100:0,w=x.tm?Math.min(T,x.tm)/TMAX*100:0;
+  return `<div class="lane" data-k="${p.k}"><div class="lab"><div class="num" style="background:${p.c};width:1.7em;height:1.7em;font-size:.85em">${p.n}</div><b>${p.l}</b></div><div class="rail2"><div class="fillb" style="width:${w}%;background:${p.c}"></div>${x.r==='planning_error'?`<div class="ev" style="left:2.5%;color:${o[3]};border-color:${o[3]}">!</div><span style="position:absolute;left:6%;top:50%;transform:translateY(-50%);font-size:.85em;color:var(--vio)">계획 오류 — 주행 없음</span>`:`<div class="ev" style="left:${end}%;color:${o[3]};border-color:${o[3]}">${o[2]}</div>`}</div></div>`}).join('')+`<div style="position:absolute;left:11.7em;right:0;top:0;bottom:0;pointer-events:none"><div class="scrub" id="scrub" style="left:${S.t}%" data-t="${T.toFixed(1)} s"></div></div><input class="scr" id="scr" type="range" min="0" max="100" value="${S.t}" style="left:11.7em;width:calc(100% - 11.7em)">`;
+ $('scr').oninput=e=>{S.t=+e.target.value;tick()};$('lanes').onclick=e=>{const l=e.target.closest('.lane');if(l&&e.target.id!=='scr'){S.sel=l.dataset.k;all()}}}
+function tick(){const T=S.t/100*TMAX;$('scrub').style.left=S.t+'%';$('scrub').dataset.t=T.toFixed(1)+' s';
+ document.querySelectorAll('.lane').forEach(l=>{const x=ep(l.dataset.k,S.seed);l.querySelector('.fillb').style.width=(x.tm?Math.min(T,x.tm)/TMAX*100:0)+'%'});track()}
+function seg(){document.querySelectorAll('#seeds span').forEach(s=>s.classList.toggle('on',+s.dataset.s===S.seed))}
+$('seeds').onclick=e=>{const s=e.target.closest('span');if(s){S.seed=+s.dataset.s;seg();all()}};
+let pid=null;$('play').onclick=()=>{if(pid){clearInterval(pid);pid=null;$('play').textContent='▶ 재생';return}S.t=0;$('play').textContent='❚❚ 정지';
+ pid=setInterval(()=>{S.t+=1.2;if(S.t>=100){S.t=100;clearInterval(pid);pid=null;$('play').textContent='▶ 재생'}$('scr').value=S.t;tick()},50)};
+function all(){grid();lb();track();delta();sc();insp();lanes();crumb()}
+/* 지도 목록(파일) · 실험 셋 */
+const MAPS=[
+ {id:'demo',f:'maps/demo.yaml',sz:'10.4×7.2 m',w:[[150,0,24,170],[150,230,24,130],[310,90,24,270],[310,0,24,50]]},
+ {id:'open',f:'maps/open.yaml',sz:'10.4×7.2 m',w:[[220,110,30,140]]},
+ {id:'corridor_w1.0',f:'maps/corridor_w1.0.yaml',sz:'12.0×4.0 m',w:[[140,0,24,140],[140,220,24,140],[300,0,24,110],[300,180,24,180]]}];
+S.map=0;
+const SETS=[{n:'기본 비교',maps:[0,1],pl:4,seeds:'0-1',res:[87,6,7]},{n:'통로 폭 실험',maps:[2],pl:3,seeds:'0-4',res:[70,20,10]}];let curSet=0;
+const setMeta=s=>`${s.maps.length} 지도 · ${s.pl} planner · seed ${s.seeds}`;
+function sets(){$('runs').innerHTML=SETS.map((s,i)=>`<div class="setrow ${i===curSet?'on':''}" data-i="${i}"><b>${s.n}</b><small>${setMeta(s)}</small><div class="mini"><i style="width:${s.res[0]}%;background:var(--teal)"></i><i style="width:${s.res[1]}%;background:var(--red)"></i><i style="width:${s.res[2]}%;background:var(--vio)"></i></div></div>`).join('')}
+$('runs').onclick=e=>{const r=e.target.closest('.setrow');if(r){curSet=+r.dataset.i;S.map=SETS[curSet].maps[0];all()}};
+function thumb(m){return `<svg viewBox="0 0 520 360">${m.w.map(([a,b,c,d])=>`<rect x="${a}" y="${b}" width="${c}" height="${d}" fill="#a3a8b4"/>`).join('')}<circle cx="30" cy="310" r="14" fill="none" stroke="#6e6e73" stroke-width="6"/></svg>`}
+function mapMenu(){$('mapMenu').innerHTML='<h4>불러온 지도 파일</h4>'+MAPS.map((m,i)=>`<div class="mi ${i===S.map?'on':''}" data-i="${i}">${thumb(m)}<div><b>${m.id}</b><small>${m.f} · ${m.sz}</small></div></div>`).join('')+'<div class="mi" data-add="file"><b>＋ 지도 파일 추가…</b></div><div class="mi" data-add="dir"><b>📁 폴더에서 불러오기…</b></div>'}
+$('mapPill').onclick=e=>{e.stopPropagation();mapMenu();$('mapMenu').classList.toggle('on');$('panMenu').classList.remove('on')};
+$('mapMenu').onclick=e=>{const m=e.target.closest('.mi');if(!m)return;
+ if(m.dataset.add){const n=MAPS.length;MAPS.push({id:'custom_'+n,f:'maps/custom_'+n+'.yaml',sz:'8.0×6.0 m',w:[[120+n*20,40,26,200],[300,150,26,200]]});S.map=MAPS.length-1}else S.map=+m.dataset.i;
+ $('mapMenu').classList.remove('on');all()};
+/* 패널 표시 선택 · 타일 배치 */
+const TT={lb:'리더보드',track:'트랙',delta:'Paired Δ RMSE',sc:'계획시간 × RMSE'};let order=['lb','track','delta','sc'],vis={lb:1,track:1,delta:1,sc:0};
+function layout(){const v=order.filter(k=>vis[k]),n=v.length,G={4:[['1/7','1'],['7/13','1/3'],['1/4','2'],['4/7','2']],3:[['1/7','1'],['7/13','1/3'],['1/7','2']],2:[['1/7','1/3'],['7/13','1/3']],1:[['1/13','1/3']]};
+ document.querySelectorAll('#work .card').forEach(c=>c.style.display='none');
+ v.forEach((k,i)=>{const c=document.querySelector(`#work [data-id="${k}"]`),g=G[n][i];c.style.display='flex';c.style.gridColumn=g[0];c.style.gridRow=g[1]});
+ $('panMenu').innerHTML='<h4>표시할 패널 (선택 옵션)</h4>'+order.map(k=>`<label><input type="checkbox" data-k="${k}" ${vis[k]?'checked':''}>${TT[k]}${k==='sc'?' <small style="color:var(--mut)">기본: 숨김</small>':''}</label>`).join('')}
+$('pbtn').onclick=e=>{e.stopPropagation();$('panMenu').classList.toggle('on');$('mapMenu').classList.remove('on')};
+$('panMenu').onchange=e=>{vis[e.target.dataset.k]=e.target.checked?1:0;layout();all()};
+document.addEventListener('click',e=>{if(!e.target.closest('.pop'))document.querySelectorAll('.pop').forEach(p=>p.classList.remove('on'))});
+document.querySelectorAll('#work .cl').forEach(b=>b.onclick=()=>{vis[b.dataset.cl]=0;layout()});
+let dr=null;document.querySelectorAll('#work .card').forEach(c=>{const h=c.querySelector('h3');
+ h.addEventListener('dragstart',e=>{dr=c;e.dataTransfer.setData('text/plain',c.dataset.id)});
+ c.addEventListener('dragover',e=>{if(dr&&dr!==c){e.preventDefault();c.classList.add('over')}});c.addEventListener('dragleave',()=>c.classList.remove('over'));
+ c.addEventListener('drop',e=>{e.preventDefault();c.classList.remove('over');if(!dr||dr===c)return;const a=order.indexOf(dr.dataset.id),b=order.indexOf(c.dataset.id);[order[a],order[b]]=[order[b],order[a]];dr=null;layout();all()})});
+/* 새 실험 셋 */
+$('newset').onclick=()=>{$('mname').value='새 실험 셋 '+(SETS.length+1);
+ $('mmaps').innerHTML=MAPS.map((m,i)=>`<label><input type="checkbox" data-i="${i}" ${i===S.map?'checked':''}>${m.id} <small style="color:var(--mut)">${m.f}</small></label>`).join('');
+ $('mpl').innerHTML=P.map(p=>`<label><input type="checkbox" checked data-k="${p.k}"><span class="num" style="background:${p.c};width:1.6em;height:1.6em;font-size:.8em">${p.n}</span>${p.l}</label>`).join('')+'<label><input type="checkbox"> ＋ 사용자 플래너 파일…</label>';
+ $('modal').classList.add('on')};
+$('mcancel').onclick=()=>$('modal').classList.remove('on');
+$('mok').onclick=()=>{const maps=[...$('mmaps').querySelectorAll('input:checked')].map(i=>+i.dataset.i);if(!maps.length)return;
+ SETS.push({n:$('mname').value||'이름 없음',maps,pl:$('mpl').querySelectorAll('input:checked').length,seeds:$('mseed').value,res:[0,0,0]});curSet=SETS.length-1;S.map=maps[0];$('modal').classList.remove('on');all()};
+function crumb(){$('setName').textContent=SETS[curSet].n;$('mapPill').textContent='지도: '+MAPS[S.map].id+' ▾';$('seedPill').textContent='seed '+S.seed;sets()}
+/* 리더보드 · Starting grid */
+function grid(){$('grid').innerHTML=P.map(p=>`<div class="slot ${S.on[p.k]?'':'off'} ${S.sel===p.k?'sel':''}" data-k="${p.k}"><div class="num" style="background:${p.c}">${p.n}</div><div><b>${p.l}</b><small>${S.on[p.k]?'트랙 표시 중':'트랙에서 숨김'}</small></div></div>`).join('')}
+$('grid').onclick=e=>{const s=e.target.closest('.slot');if(s){S.sel=s.dataset.k;all()}};
+function lb(){const rows=P.map(p=>{const a=R.filter(x=>x.p===p.k),ok=a.filter(x=>x.r==='reached');return{p,a,ok,rate:ok.length/a.length,rmse:ok.length?ok.reduce((t,x)=>t+x.rmse,0)/ok.length:99}}).sort((x,y)=>y.rate-x.rate||x.rmse-y.rmse);
+ let h='<div class="lb"><span></span><span class="hd">#</span><span class="hd">결과 구성 (분모 8)</span><span class="hd" style="text-align:right">RMSE m</span><span class="hd" style="text-align:right">계획 ms</span>';
+ rows.forEach(r=>{const c=r.a.filter(x=>x.r==='collision').length,e=r.a.filter(x=>x.r==='planning_error').length,n=r.a.length;
+  h+=`<div class="row" data-k="${r.p.k}"><input type="checkbox" data-k="${r.p.k}" ${S.on[r.p.k]?'checked':''} title="트랙에 표시"><div class="num" style="background:${r.p.c}">${r.p.n}</div><div><b>${r.p.l}</b> <small style="color:var(--mut)">${r.ok.length}/${n} 도달</small><div class="bar"><i style="width:${r.ok.length/n*100}%;background:var(--teal)"></i><i style="width:${c/n*100}%;background:var(--red)"></i><i style="width:${e/n*100}%;background:var(--vio)"></i></div></div><span style="text-align:right;font-weight:700">${r.ok.length?r.rmse.toFixed(3):'n/a'}</span><span style="text-align:right">${r.a[0].pms}</span></div>`});
+ $('lb').innerHTML=h+'</div><div class="note"><span style="color:var(--teal)">■</span> 도달 <span style="color:var(--red)">■</span> 충돌 <span style="color:var(--vio)">■</span> 계획 오류 — 성공과 합치지 않습니다</div>'}
+$('lb').onchange=e=>{if(e.target.type==='checkbox'){S.on[e.target.dataset.k]=e.target.checked?1:0;all()}};
+$('lb').onclick=e=>{if(e.target.type==='checkbox')return;const r=e.target.closest('.row');if(r){S.sel=r.dataset.k;all()}};
+document.querySelector('[data-id="lb"] h3 em').onclick=e=>{const a=e.target.dataset.all;if(a===undefined)return;P.forEach(p=>S.on[p.k]=+a);all()};
+/* 명령 팔레트 */
+const CM=[['선택 planner: Hybrid A* 충돌 지점 보기',()=>{S.sel='hybrid_astar';S.seed=1;S.t=100;seg();all()}],['seed 0/1 전환',()=>{S.seed=1-S.seed;seg();all()}],['처음부터 재생',()=>$('play').click()],['내보내기: CSV',()=>{}],['레이아웃 초기화',()=>location.reload()]];
+function pal(q=''){$('plist').innerHTML=CM.map((c,i)=>c[0].includes(q)?`<div class="i" data-i="${i}">${c[0]}</div>`:'').join('')}
+function tp(on){$('pal').classList.toggle('on',on);if(on){$('pin').value='';pal();$('pin').focus()}}
+$('srch').onclick=()=>tp(true);$('pin').oninput=e=>pal(e.target.value);$('plist').onclick=e=>{const i=e.target.dataset.i;if(i!==undefined){CM[+i][1]();tp(false)}};
+$('pin').onkeydown=e=>{if(e.key==='Escape')tp(false);if(e.key==='Enter'){const f=$('plist').querySelector('.i');if(f){CM[+f.dataset.i][1]();tp(false)}}};
+document.addEventListener('keydown',e=>{if(e.ctrlKey&&e.key.toLowerCase()==='k'){e.preventDefault();tp(true)}});
+S.seed=1;seg();S.t=100;layout();all();
+</script></body></html>
