@@ -57,6 +57,16 @@ PNG의 집계는 전체 seed 기준이며 기본 첫 seed의 궤적을 표시합
 리포트 폴더 전체를 공유할 수 있습니다. 실패·누락 coverage와 통계 분모, 대표 선정
 규칙은 [저장 리포트 안내](docs/SAVED_REPORT.md)를 참고하세요.
 
+## 저장 결과 탐색기
+
+저장된 결과를 브라우저에서 직접 살펴봅니다. 인자가 없으면 `results/raw` 아래의 실행을
+찾고, 폴더 하나를 지정해 바로 열 수도 있습니다. 계획이나 주행을 다시 실행하지 않으며
+이 컴퓨터(127.0.0.1)에서만 접속됩니다. `Ctrl+C`로 종료합니다.
+
+```powershell
+.\.venv\Scripts\raceplan-gui.exe results/raw/my_suite
+```
+
 ## 여러 시나리오 일괄 실행
 
 YAML의 공통 설정으로 case별 workflow를 순차 실행하고 episodes/planning/paired 및

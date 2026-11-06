@@ -1,4 +1,22 @@
-# 작업 인계 — 2026-11-05
+# 작업 인계 — 2026-11-06
+
+## GUI 1단계: 저장 결과 탐색기 (브랜치 feature/gui-explorer)
+
+계획과 목업은 `docs/GUI_PLAN.md`, `docs/gui/mockup.html`. 새 `raceplan.gui`/`raceplan-gui`가
+저장된 workflow/batch/suite를 읽어 리더보드, 에피소드 표, 트랙, 타임라인, Inspector를 보여 준다.
+검증은 `report._load`를 재사용하므로 변조된 결과는 열리지 않고, 계획·주행을 호출하지 않는다.
+서버는 127.0.0.1 전용, GET 전용이며 Host를 검사한다. 신규 의존성은 없다.
+
+전체 **120 passed (16.02s)**(기존 113 + GUI 7), Windows TEMP를 basetemp로 사용했다. 헤드리스 Edge로
+실제 결과와 임시 결과를 확인했다: suite_step3(도달만), holdout validation_offset_islands_q0(충돌,
+planner 5개), 계획 오류 메시지에 HTML을 넣은 batch(실행되지 않고 글자로 표시), 변조 batch(오류 표시).
+창 폭 약 870·1250·1890px에서 패널 잘림 0이다. 재생·정지·타임라인·지도/실행 전환·표 선택은 스크립트
+이벤트로 확인했고 실제 마우스 드래그는 하지 않았다. wheel에 `static/index.html`과 진입점이 포함되고
+압축을 푼 패키지로 서버가 동작함을 확인했으나, 오프라인 캐시 부족으로 새 가상환경 설치는 못 했다.
+macOS·Linux와 Chrome·Firefox는 미검증이다. Astra 독립 검토는 받지 않았다.
+
+주의: 저장소를 옮긴 뒤 `.venv`의 editable 설치가 옛 경로 `Desktop\raceplan\src`를 가리켜서
+`.venv\Scripts\raceplan-*.exe`가 동작하지 않는다. 다시 설치하거나 `PYTHONPATH=src`로 실행한다.
 
 ## 현재 커밋 원칙과 다음 개발
 

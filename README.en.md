@@ -54,6 +54,16 @@ in the default runner.
 Coverage, denominators, and deterministic selection are documented in the
 [saved report guide](docs/SAVED_REPORT.md) (Korean).
 
+## Saved results explorer
+
+Browse saved results in your browser. With no argument it finds runs under
+`results/raw`; you can also open one folder directly. It never re-runs planning or
+driving and only accepts connections from this computer (127.0.0.1). Stop it with `Ctrl+C`.
+
+```powershell
+.\.venv\Scripts\raceplan-gui.exe results/raw/my_suite
+```
+
 ## Multiple scenarios
 
 The YAML applies common settings to sequential case workflows and writes combined
