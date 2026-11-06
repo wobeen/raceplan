@@ -10,7 +10,7 @@ body{margin:0;background:#f5f6fa}
  --lift:0 .55em 1.9em rgba(40,52,90,.11),0 .08em .3em rgba(40,52,90,.06);
  position:relative;width:100%;aspect-ratio:16/9;font:clamp(6px,.95cqw,16px) -apple-system,"SF Pro Text","Segoe UI Variable Text","Segoe UI","Malgun Gothic",system-ui,sans-serif;color:var(--ink);overflow:hidden;
  background:radial-gradient(38% 52% at 10% 14%,#d9e8ff 0,transparent 72%),radial-gradient(34% 46% at 90% 10%,#fde6f1 0,transparent 72%),radial-gradient(44% 56% at 72% 96%,#d8f5ea 0,transparent 72%),radial-gradient(36% 44% at 24% 94%,#ece7ff 0,transparent 72%),#f8f9fc;
- display:grid;grid-template-columns:15.5% 1fr 19%;grid-template-rows:auto 1fr 25%;grid-template-areas:"top top top" "rail work insp" "rail time insp";gap:.8em;padding:.8em}
+ display:grid;grid-template-columns:15.5% 1fr 19%;grid-template-rows:auto 1fr 17%;grid-template-areas:"top top top" "rail work insp" "rail time insp";gap:.8em;padding:.8em}
 .top{grid-area:top;display:flex;align-items:center;gap:.8em}
 .brand{display:flex;align-items:center;gap:.5em;font-weight:700;font-size:1.3em;letter-spacing:-.02em}
 .flag{width:1.5em;height:1.5em;border-radius:.42em;background:conic-gradient(#1c1c1e 25%,#fff 0 50%,#1c1c1e 0 75%,#fff 0) 0 0/50% 50%;box-shadow:0 .1em .4em rgba(40,52,90,.25),inset 0 0 0 1px rgba(255,255,255,.6)}
@@ -53,7 +53,7 @@ body{margin:0;background:#f5f6fa}
 svg.f{flex:1;min-height:0;width:100%;background:rgba(255,255,255,.5);border:1px solid rgba(255,255,255,.85);box-shadow:inset 0 .05em .5em rgba(40,52,90,.07);border-radius:1em}
 .note{color:var(--mut);font-size:.85em;flex:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .lanes{position:relative;flex:1;min-height:0;display:flex;flex-direction:column;justify-content:space-around}
-.lane{display:flex;align-items:center;gap:.7em}.lane .lab{width:11em;display:flex;align-items:center;gap:.5em;white-space:nowrap}.lane .lab b{font-weight:600}
+.time>h3{padding-top:.4em;padding-bottom:.2em}.time .cb{padding-bottom:.35em;gap:.1em}.lane{display:flex;align-items:center;gap:.7em;min-height:0}.lane .lab{width:11em;display:flex;align-items:center;gap:.5em;white-space:nowrap}.lane .lab b{font-weight:600}
 .rail2{position:relative;flex:1;height:1.15em;background:rgba(118,118,128,.12);border-radius:1em;box-shadow:inset 0 .05em .2em rgba(40,52,90,.1)}
 .fillb{position:absolute;left:0;top:0;bottom:0;border-radius:1em;background-image:linear-gradient(180deg,rgba(255,255,255,.4),transparent 60%);box-shadow:inset 0 1px 0 rgba(255,255,255,.5)}
 .ev{position:absolute;top:50%;transform:translate(-50%,-50%);font-weight:800;font-size:1em;line-height:1;background:#fff;border-radius:50%;width:1.55em;height:1.55em;display:grid;place-items:center;border:1.5px solid;box-shadow:0 .1em .4em rgba(40,52,90,.25)}
@@ -86,12 +86,40 @@ svg.f{flex:1;min-height:0;width:100%;background:rgba(255,255,255,.5);border:1px 
 .app input[type=checkbox]:checked{border-color:transparent;box-shadow:0 .15em .5em rgba(0,122,255,.38),inset 0 1px 0 rgba(255,255,255,.45);background:linear-gradient(180deg,#2f95ff,#007aff) no-repeat}
 .app input[type=checkbox]:checked{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Cpath d='M5 10.5l3.4 3.4L15 6.8' fill='none' stroke='%23fff' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E"),linear-gradient(180deg,#2f95ff,#007aff)}
 .app input[type=checkbox]:focus-visible{outline:.18em solid rgba(0,122,255,.45);outline-offset:.1em}
+.ghost.act{background:rgba(0,122,255,.14);color:var(--acc);font-weight:600}
+.app.dk{grid-template-columns:13.5% 1fr 16% var(--dockw,25%);grid-template-areas:"top top top top" "rail work insp dock" "rail time insp dock"}
+.app.dk .work{grid-template-rows:1fr 1fr}.app.dk .lb{grid-template-columns:1.9em 2em minmax(0,1fr) 3.4em}.app.dk .lb .hd:nth-child(5),.app.dk .lb .row>span:last-child,.app.dk .lb .row small{display:none}.lb .hd{white-space:nowrap;overflow:hidden}
+.dock{grid-area:dock;display:none}.app.dk .dock{display:flex}
+.dtabs{display:flex;gap:.3em;align-items:center;padding:.55em .7em .4em;flex:none;overflow:hidden}
+.dt{display:flex;gap:.45em;align-items:center;padding:.2em .75em;border-radius:2em;cursor:pointer;white-space:nowrap;color:var(--mut)}
+.dt:hover{background:rgba(255,255,255,.55)}.dt.on{background:#fff;color:var(--ink);font-weight:600;box-shadow:0 .1em .4em rgba(40,52,90,.16)}
+.dt i{font-style:normal;font-weight:400;font-size:.8em;opacity:.55}.dt i:hover{opacity:1;color:var(--red)}
+.dadd{cursor:pointer;width:1.7em;height:1.7em;display:grid;place-items:center;border-radius:50%;background:rgba(118,118,128,.12);flex:none}.dadd:hover{background:rgba(0,122,255,.16);color:var(--acc)}
+.dbody{flex:1;min-height:0;padding:0 .7em .7em;display:flex;flex-direction:column}
+.pane{flex:1;min-height:0;display:none;flex-direction:column;gap:.45em}.pane.on{display:flex}
+.term,.ed{flex:1;min-height:0;display:flex;font:.92em/1.5 "SF Mono",Consolas,"Malgun Gothic",monospace;background:rgba(255,255,255,.62);border:1px solid rgba(255,255,255,.9);box-shadow:inset 0 .05em .4em rgba(40,52,90,.1);border-radius:1em;overflow:hidden}
+.term{flex-direction:column;padding:.6em .75em;gap:.3em}
+.tout{flex:1;min-height:0;overflow:auto;white-space:pre-wrap;word-break:break-all;color:#3a3a3c}
+.tin{display:flex;gap:.5em;flex:none;align-items:center}.tin span{color:var(--acc);font-weight:600;white-space:nowrap}.tin input{flex:1;min-width:0;border:0;background:transparent;font:inherit;outline:0;color:inherit}
+.gut{padding:.6em .5em;text-align:right;color:#aeb1ba;white-space:pre;user-select:none;overflow:hidden;background:rgba(118,118,128,.07);flex:none}
+.ed textarea{flex:1;min-width:0;border:0;background:transparent;resize:none;outline:0;font:inherit;color:inherit;padding:.6em .7em;white-space:pre;overflow:auto;tab-size:4}
+.ebar{display:flex;align-items:center;gap:.5em;flex:none}.ebar .fn{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.ebar .st{color:var(--mut);font-size:.88em;white-space:nowrap;margin-right:auto}.ebar .st.dirty{color:var(--amb);font-weight:600}
+.act2{border:0;border-radius:2em;padding:.25em .9em;font:inherit;font-weight:600;cursor:pointer;background:rgba(118,118,128,.12);color:var(--ink);white-space:nowrap}.act2:hover{background:rgba(118,118,128,.2)}.act2.p{background:linear-gradient(180deg,#2f95ff,#007aff);color:#fff}
+.card>.dgrip{position:absolute;left:0;top:0;bottom:0;width:.55em;cursor:col-resize;touch-action:none;z-index:2}.dgrip:hover{background:linear-gradient(90deg,rgba(0,122,255,.35),transparent)}
+.il{color:var(--mut);font-size:.82em;font-weight:500;display:flex;justify-content:space-between;gap:.5em;flex:none;white-space:nowrap}
+.mt{display:grid;grid-template-columns:1fr auto 4.4em;gap:.28em .6em;font-size:.95em;flex:none;align-items:baseline}
+.mt .h{color:var(--mut);font-size:.82em;text-align:right}.mt .k{color:var(--mut);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.mt .v{text-align:right;font-weight:600;font-variant-numeric:tabular-nums;white-space:nowrap}.mt .d{text-align:right;font-variant-numeric:tabular-nums;font-size:.92em;color:var(--mut);white-space:nowrap}.mt .d.up{color:var(--teal);font-weight:600}.mt .d.dn{color:var(--red);font-weight:600}
+.fail{flex:none;border-radius:.9em;padding:.45em .7em;line-height:1.4;font-size:.92em;word-break:break-word}.fail b{display:block;font-weight:600}.fail.col{background:rgba(255,59,48,.1);color:#c9281e}.fail.pe{background:rgba(175,82,222,.11);color:#8a35b8}
+.sparks{flex:1;min-height:0;display:flex;flex-direction:column;gap:.3em}
+.spk{flex:1;min-height:0;display:flex;flex-direction:column;gap:.05em}.sph{display:flex;justify-content:space-between;font-size:.85em;color:var(--mut);flex:none;white-space:nowrap}.sph b{color:var(--ink);font-weight:600;font-variant-numeric:tabular-nums}
+.spk svg{flex:1;min-height:0;width:100%;background:rgba(255,255,255,.5);border-radius:.45em;box-shadow:inset 0 0 0 1px rgba(255,255,255,.8)}
+.nodrive{flex:1;min-height:0;display:grid;place-items:center;color:var(--mut);background:rgba(255,255,255,.4);border-radius:.8em;font-size:.92em;text-align:center;padding:.5em}
 </style></head><body>
 <div class="wrap"><div class="app" id="app">
  <div class="top">
   <div class="brand"><div class="flag"></div>RacePlan</div>
   <div class="crumb"><span>실험 셋</span><b id="setName">기본 비교</b><span>›</span><span class="pill" id="mapPill">지도: demo ▾</span><span class="pill" id="seedPill">seed 1</span></div>
-  <div class="sp"></div><button class="ghost" id="pbtn">▦ 패널 ▾</button><div class="search" id="srch">명령·에피소드 검색<kbd>Ctrl K</kbd></div>
+  <div class="sp"></div><button class="ghost" id="btnTerm" title="Ctrl+`">›_ 터미널</button><button class="ghost" id="btnCode">{ } 코드</button><button class="ghost" id="pbtn">▦ 패널 ▾</button><div class="search" id="srch">명령·에피소드 검색<kbd>Ctrl K</kbd></div>
   <button class="go">▶ 새 비교 실행</button>
  </div>
 
@@ -110,6 +138,8 @@ svg.f{flex:1;min-height:0;width:100%;background:rgba(255,255,255,.5);border:1px 
  <div class="insp">
   <div class="card" style="flex:1"><h3>Inspector</h3><div class="cb" id="insp"></div></div>
  </div>
+
+ <div class="card dock" id="dock"><div class="dgrip" id="dgrip" title="끌어서 폭 조절"></div><div class="dtabs" id="dtabs"></div><div class="dbody" id="dbody"></div></div>
 
  <div class="card time"><h3><span class="g">⋮⋮</span>텔레메트리 타임라인 <em style="margin-left:.8em;font-weight:500">같은 시각 기준 · 끌어서 이동</em>
    <div class="ph" style="margin-left:auto"><button class="btn" id="play">▶ 재생</button><div class="seg" id="seeds"><span class="on" data-s="0">seed 0</span><span data-s="1">seed 1</span></div></div></h3>
@@ -138,6 +168,7 @@ const R=[];
 P.forEach(p=>[0,1].forEach(sd=>{const r=p.k==='MyPlanner'?'planning_error':(p.k==='hybrid_astar'&&sd===1?'collision':'reached'),ok=r!=='planning_error';
  R.push({p:p.k,sd,r,rmse:ok?+(0.07+rnd()*0.08+(p.k==='hybrid_astar'?.06:0)).toFixed(3):null,tm:r==='collision'?9.1:ok?+(12.6+rnd()*1.4+(p.k==='hybrid_astar'?.8:0)).toFixed(2):null,
   cl:ok?+(0.24+rnd()*.06).toFixed(3):null,pms:+(p.k==='hybrid_astar'?18+rnd()*5:p.k==='dijkstra'?.35:p.k==='astar'?.16:.2).toFixed(2),j:rnd()*8-4})}));
+R.forEach(x=>{if(x.r==='collision')x.cl=0});
 const ep=(p,s)=>R.find(x=>x.p===p&&x.sd===s);
 const OUT={reached:['t-ok','도달','✓',col.astar.c],collision:['t-col','충돌','✕','#ff3b30'],planning_error:['t-pe','계획 오류','!','#a94fd8']};
 const TMAX=15;let S={seed:0,sel:'hybrid_astar',t:100,on:{dijkstra:1,astar:1,hybrid_astar:1,MyPlanner:1}};
@@ -166,21 +197,46 @@ function sc(){let h='<line x1="40" y1="155" x2="390" y2="155" stroke="#a3a8b4"/>
  $('sc').innerHTML=h}
 $('sc').onclick=e=>{const c=e.target.closest('circle');if(c){S.sel=c.dataset.k;S.seed=+c.dataset.s;seg();all()}};
 /* Inspector */
-function insp(){const x=ep(S.sel,S.seed),p=col[S.sel],o=OUT[x.r];
- $('insp').innerHTML=`<div style="display:flex;align-items:center;gap:.6em"><div class="num" style="background:${p.c}">${p.n}</div><div><b style="font-size:1.15em">${p.l}</b><br><small style="color:var(--mut)">demo · seed ${x.sd}</small></div></div>
- <div><span class="tag ${o[0]}">${o[2]} ${o[1]}</span></div>
- <div class="kv"><span>RMSE</span><span>${x.rmse??'—'} m</span><span>완료시간</span><span>${x.tm??'—'} s</span><span>최소 clearance</span><span>${x.cl??'—'} m</span><span>계획시간(runner)</span><span>${x.pms} ms</span><span>경로 길이</span><span>${x.r==='planning_error'?'—':'11.07 m'}</span></div>
- ${x.r==='planning_error'?'<div class="tag t-pe" style="border-radius:.6em;font-weight:500">IndexError: list index out of range<br><small>(계획 오류, 다음 planner 계속)</small></div>':''}
- <div style="color:var(--mut);font-size:.8em;text-transform:uppercase;letter-spacing:.08em;margin-top:.3em">Provenance</div>
- <div class="kv"><span>입력 hash</span><span style="color:var(--teal)">✔ 일치</span><span>소스</span><span>a91c3e…</span><span>scenario</span><span>demo.yaml</span></div>
- <div style="color:var(--mut);font-size:.8em;text-transform:uppercase;letter-spacing:.08em;margin-top:.3em">재현 명령</div>
- <div class="cmd">raceplan-workflow demo.yaml --seeds ${x.sd} --custom-planner my.py:MyPlanner</div>`}
+// 목업 시계열: 실제 구현은 comparison_trajectory.csv와 clearance_samples.csv를 읽는다.
+function series(x){const c=x.r==='collision',j=x.j,e=t=>Math.min(1,t/x.tm);return [
+ {n:'추적오차',u:'m',lo:0,hi:.5,d:2,f:t=>x.rmse*(.55+.9*Math.abs(Math.sin(t*.9+j)))+(c?Math.pow(e(t),6)*.22:0)},
+ {n:'Clearance',u:'m',lo:0,hi:.6,d:3,f:t=>(x.cl+.2*(1+Math.cos(t*.8+j))/2)*(c?1-Math.pow(e(t),5):1)},
+ {n:'속도',u:'m/s',lo:0,hi:1.2,d:2,f:t=>Math.min(1,t/1.5)*(.82+.12*Math.sin(t*.7+j))*(c?1:Math.min(1,(x.tm-t)/.8+.02))},
+ {n:'조향',u:'rad',lo:-.6,hi:.6,d:2,f:t=>.34*Math.sin(t*.9+j)*(1+.3*Math.sin(t*.31))}]}
+function spark(s,x,p){const N=70,Y=v=>30-(Math.max(s.lo,Math.min(s.hi,v))-s.lo)/(s.hi-s.lo)*30,X=t=>t/TMAX*150,pts=[];
+ for(let i=0;i<=N;i++){const t=i/N*x.tm;pts.push(X(t).toFixed(1)+','+Y(s.f(t)).toFixed(1))}
+ const zero=s.lo<0?'<line x1="0" x2="150" y1="15" y2="15" stroke="#a3a8b4" stroke-width="1" stroke-dasharray="2 2" vector-effect="non-scaling-stroke"/>':'';
+ const base=s.lo<0?15:30;
+ return '<svg viewBox="0 0 150 30" preserveAspectRatio="none">'+zero+'<polygon points="0,'+base+' '+pts.join(' ')+' '+X(x.tm).toFixed(1)+','+base+'" fill="'+p.c+'" opacity=".14"/><polyline points="'+pts.join(' ')+'" fill="none" stroke="'+p.c+'" stroke-width="1.5" vector-effect="non-scaling-stroke"/><line class="cur" y1="0" y2="30" stroke="#007aff" stroke-width="1.5" vector-effect="non-scaling-stroke"/></svg>'}
+function sparkT(){const el=$('sparks');if(!el)return;const x=ep(S.sel,S.seed),T=S.t/100*TMAX,tt=Math.min(T,x.tm),ss=series(x);
+ el.querySelectorAll('.spk').forEach((d,i)=>{const s=ss[i],l=d.querySelector('.cur'),px=T/TMAX*150;l.setAttribute('x1',px);l.setAttribute('x2',px);d.querySelector('b').textContent=s.f(tt).toFixed(s.d)+' '+s.u})}
+function dcell(v,better,fmt){if(v===null)return '<span class="d">—</span>';const r=+v.toFixed(fmt),good=better==='low'?r<0:r>0,bad=better==='low'?r>0:r<0;
+ return '<span class="d '+(good?'up':bad?'dn':'')+'">'+(r>0?'+':r<0?'−':'')+Math.abs(r).toFixed(fmt)+'</span>'}
+function insp(){const x=ep(S.sel,S.seed),p=col[S.sel],o=OUT[x.r],A=ep('astar',S.seed),isA=S.sel==='astar';
+ const reach=!isA&&x.r==='reached'&&A.r==='reached',drive=!isA&&x.r!=='planning_error'&&A.r!=='planning_error',plan=!isA&&x.r!=='planning_error'&&A.r!=='planning_error';
+ const row=(k,v,d)=>'<span class="k">'+k+'</span><span class="v">'+v+'</span>'+d;
+ const dash='<span class="d">—</span>';
+ let fail='';
+ if(x.r==='collision'){const px=base[5],py=base[5];fail='<div class="fail col"><b>✕ 충돌 · '+x.tm.toFixed(1)+' s 시점</b>위치 ('+(px[0]/50).toFixed(1)+', '+(py[1]/50).toFixed(1)+') m · 최소 clearance '+x.cl.toFixed(3)+' m</div>'}
+ if(x.r==='planning_error')fail='<div class="fail pe"><b>! 계획 오류 · IndexError</b>list index out of range<br>다음 planner는 계속 실행했습니다.</div>';
+ const body=x.r==='planning_error'?'<div class="nodrive">주행이 없어 시계열이 없습니다</div>':'<div class="sparks" id="sparks">'+series(x).map(s=>'<div class="spk"><div class="sph"><span>'+s.n+'</span><b></b></div>'+spark(s,x,p)+'</div>').join('')+'</div>';
+ $('insp').innerHTML='<div style="display:flex;align-items:center;gap:.6em;flex:none"><div class="num" style="background:'+p.c+'">'+p.n+'</div><div style="min-width:0;flex:1"><b style="font-size:1.1em">'+p.l+'</b><br><small style="color:var(--mut)">'+MAPS[S.map].id+' · seed '+x.sd+'</small></div><span class="tag '+o[0]+'">'+o[2]+' '+o[1]+'</span></div>'
+ +'<div class="mt"><span></span><span class="h">값</span><span class="h">'+(isA?'기준':'A* 대비')+'</span>'
+ +row('RMSE',(x.rmse??'—')+' m',reach?dcell(x.rmse-A.rmse,'low',3):dash)
+ +row('완료시간',(x.tm??'—')+' s',reach?dcell(x.tm-A.tm,'low',2):dash)
+ +row('최소 여유',(x.cl??'—')+' m',drive?dcell(x.cl-A.cl,'high',3):dash)
+ +row('계획시간',x.pms+' ms',plan?dcell(x.pms-A.pms,'low',2):dash)
+ +'</div>'+fail
+ +'<div class="il"><span>시계열</span><span>타임라인과 연동</span></div>'+body
+ +'<div class="il"><span>Provenance</span><span style="color:var(--teal)">✔ 입력 hash 일치</span></div>'
+ +'<div class="cmd">raceplan-workflow '+MAPS[S.map].id+'.yaml --seeds '+x.sd+' --custom-planner my.py:MyPlanner</div>';
+ sparkT()}
 /* 타임라인 */
 function lanes(){const T=S.t/100*TMAX;$("lanes").innerHTML=P.filter(p=>S.on[p.k]).map(p=>{const x=ep(p.k,S.seed),o=OUT[x.r],end=x.tm?x.tm/TMAX*100:0,w=x.tm?Math.min(T,x.tm)/TMAX*100:0;
   return `<div class="lane" data-k="${p.k}"><div class="lab"><div class="num" style="background:${p.c};width:1.7em;height:1.7em;font-size:.85em">${p.n}</div><b>${p.l}</b></div><div class="rail2"><div class="fillb" style="width:${w}%;background:${p.c}"></div>${x.r==='planning_error'?`<div class="ev" style="left:2.5%;color:${o[3]};border-color:${o[3]}">!</div><span style="position:absolute;left:6%;top:50%;transform:translateY(-50%);font-size:.85em;color:var(--vio)">계획 오류 — 주행 없음</span>`:`<div class="ev" style="left:${end}%;color:${o[3]};border-color:${o[3]}">${o[2]}</div>`}</div></div>`}).join('')+`<div style="position:absolute;left:11.7em;right:0;top:0;bottom:0;pointer-events:none"><div class="scrub" id="scrub" style="left:${S.t}%" data-t="${T.toFixed(1)} s"></div></div><input class="scr" id="scr" type="range" min="0" max="100" value="${S.t}" style="left:11.7em;width:calc(100% - 11.7em)">`;
  $('scr').oninput=e=>{S.t=+e.target.value;tick()};$('lanes').onclick=e=>{const l=e.target.closest('.lane');if(l&&e.target.id!=='scr'){S.sel=l.dataset.k;all()}}}
 function tick(){const T=S.t/100*TMAX;$('scrub').style.left=S.t+'%';$('scrub').dataset.t=T.toFixed(1)+' s';
- document.querySelectorAll('.lane').forEach(l=>{const x=ep(l.dataset.k,S.seed);l.querySelector('.fillb').style.width=(x.tm?Math.min(T,x.tm)/TMAX*100:0)+'%'});track()}
+ document.querySelectorAll('.lane').forEach(l=>{const x=ep(l.dataset.k,S.seed);l.querySelector('.fillb').style.width=(x.tm?Math.min(T,x.tm)/TMAX*100:0)+'%'});track();sparkT()}
 function seg(){document.querySelectorAll('#seeds span').forEach(s=>s.classList.toggle('on',+s.dataset.s===S.seed))}
 $('seeds').onclick=e=>{const s=e.target.closest('span');if(s){S.seed=+s.dataset.s;seg();all()}};
 let pid=null;$('play').onclick=()=>{if(pid){clearInterval(pid);pid=null;$('play').textContent='▶ 재생';return}S.t=0;$('play').textContent='❚❚ 정지';
@@ -236,8 +292,49 @@ function lb(){const rows=P.map(p=>{const a=R.filter(x=>x.p===p.k),ok=a.filter(x=
 $('lb').onchange=e=>{if(e.target.type==='checkbox'){S.on[e.target.dataset.k]=e.target.checked?1:0;all()}};
 $('lb').onclick=e=>{if(e.target.type==='checkbox')return;const r=e.target.closest('.row');if(r){S.sel=r.dataset.k;all()}};
 document.querySelector('[data-id="lb"] h3 em').onclick=e=>{const a=e.target.dataset.all;if(a===undefined)return;P.forEach(p=>S.on[p.k]=+a);all()};
+/* 옆 패널: 터미널 · 코드 편집기 (목업: 실제 셸·파일에 연결되지 않음) */
+const D={tabs:[],active:null,n:0};
+function renderDock(){$('app').classList.toggle('dk',D.tabs.length>0);
+ $('dtabs').innerHTML=D.tabs.map(t=>`<div class="dt ${t.id===D.active?'on':''}" data-id="${t.id}">${t.title}<i data-x="${t.id}">✕</i></div>`).join('')+'<div class="dadd" id="dadd" title="새 터미널">＋</div>';
+ document.querySelectorAll('#dbody .pane').forEach(p=>p.classList.toggle('on',p.dataset.id===D.active));
+ const cur=D.tabs.find(t=>t.id===D.active);
+ $('btnTerm').classList.toggle('act',!!cur&&cur.ty==='term');$('btnCode').classList.toggle('act',!!cur&&cur.ty==='code');
+ const inp=document.querySelector('#dbody .pane.on .tin input');if(inp)inp.focus()}
+function addPane(id,html){const el=document.createElement('div');el.className='pane';el.dataset.id=id;el.innerHTML=html;$('dbody').append(el);return el}
+function print(el,s){const o=el.querySelector('.tout');o.textContent+=s+'\n';o.scrollTop=o.scrollHeight}
+const RUN=['demo · 4 planner × 2 seed 실행 중…','ok  dijkstra · astar · hybrid_astar','!!  MyPlanner planning_error: IndexError (계속 진행)','완료 → results/raw/live_20261106_1012/','화면을 새 결과로 갱신했습니다'];
+function reply(el,c){if(!c)return;print(el,'PS raceplan> '+c);
+ if(c==='clear'){el.querySelector('.tout').textContent='';return}
+ if(c==='help'){print(el,'raceplan-workflow · raceplan-suite · raceplan-report · clear');return}
+ if(c.startsWith('raceplan-')){RUN.forEach(l=>print(el,l));return}
+ print(el,'(목업) 실제 셸에 연결되어 있지 않습니다. help를 입력해 보세요.')}
+function newTerm(){const id='t'+(++D.n),num=D.tabs.filter(t=>t.ty==='term').length+1;D.tabs.push({id,ty:'term',title:'터미널 '+num});
+ const el=addPane(id,'<div class="term"><div class="tout"></div><div class="tin"><span>PS raceplan&gt;</span><input spellcheck="false" placeholder="명령 입력 (help)"></div></div>');
+ print(el,'실험 셋 폴더에서 시작했습니다.');
+ el.querySelector('input').onkeydown=e=>{if(e.key==='Enter'){reply(el,e.target.value.trim());e.target.value=''}};D.active=id;renderDock();return el}
+function openTerm(){const t=D.tabs.find(x=>x.ty==='term');if(t){D.active=t.id;renderDock();return document.querySelector(`#dbody .pane[data-id="${t.id}"]`)}return newTerm()}
+const SRC=[`"""Replace the plan method to compare your own algorithm with the baselines."""`,`from raceplan.planners import AStarPlanner`,`from raceplan.planners.base import Planner`,``,``,`class MyPlanner(Planner):`,`    @property`,`    def name(self):`,`        return 'my_planner'`,``,`    def plan(self, grid, start, goal, *, timeout_s=None):`,`        # Example only: replace this call with your own implementation.`,`        return AStarPlanner().plan(grid, start, goal, timeout_s=timeout_s)`,``].join('\n');
+function openCode(){const t=D.tabs.find(x=>x.ty==='code');if(t){D.active=t.id;renderDock();return}
+ D.tabs.push({id:'c1',ty:'code',title:'my_planner.py'});
+ const el=addPane('c1','<div class="ebar"><span class="fn">examples/my_planner.py</span><span class="st">저장됨</span><button class="act2 sv">저장</button><button class="act2 p rn">저장 후 비교</button></div><div class="ed"><div class="gut"></div><textarea spellcheck="false" wrap="off"></textarea></div>');
+ const ta=el.querySelector('textarea'),gu=el.querySelector('.gut'),st=el.querySelector('.st');ta.value=SRC;
+ const nums=()=>{gu.textContent=ta.value.split('\n').map((_,i)=>i+1).join('\n')};nums();
+ const mark=d=>{st.textContent=d?'● 수정됨':'저장됨';st.classList.toggle('dirty',d)};
+ ta.oninput=()=>{nums();mark(true)};ta.onscroll=()=>{gu.scrollTop=ta.scrollTop};
+ el.querySelector('.sv').onclick=()=>mark(false);
+ el.querySelector('.rn').onclick=()=>{mark(false);const tm=openTerm();print(tm,'PS raceplan> raceplan-workflow demo.yaml --custom-planner examples/my_planner.py:MyPlanner');RUN.forEach(l=>print(tm,l))};
+ D.active='c1';renderDock()}
+$('btnTerm').onclick=()=>{openTerm()};$('btnCode').onclick=openCode;
+$('dtabs').onclick=e=>{const x=e.target.dataset.x;
+ if(x){D.tabs=D.tabs.filter(t=>t.id!==x);document.querySelector(`#dbody .pane[data-id="${x}"]`).remove();if(D.active===x)D.active=D.tabs.length?D.tabs[D.tabs.length-1].id:null;renderDock();return}
+ if(e.target.id==='dadd'){newTerm();return}
+ const t=e.target.closest('.dt');if(t){D.active=t.dataset.id;renderDock()}};
+$('dgrip').addEventListener('pointerdown',e=>{e.preventDefault();const g=e.currentTarget;g.setPointerCapture(e.pointerId);
+ const mv=ev=>{const r=$('app').getBoundingClientRect();$('app').style.setProperty('--dockw',Math.max(16,Math.min(45,(r.right-ev.clientX)/r.width*100))+'%')},up=()=>{g.removeEventListener('pointermove',mv);g.removeEventListener('pointerup',up)};
+ g.addEventListener('pointermove',mv);g.addEventListener('pointerup',up)});
+document.addEventListener('keydown',e=>{if(e.ctrlKey&&e.key==='`'){e.preventDefault();openTerm()}});
 /* 명령 팔레트 */
-const CM=[['선택 planner: Hybrid A* 충돌 지점 보기',()=>{S.sel='hybrid_astar';S.seed=1;S.t=100;seg();all()}],['seed 0/1 전환',()=>{S.seed=1-S.seed;seg();all()}],['처음부터 재생',()=>$('play').click()],['내보내기: CSV',()=>{}],['레이아웃 초기화',()=>location.reload()]];
+const CM=[['터미널 열기',()=>{openTerm()}],['코드 편집기 열기',()=>openCode()],['선택 planner: Hybrid A* 충돌 지점 보기',()=>{S.sel='hybrid_astar';S.seed=1;S.t=100;seg();all()}],['seed 0/1 전환',()=>{S.seed=1-S.seed;seg();all()}],['처음부터 재생',()=>$('play').click()],['내보내기: CSV',()=>{}],['레이아웃 초기화',()=>location.reload()]];
 function pal(q=''){$('plist').innerHTML=CM.map((c,i)=>c[0].includes(q)?`<div class="i" data-i="${i}">${c[0]}</div>`:'').join('')}
 function tp(on){$('pal').classList.toggle('on',on);if(on){$('pin').value='';pal();$('pin').focus()}}
 $('srch').onclick=()=>tp(true);$('pin').oninput=e=>pal(e.target.value);$('plist').onclick=e=>{const i=e.target.dataset.i;if(i!==undefined){CM[+i][1]();tp(false)}};
