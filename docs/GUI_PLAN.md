@@ -1,7 +1,7 @@
 # GUI 계획: RacePlan Explorer
 
-브랜치 `feature/gui-explorer`(1단계), `feature/gui-compare`(2단계). 상태: **1단계(결과 탐색) 완료, 2단계는 비교 탭의
-Paired Δ·산점도·나란히 재생, 화면 상태 URL 저장·복원, 에피소드·coverage CSV 내보내기까지 완료**.
+브랜치 `feature/gui-explorer`(1단계), `feature/gui-compare`(2단계). 상태: **1단계(결과 탐색)와 2단계(비교 분석) 완료** — 비교 탭의
+Paired Δ·산점도·나란히 재생, 화면 상태 URL 저장·복원, 에피소드·coverage CSV 내보내기, 겹친 점 seed 선택과 표↔차트 선택 연동.
 목업은 `docs/gui/mockup.html`(샘플 데이터, 브라우저에서 열기). 목업의 차트 옵션·터미널·코드 패널·
 실험 셋 생성·타일 재배치는 뒤 단계 기능이며 실제 앱에는 아직 없다.
 
@@ -114,4 +114,13 @@ UTF-8 BOM + CRLF, 파일명은 `filename*`(UTF-8). 공백·제어문자·BOM 뒤
 값은 원본 그대로 두고 `X-RacePlan-CSV-Formula-Risk: 1`을 보내 화면이 저장 전에 확인받는다. 버튼은 에피소드 카드 제목줄과 coverage 알약 안에
 있고 run·case 전환 중에는 꺼진다. 내려받기는 주소·history를 바꾸지 않는다.
 
-남은 일(4단계): 같은 좌표 점에서 seed 선택, 탐색 표 필터와 차트 선택 연동 보완.
+겹친 점 seed 선택·표↔차트 연동(완료): 산점도는 원본 (x, y)가 정확히 같은 점을 planner와 무관하게, Paired Δ는 같은 레인의 정확히 같은
+Δ를 한 표식(×N)으로 묶는다(반올림으로 묶지 않고, 다른 값은 지터로 벌림. 결과가 섞인 Δ 묶음은 마름모). 묶음을 클릭·Enter·Space하면
+seed 선택 목록이 열리고(↑↓·Enter·Esc·닫기), 확정만 선택을 바꾸어 history 1개를 남긴다. 비교 데이터를 다시 받는 동안에는 이전 점을 고를 수 없다.
+차트 아래 상태줄이 선택(planner·seed)의 점 표시 여부와 사유를 보여 준다. 사유는 서버가 additive 필드로 준다:
+`scatter.excluded`, `paired_delta.excluded_pairs`(planner·seed·reason, planner/seed/결과 필터 제외 포함, 기존 카운트와 같은 사유).
+탐색 표 위에는 "표시 n / 전체 m행"과, 선택이 표 필터에 숨으면 "선택 행 숨김" + [전체 보기로 전환]을 보이며 숨긴 행을 끼워 넣지 않는다(CSV 범위와 같음).
+표는 선택·필터·run·case가 바뀔 때만 선택 행으로 스크롤한다. 새 URL 키는 없다. 설계안의 Inspector 상태줄·버튼은 공간 때문에 넣지 않았다.
+목록은 Tab으로 벗어나거나 run·case 전환·재요청·복원 때 닫히고, 로딩 중에는 열기·확정을 막는다. 요약을 먼저 배치한 뒤 차트 영역을 잰다.
+
+다음: 3단계(실행 연결) — 위 "단계" 목록.

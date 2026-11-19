@@ -27,25 +27,31 @@ def paired_delta(case, metric='rmse', planners=None, seeds=None, outcomes=None):
     """Plot every compared planner x seed pair once and count each excluded pair under one reason.
 
     The baseline is the saved one; it is looked up even when it is not selected. The outcome filter
-    applies to the compared planner's episode. Pairs without a saved row are never drawn at zero."""
+    applies to the compared planner's episode. Pairs without a saved row are never drawn at zero.
+    `excluded_pairs` names the reason for every non-baseline pair that is not drawn, including pairs left out
+    by the planner or seed filter, so the page can say why a selected episode has no point."""
     if metric not in DELTA_METRICS:
         raise BadQuery(f'unknown delta metric: {metric}')
     field, condition, unit, better = DELTA_METRICS[metric]
     baseline = case['baseline']
     result = {'metric': metric, 'unit': unit, 'better': better, 'baseline': baseline, 'lanes': [],
-              'candidate': 0, 'plotted': 0, 'excluded': dict.fromkeys(EXCLUSION_REASONS, 0)}
+              'candidate': 0, 'plotted': 0, 'excluded': dict.fromkeys(EXCLUSION_REASONS, 0), 'excluded_pairs': []}
     if baseline is None:
         return result
     chosen_planners, chosen_seeds, chosen_outcomes = _selection(case, planners, seeds, outcomes)
     pairs = {(pair['planner'], pair['simulation_seed']): pair for pair in case['pairs']}
     episodes = {(row['planner'], row['simulation_seed']): row for row in case['episodes']}
     for planner in case['planners']:
-        if planner == baseline or planner not in chosen_planners:
+        if planner == baseline:
+            continue
+        if planner not in chosen_planners:
+            result['excluded_pairs'] += [{'planner': planner, 'seed': seed, 'reason': 'filtered_planner'} for seed in case['seeds']]
             continue
         lane = {'planner': planner, 'points': [], 'candidate': 0, 'median': None,
                 'excluded': dict.fromkeys(EXCLUSION_REASONS, 0)}
         for seed in case['seeds']:
             if seed not in chosen_seeds:
+                result['excluded_pairs'].append({'planner': planner, 'seed': seed, 'reason': 'filtered_seed'})
                 continue
             lane['candidate'] += 1
             pair, episode = pairs.get((planner, seed)), episodes.get((planner, seed))
@@ -63,6 +69,7 @@ def paired_delta(case, metric='rmse', planners=None, seeds=None, outcomes=None):
                                        'outcome': episode['failure_class']})
             if reason:
                 lane['excluded'][reason] += 1
+                result['excluded_pairs'].append({'planner': planner, 'seed': seed, 'reason': reason})
         if lane['points']:
             lane['median'] = median(point['delta'] for point in lane['points'])
         result['lanes'].append(lane)
@@ -74,29 +81,40 @@ def paired_delta(case, metric='rmse', planners=None, seeds=None, outcomes=None):
 
 
 def scatter(case, x='reported', planners=None, seeds=None, outcomes=None):
-    """Plot reached episodes as planning time x tracking RMSE; every other filtered record is counted."""
+    """Plot reached episodes as planning time x tracking RMSE; every other filtered record is counted.
+    `excluded` names the reason for every episode without a point, including ones the filters leave out."""
     if x not in SCATTER_X:
         raise BadQuery(f'unknown scatter x: {x}')
     field = SCATTER_X[x]
     chosen_planners, chosen_seeds, chosen_outcomes = _selection(case, planners, seeds, outcomes)
     result = {'x': x, 'x_field': field, 'y_field': 'tracking_rmse_m', 'records': 0, 'plotted': 0,
-              'not_reached': 0, 'no_value': 0, 'log_axis': 0, 'points': []}
+              'not_reached': 0, 'no_value': 0, 'log_axis': 0, 'points': [], 'excluded': []}
     for row in case['episodes']:
-        if (row['planner'] not in chosen_planners or row['simulation_seed'] not in chosen_seeds
-                or (chosen_outcomes is not None and row['failure_class'] not in chosen_outcomes)):
+        key = {'planner': row['planner'], 'seed': row['simulation_seed']}
+        if row['planner'] not in chosen_planners:
+            result['excluded'].append({**key, 'reason': 'filtered_planner'})
+            continue
+        if row['simulation_seed'] not in chosen_seeds:
+            result['excluded'].append({**key, 'reason': 'filtered_seed'})
+            continue
+        if chosen_outcomes is not None and row['failure_class'] not in chosen_outcomes:
+            result['excluded'].append({**key, 'reason': 'filtered_outcome'})
             continue
         result['records'] += 1
         if row['failure_class'] != REACHED:
-            result['not_reached'] += 1
+            reason = 'not_reached'
         elif row[field] is None or row['tracking_rmse_m'] is None:
-            result['no_value'] += 1
+            reason = 'no_value'
         elif row[field] <= 0:
-            result['log_axis'] += 1
+            reason = 'log_axis'
         else:
             result['plotted'] += 1
             result['points'].append({'planner': row['planner'], 'seed': row['simulation_seed'],
                                      'plan_id': row['plan_id'], 'episode_id': row['episode_id'],
                                      'x': row[field], 'y': row['tracking_rmse_m']})
+            continue
+        result[reason] += 1
+        result['excluded'].append({**key, 'reason': reason})
     return result
 
 

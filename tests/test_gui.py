@@ -288,13 +288,23 @@ def test_delta_and_scatter_count_unusable_values_under_their_own_reason():
     result = analysis.paired_delta(case)
     assert result['plotted'] == 1 and result['candidate'] == 3
     assert result['excluded'] == {'missing_pair': 0, 'filtered_outcome': 0, 'condition': 1, 'no_delta': 1}
+    assert {(row['planner'], row['seed']): row['reason'] for row in result['excluded_pairs']} == {
+        ('b', 1): 'no_delta', ('b', 2): 'condition'}  # Each pair carries its own reason, not just the right totals.
     case['pairs'] = case['pairs'][:2]
     assert analysis.paired_delta(case)['excluded']['missing_pair'] == 1
+    assert {(row['planner'], row['seed']): row['reason']
+            for row in analysis.paired_delta(case, seeds=[0, 2])['excluded_pairs']} == {('b', 1): 'filtered_seed', ('b', 2): 'missing_pair'}
     case['episodes'][3] = episode('b', 0, planning_time_ms=None)
     case['episodes'][4] = episode('b', 1, planning_time_ms=0.0)
     case['episodes'][5] = episode('b', 2, failure_class='timeout')
     result = analysis.scatter(case)
     assert (result['records'], result['plotted'], result['no_value'], result['log_axis'], result['not_reached']) == (6, 3, 1, 1, 1)
+    assert {(row['planner'], row['seed']): row['reason'] for row in result['excluded']} == {
+        ('b', 0): 'no_value', ('b', 1): 'log_axis', ('b', 2): 'not_reached'}
+    narrowed = analysis.scatter(case, planners=['b'], outcomes=['reached'])
+    assert {(row['planner'], row['seed']): row['reason'] for row in narrowed['excluded']} == {
+        ('a', 0): 'filtered_planner', ('a', 1): 'filtered_planner', ('a', 2): 'filtered_planner',
+        ('b', 0): 'no_value', ('b', 1): 'log_axis', ('b', 2): 'filtered_outcome'}  # Planner filter wins over outcome filter.
 
 
 def test_saved_baseline_survives_a_case_without_comparison_pairs(saved):
@@ -302,6 +312,34 @@ def test_saved_baseline_survives_a_case_without_comparison_pairs(saved):
     assert suite_case['planners'] == ['astar'] and suite_case['pairs'] == [] and suite_case['baseline'] == 'astar'
     result = Explorer(saved).compare('suite', suite_case['id'], 'delta')
     assert result['baseline'] == 'astar' and result['lanes'] == []
+
+
+def test_every_episode_without_a_point_has_exactly_one_named_reason(saved):
+    from collections import Counter
+    from raceplan.gui.analysis import EXCLUSION_REASONS
+    explorer, case = Explorer(saved), _compare_case(saved)
+    episodes = sorted((row['planner'], row['simulation_seed']) for row in case['episodes'])
+    pairs = sorted(key for key in episodes if key[0] != case['baseline'])
+    for options in ({}, {'planners': ['astar', 'example_exception']}, {'seeds': [1]}, {'outcomes': ['reached']}, {'planners': []}):
+        scatter = explorer.compare('nested/batch', 'batch', 'scatter', **options)
+        shown = [(point['planner'], point['seed']) for point in scatter['points']]
+        hidden = [(row['planner'], row['seed']) for row in scatter['excluded']]
+        assert sorted(shown + hidden) == episodes, options  # Each saved episode is a point or one named exclusion.
+        reasons = Counter(row['reason'] for row in scatter['excluded'])
+        assert all(reasons[key] == scatter[key] for key in ('not_reached', 'no_value', 'log_axis'))
+        assert scatter['records'] == len(episodes) - reasons['filtered_planner'] - reasons['filtered_seed'] - reasons['filtered_outcome']
+        delta = explorer.compare('nested/batch', 'batch', 'delta', **options)
+        shown = [(lane['planner'], point['seed']) for lane in delta['lanes'] for point in lane['points']]
+        hidden = [(row['planner'], row['seed']) for row in delta['excluded_pairs']]
+        assert sorted(shown + hidden) == pairs, options
+        reasons = Counter(row['reason'] for row in delta['excluded_pairs'])
+        assert {key: reasons[key] for key in EXCLUSION_REASONS} == delta['excluded']  # Same reasons as the lane counts.
+    narrowed = explorer.compare('nested/batch', 'batch', 'scatter', planners=['astar', 'example_exception'])
+    why = {(row['planner'], row['seed']): row['reason'] for row in narrowed['excluded']}
+    assert why[('dijkstra', 0)] == 'filtered_planner' and why[('example_exception', 1)] == 'not_reached'
+    why = {(row['planner'], row['seed']): row['reason']
+           for row in explorer.compare('nested/batch', 'batch', 'delta', seeds=[1])['excluded_pairs']}
+    assert why[('dijkstra', 0)] == 'filtered_seed' and why[('example_exception', 1)] == 'condition'
 
 
 def test_coverage_counts_are_plain_integers_only():
