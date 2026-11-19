@@ -57,7 +57,7 @@ Coverage, denominators, and deterministic selection are documented in the
 ## Saved results explorer
 
 Browse saved results in your browser. With no argument it finds runs under
-`results/raw`; you can also open one folder directly. Viewing saved results never re-runs
+`results/raw` (creating it, empty, if missing); you can also open one folder directly. Viewing saved results never re-runs
 planning or driving, and it only accepts connections from this computer (127.0.0.1).
 Stop it with `Ctrl+C`.
 

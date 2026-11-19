@@ -31,6 +31,7 @@ PAGE = Path(__file__).parent / 'static/index.html'
 TOKEN_FRAGMENT = 'token'
 LOAD_ERRORS = (OSError, ValueError, KeyError, TypeError, AttributeError, csv.Error)
 MAX_BODY = 16 * 1024
+DRAIN_LIMIT = 1024 * 1024  # Larger refused bodies are not read; the connection is just closed.
 JOB_PATH = re.compile(r'/api/jobs/([0-9a-f]{16})')
 JOB_POST = re.compile(r'/api/(?:jobs(?:/([0-9a-f]{16})/cancel)?|(watch)(/stop)?)')
 
@@ -169,30 +170,46 @@ class Handler(BaseHTTPRequestHandler):
         except LOAD_ERRORS as exc:
             self._json(HTTPStatus.UNPROCESSABLE_ENTITY, {'error': str(exc)})
 
+    def _refuse(self, status, message):
+        """Answer a refused POST after reading its (bounded) body: closing a socket with unread bytes makes Windows
+        reset the connection, and the client may then lose this answer before reading it."""
+        try:
+            length = int(self.headers.get('Content-Length', '0'))
+        except ValueError:
+            length = 0
+        if 0 < length <= DRAIN_LIMIT:
+            try:
+                self.connection.settimeout(5)
+                self.rfile.read(length)
+            except OSError:
+                pass  # A client that stops sending gets the answer anyway, or a closed connection.
+        self.close_connection = True
+        self._json(status, {'error': message})
+
     def do_POST(self):
         if not self._host_allowed():
-            self._json(HTTPStatus.FORBIDDEN, {'error': 'host not allowed'})
+            self._refuse(HTTPStatus.FORBIDDEN, 'host not allowed')
             return
         url = urlsplit(self.path)
         route = JOB_POST.fullmatch(url.path)
         if route is None or url.query:
-            self._json(HTTPStatus.NOT_FOUND, {'error': 'not found'})
+            self._refuse(HTTPStatus.NOT_FOUND, 'not found')
             return
         refused = self._write_allowed()
         if refused:
-            self._json(refused[0], {'error': refused[1]})
+            self._refuse(*refused)
             return
         try:
             length = int(self.headers.get('Content-Length', ''))
         except ValueError:
-            self._json(HTTPStatus.LENGTH_REQUIRED, {'error': 'Content-Length is required'})
+            self._refuse(HTTPStatus.LENGTH_REQUIRED, 'Content-Length is required')
             return
         if not 0 <= length <= MAX_BODY:
-            self._json(HTTPStatus.REQUEST_ENTITY_TOO_LARGE, {'error': f'body must be at most {MAX_BODY} bytes'})
+            self._refuse(HTTPStatus.REQUEST_ENTITY_TOO_LARGE, f'body must be at most {MAX_BODY} bytes')
             return
         jobs = self.server.jobs
         if jobs is None:
-            self._json(HTTPStatus.FORBIDDEN, {'error': self.server.run_disabled})
+            self._refuse(HTTPStatus.FORBIDDEN, self.server.run_disabled)
             return
         try:
             body = json.loads(self.rfile.read(length).decode('utf-8')) if length else {}
@@ -243,8 +260,8 @@ def _stop_on_signal(*_):
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__, allow_abbrev=False)
-    parser.add_argument('path', type=Path, nargs='?', default=Path('results/raw'),
-                        help='folder holding saved runs, or one saved workflow/suite folder')
+    parser.add_argument('path', type=Path, nargs='?',
+                        help='folder holding saved runs, or one saved workflow/suite folder (default: results/raw, created if missing)')
     parser.add_argument('--port', type=int, default=0, help='local port; defaults to any free port')
     parser.add_argument('--no-browser', action='store_true', help='print the address without opening a browser')
     parser.add_argument('--scenarios', type=Path, default=Path('scenarios'),
@@ -252,9 +269,18 @@ def main(argv=None):
     parser.add_argument('--no-run', action='store_true', help='only read saved results; never start comparisons')
     parser.add_argument('--run-timeout', type=float, default=900.0, help='seconds before a started comparison is stopped')
     args = parser.parse_args(argv)
+    if args.path is None:
+        # The default folder is where new runs go, so a first start with no results yet still opens the explorer.
+        args.path = Path('results/raw')
+        if not args.path.exists():
+            try:
+                args.path.mkdir(parents=True)
+            except OSError as exc:
+                parser.error(f'could not create {args.path}: {exc}')
+            print(f'created empty results folder: {args.path.resolve()}', flush=True)
     path = args.path.resolve()
     if not path.is_dir():
-        parser.error(f'not a folder: {args.path}')
+        parser.error(f'not a folder: {args.path}')  # A folder you named yourself is never created: it may be a typo.
     if not isfinite(args.run_timeout) or args.run_timeout <= 0:
         parser.error('run timeout must be a positive number of seconds')
     is_run = path in find_runs(path)
