@@ -10,6 +10,7 @@ from pathlib import Path
 from urllib.parse import parse_qs, quote, urlsplit
 import webbrowser
 
+from raceplan.gui.analysis import BadQuery
 from raceplan.gui.data import Explorer, UnknownItem, find_runs
 
 HOST = '127.0.0.1'
@@ -42,12 +43,27 @@ class Handler(BaseHTTPRequestHandler):
         port = self.server.server_address[1]
         return self.headers.get('Host') in {f'{HOST}:{port}', f'localhost:{port}'}
 
+    @staticmethod
+    def _options(path, query, multi):
+        """Filters repeat their key per value (names may contain commas). An absent key means no filter;
+        a key with only blank values selects nothing."""
+        def listed(key, convert=str):
+            return None if key not in multi else [convert(item) for item in multi[key] if item]
+
+        try:
+            options = {'planners': listed('planners'), 'seeds': listed('seeds', int), 'outcomes': listed('outcomes')}
+        except ValueError:
+            raise BadQuery('seeds must be integers') from None
+        options['metric' if path.endswith('delta') else 'x'] = query.get('metric' if path.endswith('delta') else 'x')
+        return {key: value for key, value in options.items() if value is not None}
+
     def do_GET(self):
         if not self._host_allowed():
             self._json(HTTPStatus.FORBIDDEN, {'error': 'host not allowed'})
             return
         url = urlsplit(self.path)
         query = {key: values[0] for key, values in parse_qs(url.query).items()}
+        multi = parse_qs(url.query, keep_blank_values=True)
         explorer = self.server.explorer
         try:
             if url.path == '/':
@@ -58,8 +74,13 @@ class Handler(BaseHTTPRequestHandler):
                 self._json(HTTPStatus.OK, explorer.run(query.get('id', '')))
             elif url.path == '/api/case':
                 self._json(HTTPStatus.OK, explorer.case(query.get('run', ''), query.get('id', '')))
+            elif url.path in ('/api/compare/delta', '/api/compare/scatter'):
+                self._json(HTTPStatus.OK, explorer.compare(query.get('run', ''), query.get('case', ''),
+                                                           url.path.rsplit('/', 1)[1], **self._options(url.path, query, multi)))
             else:
                 self._json(HTTPStatus.NOT_FOUND, {'error': 'not found'})
+        except BadQuery as exc:
+            self._json(HTTPStatus.BAD_REQUEST, {'error': str(exc)})
         except UnknownItem as exc:
             self._json(HTTPStatus.NOT_FOUND, {'error': str(exc)})
         except LOAD_ERRORS as exc:

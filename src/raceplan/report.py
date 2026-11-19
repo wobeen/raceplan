@@ -128,7 +128,7 @@ def _case(reader, folder, identity, workflow_state=None):
             raise ValueError('planning failure must have no driven trajectory')
     _validate_pairs(pairs, episodes, baseline, traces)
     return {'id': identity, 'manifest': manifest, 'grid': metadata.grid, 'episodes': episodes,
-            'pairs': pairs, 'paths': paths, 'traces': traces}
+            'pairs': pairs, 'paths': paths, 'traces': traces, 'baseline': baseline}
 
 
 def _load(reader, source):

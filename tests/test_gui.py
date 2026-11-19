@@ -168,3 +168,142 @@ def test_tampered_saved_results_return_a_readable_error(saved, tmp_path):
     finally:
         server.shutdown()
         server.server_close()
+
+
+def _compare_case(saved):
+    return Explorer(saved).run('nested/batch')['cases'][0]
+
+
+def test_paired_delta_counts_every_candidate_once_and_matches_saved_pairs(saved):
+    explorer = Explorer(saved)
+    result = explorer.compare('nested/batch', 'batch', 'delta', metric='rmse')
+    assert result['baseline'] == 'astar' and result['unit'] == 'm' and result['better'] == 'lower'
+    assert [lane['planner'] for lane in result['lanes']] == ['dijkstra', 'example_exception']
+    assert result['candidate'] == 4 and result['plotted'] + sum(result['excluded'].values()) == result['candidate']
+    saved_pairs = {(row['planner'], row['simulation_seed']): row
+                   for row in read_csv(saved / 'nested/batch/analysis/paired.csv')}
+    for lane in result['lanes']:
+        assert lane['candidate'] == 2
+        assert len(lane['points']) + sum(lane['excluded'].values()) == 2
+        for point in lane['points']:
+            row = saved_pairs[(lane['planner'], str(point['seed']))]
+            assert row['both_reached'] == 'True' and point['delta'] == float(row['delta_tracking_rmse_m'])
+    failing = result['lanes'][1]
+    assert failing['points'] == [] and failing['median'] is None  # Failed pairs are excluded, never drawn at 0.
+    assert result['lanes'][0]['median'] == pytest.approx(
+        sum(point['delta'] for point in result['lanes'][0]['points']) / len(result['lanes'][0]['points']))
+
+
+def test_paired_delta_filters_report_their_own_exclusion_reason(saved):
+    explorer = Explorer(saved)
+    seed_only = explorer.compare('nested/batch', 'batch', 'delta', metric='time', seeds=[1])
+    assert seed_only['candidate'] == 2 and all(point['seed'] == 1 for lane in seed_only['lanes'] for point in lane['points'])
+    only_collisions = explorer.compare('nested/batch', 'batch', 'delta', outcomes=['collision'])
+    assert only_collisions['plotted'] == 0 and only_collisions['excluded']['filtered_outcome'] == 4
+    no_planners = explorer.compare('nested/batch', 'batch', 'delta', planners=[])
+    assert no_planners['lanes'] == [] and no_planners['candidate'] == 0
+    clearance = explorer.compare('nested/batch', 'batch', 'delta', metric='clearance')
+    assert clearance['better'] == 'higher' and clearance['plotted'] + sum(clearance['excluded'].values()) == 4
+
+
+def test_baseline_is_used_even_when_unselected_and_missing_baseline_is_reported(saved):
+    case = _compare_case(saved)
+    from raceplan.gui import analysis
+    assert analysis.paired_delta(case, planners=['dijkstra'])['plotted'] == 2
+    assert analysis.paired_delta({**case, 'baseline': None})['lanes'] == []
+    missing = analysis.paired_delta({**case, 'pairs': []})
+    assert missing['plotted'] == 0 and missing['excluded']['missing_pair'] == 4
+
+
+def test_scatter_accounts_for_every_filtered_record(saved):
+    result = Explorer(saved).compare('nested/batch', 'batch', 'scatter')
+    assert result['records'] == 6
+    assert result['plotted'] + result['not_reached'] + result['no_value'] + result['log_axis'] == 6
+    assert result['not_reached'] == 2  # The failing custom planner keeps its rows in the count.
+    saved_rows = {row['episode_id']: row for row in read_csv(saved / 'nested/batch/analysis/episodes.csv')}
+    for point in result['points']:
+        row = saved_rows[point['episode_id']]
+        assert row['failure_class'] == 'reached' and point['y'] == float(row['tracking_rmse_m'])
+        assert point['x'] == float(row['planning_time_ms'])
+    runner = Explorer(saved).compare('nested/batch', 'batch', 'scatter', x='runner')
+    assert runner['x_field'] == 'runner_planning_time_ms'
+    assert runner['plotted'] + runner['not_reached'] + runner['no_value'] + runner['log_axis'] == 6
+    assert Explorer(saved).compare('nested/batch', 'batch', 'scatter', seeds=[0])['records'] == 3
+
+
+def test_compare_endpoints_validate_queries(client):
+    base = '/api/compare/delta?run=nested%2Fbatch&case=batch'
+    response, body = client(base + '&metric=rmse&planners=dijkstra&seeds=0&seeds=1')
+    payload = json.loads(body)
+    assert response.status == 200 and [lane['planner'] for lane in payload['lanes']] == ['dijkstra']
+    assert client('/api/compare/scatter?run=nested%2Fbatch&case=batch&x=runner')[0].status == 200
+    assert client(base + '&metric=bogus')[0].status == 400
+    assert client(base + '&seeds=a')[0].status == 400
+    assert client(base + '&seeds=0,1')[0].status == 400  # Values repeat the key; comma lists are not accepted.
+    assert client('/api/compare/scatter?run=nested%2Fbatch&case=batch&x=bogus')[0].status == 400
+    assert client('/api/compare/delta?run=nested%2Fbatch&case=missing')[0].status == 404
+    assert client('/api/compare/delta?run=missing&case=batch')[0].status == 404
+
+
+def test_outcome_filter_applies_to_the_compared_planner_with_exact_reasons(saved):
+    explorer = Explorer(saved)
+    reached = explorer.compare('nested/batch', 'batch', 'delta', outcomes=['reached'])
+    dijkstra, failing = reached['lanes']
+    assert len(dijkstra['points']) == 2 and sum(dijkstra['excluded'].values()) == 0
+    assert failing['excluded'] == {'missing_pair': 0, 'filtered_outcome': 2, 'condition': 0, 'no_delta': 0}
+    errors = explorer.compare('nested/batch', 'batch', 'delta', outcomes=['planning_error'])
+    dijkstra, failing = errors['lanes']
+    assert dijkstra['excluded']['filtered_outcome'] == 2 and dijkstra['points'] == []
+    assert failing['excluded'] == {'missing_pair': 0, 'filtered_outcome': 0, 'condition': 2, 'no_delta': 0}
+
+
+def test_blank_filters_select_nothing_and_names_may_contain_commas(client, saved):
+    base = '/api/compare/delta?run=nested%2Fbatch&case=batch'
+    assert json.loads(client(base + '&planners=')[1])['lanes'] == []
+    assert json.loads(client(base + '&seeds=')[1])['candidate'] == 0
+    blank = json.loads(client(base + '&outcomes=')[1])
+    assert blank['plotted'] == 0 and blank['excluded']['filtered_outcome'] == 4
+    repeated = json.loads(client(base + '&planners=dijkstra&planners=example_exception')[1])
+    assert [lane['planner'] for lane in repeated['lanes']] == ['dijkstra', 'example_exception']
+    from raceplan.gui import analysis
+    case = {'planners': ['base', 'fast,v2', 'v2'], 'seeds': [0], 'baseline': 'base', 'pairs': [], 'episodes': []}
+    assert [lane['planner'] for lane in analysis.paired_delta(case, planners=['fast,v2'])['lanes']] == ['fast,v2']
+
+
+def test_delta_and_scatter_count_unusable_values_under_their_own_reason():
+    from raceplan.gui import analysis
+    def episode(planner, seed, **values):
+        row = {'planner': planner, 'simulation_seed': seed, 'failure_class': 'reached', 'episode_id': f'{planner}:{seed}',
+               'plan_id': planner, 'tracking_rmse_m': 0.1, 'planning_time_ms': 2.0, 'runner_planning_time_ms': 3.0}
+        return {**row, **values}
+    def pair(seed, **values):
+        row = {'planner': 'b', 'baseline': 'a', 'simulation_seed': seed, 'both_reached': True, 'both_driven': True,
+               'delta_tracking_rmse_m': 0.5, 'delta_completion_time_s': None, 'delta_driving_min_sampled_clearance_m': None}
+        return {**row, **values}
+    case = {'planners': ['a', 'b'], 'seeds': [0, 1, 2], 'baseline': 'a',
+            'episodes': [episode(p, s) for p in 'ab' for s in range(3)],
+            'pairs': [pair(0), pair(1, delta_tracking_rmse_m=None), pair(2, both_reached=False)]}
+    result = analysis.paired_delta(case)
+    assert result['plotted'] == 1 and result['candidate'] == 3
+    assert result['excluded'] == {'missing_pair': 0, 'filtered_outcome': 0, 'condition': 1, 'no_delta': 1}
+    case['pairs'] = case['pairs'][:2]
+    assert analysis.paired_delta(case)['excluded']['missing_pair'] == 1
+    case['episodes'][3] = episode('b', 0, planning_time_ms=None)
+    case['episodes'][4] = episode('b', 1, planning_time_ms=0.0)
+    case['episodes'][5] = episode('b', 2, failure_class='timeout')
+    result = analysis.scatter(case)
+    assert (result['records'], result['plotted'], result['no_value'], result['log_axis'], result['not_reached']) == (6, 3, 1, 1, 1)
+
+
+def test_saved_baseline_survives_a_case_without_comparison_pairs(saved):
+    suite_case = Explorer(saved).run('suite')['cases'][0]
+    assert suite_case['planners'] == ['astar'] and suite_case['pairs'] == [] and suite_case['baseline'] == 'astar'
+    result = Explorer(saved).compare('suite', suite_case['id'], 'delta')
+    assert result['baseline'] == 'astar' and result['lanes'] == []
+
+
+def test_coverage_counts_are_plain_integers_only():
+    from raceplan.gui.data import _count
+    assert _count(16) == 16 and _count(0) == 0
+    for bad in ('<img src=x onerror=alert(1)>', None, 1.5, True, [1]):
+        assert _count(bad) is None

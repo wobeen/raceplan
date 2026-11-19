@@ -10,6 +10,7 @@ from threading import Lock
 
 import numpy as np
 
+from raceplan.gui import analysis
 from raceplan.report import Reader, _load
 
 STATE_FILES = ('suite.json', 'workflow.json', 'comparison_manifest.json')
@@ -37,6 +38,11 @@ def _number(value, digits=None):
     if not isfinite(number):
         return None
     return round(number, digits) if digits is not None else number
+
+
+def _count(value):
+    """Coverage counts are shown in the page, so anything that is not a plain integer becomes unknown."""
+    return value if isinstance(value, int) and not isinstance(value, bool) else None
 
 
 def _read_json(path):
@@ -196,13 +202,13 @@ class Explorer:
             cases.append({'id': case['id'], 'scenario': manifest['scenario'].get('name', ''),
                           'map': Path(manifest['scenario']['map_path']).stem,
                           'planners': list(manifest['planners']), 'seeds': list(manifest['simulation_seeds']),
-                          'baseline': next((pair['baseline'] for pair in case['pairs']), None),
+                          'baseline': case.get('baseline'),
                           'episodes': [_episode(row) for row in case['episodes']],
                           'pairs': [_pair(row) for row in case['pairs']],
                           'reproduce': _reproduce(self._case_folder(entry, case['id']))})
         return {'id': run_id, 'name': entry['folder'].name, 'cases': cases, 'coverage': [
-            {'case_id': row['case_id'], 'status': row['status'], 'expected': row.get('expected_episode_count'),
-             'included': row.get('included_episode_count', 0), 'failed_phase': row.get('failed_phase'),
+            {'case_id': row['case_id'], 'status': row['status'], 'expected': _count(row.get('expected_episode_count')),
+             'included': _count(row.get('included_episode_count', 0)) or 0, 'failed_phase': row.get('failed_phase'),
              'error': (row.get('error') or {}).get('message', '')} for row in entry['coverage']]}
 
     def case(self, run_id, case_id):
@@ -214,3 +220,12 @@ class Explorer:
                 entry['details'][case_id] = _case_detail(entry['reader'], entry['cases'][case_id],
                                                          self._case_folder(entry, case_id))
             return entry['details'][case_id]
+
+    def compare(self, run_id, case_id, kind, **options):
+        entry = self._loaded(run_id)
+        if case_id not in entry['cases']:
+            raise UnknownItem(f'unknown case: {case_id}')
+        case = next(item for item in self.run(run_id)['cases'] if item['id'] == case_id)
+        if kind == 'delta':
+            return analysis.paired_delta(case, **options)
+        return analysis.scatter(case, **options)

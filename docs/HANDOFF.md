@@ -1,4 +1,14 @@
-# 작업 인계 — 2026-11-06
+# 작업 인계 — 2026-11-19
+
+## GUI 2단계 (1): 비교 분석 탭 (브랜치 feature/gui-compare, feature/gui-explorer 기반)
+
+비교 탭에 Paired Δ strip plot과 산점도를 추가했다. 집계는 `raceplan/gui/analysis.py`가 저장 결과만으로 계산하며
+계획·주행을 호출하지 않는다. 설계안은 GPT(gpt-6.2-sol)가, 구현은 Claude가, 독립 검증은 GPT(gpt-6.2-astra)가 맡았다.
+Astra가 P1 2건(빈 필터가 전체 집계로 바뀜, coverage 값의 HTML 삽입 가능성)과 P2(쉼표 이름, 응답 경쟁, 기준 planner 표시,
+포커스 유실, 테스트 빈틈)를 지적했고 모두 수정했다. 테스트는 전체 **130 passed**(기존 120 + 비교 10),
+Windows TEMP를 basetemp로 사용했다. 헤드리스 Edge 1280×720에서 Δ·산점도 화면의 스크롤 없음과 분모·제외 사유 표시를 확인했다.
+미검증: 실제 마우스·키보드 조작(점 선택, 필터 클릭)은 스크립트로 하지 않았다. 2차 Astra 재검토는 받지 않았다.
+남은 일은 `docs/GUI_PLAN.md` 2단계 기록을 따른다.
 
 ## GUI 1단계: 저장 결과 탐색기 (브랜치 feature/gui-explorer)
 

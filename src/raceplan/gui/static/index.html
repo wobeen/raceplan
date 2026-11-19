@@ -82,11 +82,24 @@ select.fl{appearance:none;-webkit-appearance:none;font:inherit;font-size:.92em;c
 .nodrive{flex:1;min-height:0;display:grid;place-items:center;color:var(--mut);background:rgba(255,255,255,.4);border-radius:.8em;font-size:.92em;text-align:center;padding:.5em}
 .msg{position:absolute;left:50%;top:9%;transform:translateX(-50%);max-width:70%;z-index:50;background:rgba(255,255,255,.94);border:1px solid rgba(255,59,48,.4);color:#b4231a;box-shadow:0 1em 3em rgba(40,52,90,.2);border-radius:1em;padding:.7em 1.1em;white-space:pre-wrap;word-break:break-word;display:none}.msg.on{display:block}
 .empty{margin:auto;color:var(--mut);text-align:center;padding:1em;white-space:pre-wrap}
+.tabs{display:flex;gap:.15em;padding:.18em;border-radius:2em;background:rgba(118,118,128,.12)}
+.tabs button{font:inherit;border:0;background:transparent;padding:.25em 1.1em;border-radius:2em;cursor:pointer;color:var(--mut);font-weight:600}
+.tabs button:hover{color:var(--ink)}.tabs button.on{background:#fff;color:var(--ink);box-shadow:0 .1em .4em rgba(40,52,90,.18)}.tabs button:focus-visible,.chip:focus-visible{outline:.18em solid rgba(0,122,255,.45)}
+.cmpv{display:none;grid-column:2;grid-row:2/4;min-height:0}.cmpv>.card{flex:1}
+.app.cmp .work,.app.cmp .time{display:none}.app.cmp .cmpv{display:flex}
+.cmpctl{display:flex;flex-wrap:wrap;gap:.4em .8em;align-items:center;flex:none}
+.cmpctl .grp{display:flex;gap:.3em;align-items:center;flex-wrap:wrap}.cmpctl .lbl{color:var(--mut);font-size:.88em}
+.chip{font:inherit;font-size:.92em;border:1px solid rgba(60,60,67,.2);background:rgba(255,255,255,.6);color:var(--mut);border-radius:2em;padding:.12em .8em;cursor:pointer;display:inline-flex;align-items:center;gap:.4em}
+.chip.on{color:var(--ink);background:#fff;border-color:rgba(60,60,67,.3);font-weight:600}.chip .dot{margin:0}
+.cmpbody{position:relative;flex:1;min-height:0;background:rgba(255,255,255,.5);border:1px solid rgba(255,255,255,.85);box-shadow:inset 0 .05em .5em rgba(40,52,90,.07);border-radius:1em;overflow:hidden;display:flex}
+.cmpbody svg{display:block}.cmpbody .pt{cursor:pointer}.cmpbody .pt:focus-visible{outline:none}.cmpbody .pt:focus-visible *{stroke:var(--acc);stroke-width:2.5}
+.cmpsum{flex:none;font-size:.92em;line-height:1.45;color:var(--mut)}.cmpsum b{color:var(--ink);font-weight:600}.cmpsum .warnx{color:var(--red);font-weight:600}
 </style></head><body>
 <div class="wrap"><div class="app" id="app">
  <div class="top">
   <div class="brand"><div class="flag"></div>RacePlan</div>
   <div class="crumb"><span>실행</span><b id="runName">—</b><span>›</span><select class="pill" id="caseSel" title="지도 / case"></select><select class="pill" id="seedSel" title="seed"></select></div>
+  <div class="tabs" id="tabs"><button data-v="explore" class="on">탐색</button><button data-v="cmp">비교</button></div>
   <div class="sp"></div>
   <div class="cov" id="cov"></div>
  </div>
@@ -101,6 +114,7 @@ select.fl{appearance:none;-webkit-appearance:none;font:inherit;font-size:.92em;c
   <div class="card tbc"><h3>에피소드 <em><select class="fl" id="filter"><option value="all">전체 보기</option><option value="fail">실패만</option><option value="ok">도달만</option></select></em></h3><div class="cb"><div class="tw" id="table"></div></div></div>
   <div class="card trc"><h3>트랙 · 체크한 planner 동시 주행 <em id="trk"></em></h3><div class="cb"><svg id="track"><g id="trStatic"></g><g id="trDyn"></g></svg><div class="leg">점선 = 계획 경로 · 실선 = 실제 궤적 · 저장된 결과만 표시합니다</div></div></div>
  </div>
+ <div class="cmpv"><div class="card"><h3>비교 분석 <em id="cmpNote"></em></h3><div class="cb"><div class="cmpctl" id="cmpCtl"></div><div class="cmpbody" id="cmpBody"></div><div class="cmpsum" id="cmpSum"></div></div></div></div>
  <div class="insp"><div class="card"><h3>Inspector</h3><div class="cb" id="insp"></div></div></div>
  <div class="card time"><h3>텔레메트리 타임라인 <em style="margin-left:.8em">같은 시각 기준 · 끌어서 이동</em><button class="play" id="play">▶ 재생</button></h3>
   <div class="cb"><div class="lanes-w"><div class="lanes" id="lanes"></div><div class="scrubz"><div class="scrub" id="scrub" data-t="0.0 s"></div><input class="scr" id="scr" type="range" min="0" max="1" step="0.01" value="0" aria-label="시각"></div></div><div class="axis" id="axis"></div></div></div>
@@ -137,13 +151,13 @@ $('runs').onclick=e=>{const r=e.target.closest('.setrow');if(r)openRun(r.dataset
 
 async function openRun(id){const token=++S.token;stop();showMsg('');
  try{const run=await api('/api/run?id='+encodeURIComponent(id));if(token!==S.token)return;S.run=run;$('runName').textContent=run.name;
-  history.replaceState(null,'','?run='+encodeURIComponent(id));renderRuns();renderCoverage();
+  history.replaceState(null,'','?run='+encodeURIComponent(id)+(S.view==='cmp'?'&view=cmp':''));renderRuns();renderCoverage();
   $('caseSel').innerHTML=run.cases.map(c=>`<option value="${esc(c.id)}">지도: ${esc(c.map)}${c.id==='batch'?'':' ('+esc(c.id)+')'}</option>`).join('');
   if(run.cases.length){await openCase(run.cases[0].id,token)}else{S.case=null;S.detail=null;renderAll()}
  }catch(err){if(token!==S.token)return;S.run={id,cases:[],coverage:[]};S.case=null;S.detail=null;$('runName').textContent=id;renderRuns();renderCoverage();renderAll();showMsg('이 실행을 열 수 없습니다.\n'+err.message)}}
 async function openCase(id,token=++S.token){stop();
  const detail=await api('/api/case?run='+encodeURIComponent(S.run.id)+'&id='+encodeURIComponent(id));if(token!==S.token)return;
- S.case=S.run.cases.find(c=>c.id===id);S.detail=detail;$('caseSel').value=id;S.on={};S.case.planners.forEach(p=>S.on[p]=true);
+ S.case=S.run.cases.find(c=>c.id===id);S.detail=detail;$('caseSel').value=id;S.cmp=null;S.cPl={};S.cSeed={};S.on={};S.case.planners.forEach(p=>S.on[p]=true);
  S.seed=S.case.seeds[0];$('seedSel').innerHTML=S.case.seeds.map(s=>`<option value="${esc(s)}">seed ${esc(s)}</option>`).join('');$('seedSel').value=String(S.seed);
  S.sel=(eps().find(e=>group(e.failure_class)!=='ok')||eps()[0]||{}).planner??S.case.planners[0];
  const first=eps().find(e=>e.planner===S.sel&&group(e.failure_class)!=='ok');if(first){S.seed=first.simulation_seed;$('seedSel').value=String(S.seed)}
@@ -245,9 +259,77 @@ function renderInspector(){if(!S.case){$('insp').innerHTML='';return}const e=ep(
  ${fail}<div class="il"><span>시계열</span><span>타임라인과 연동</span></div>${body}
  <div class="il"><span>Provenance</span><span style="color:var(--teal)">✔ 저장 입력 검증 통과</span></div>${cmd?`<div class="cmd" title="새 출력 폴더로 다시 실행하는 명령">${esc(cmd)}</div>`:''}`;sparkCursor()}
 
-function renderAll(){document.querySelector('.scrubz').classList.toggle('off',!S.detail);renderGrid();renderLeaderboard();renderTable();renderInspector();renderLanes();if(!S.detail){$('trStatic').innerHTML='';drawDyn();$('trk').textContent=''}}
+function renderAll(){if(S.cmp)drawCompare();else renderCompare();document.querySelector('.scrubz').classList.toggle('off',!S.detail);renderGrid();renderLeaderboard();renderTable();renderInspector();renderLanes();if(!S.detail){$('trStatic').innerHTML='';drawDyn();$('trk').textContent=''}}
+
+/* 비교 분석: 집계(분모·제외 사유)는 서버가 저장 결과에서 계산한다 */
+Object.assign(S,{view:'explore',panel:'delta',metric:'rmse',xsrc:'reported',cOut:'all',cPl:{},cSeed:{},cmp:null,ctoken:0});
+const REASON={missing_pair:'짝 없음',filtered_outcome:'결과 필터',condition:'조건 미충족',no_delta:'Δ 없음'};
+const METRIC={rmse:['RMSE Δ','m',3,'양쪽 도달 쌍'],time:['완료시간 Δ','s',2,'양쪽 도달 쌍'],clearance:['최소 clearance Δ','m',3,'양쪽 주행 쌍']};
+const enc=encodeURIComponent;
+function setView(v){S.view=v;$('app').classList.toggle('cmp',v==='cmp');document.querySelectorAll('#tabs button').forEach(b=>b.classList.toggle('on',b.dataset.v===v));if(v==='cmp')renderCompare();else stop()}
+$('tabs').onclick=e=>{const b=e.target.closest('button');if(b)setView(b.dataset.v)};
+function cmpQuery(){const keys=(k,list)=>list.length?list.map(v=>k+'='+enc(v)):[k+'='],pl=planners().filter(p=>S.cPl[p]!==false),sd=S.case.seeds.filter(s=>S.cSeed[s]!==false);
+ let q=[...keys('planners',pl),...keys('seeds',sd)];
+ if(S.cOut==='reached')q=q.concat(keys('outcomes',['reached']));else if(S.cOut==='fail')q=q.concat(keys('outcomes',[...new Set(eps().map(e=>e.failure_class).filter(c=>c!=='reached'))]));
+ return q.join('&')}
+function renderCmpCtl(){const opt=(v,l,cur)=>`<option value="${v}" ${v===cur?'selected':''}>${l}</option>`;
+ $('cmpCtl').innerHTML=`<div class="tabs" id="panelTabs"><button data-v="delta" class="${S.panel==='delta'?'on':''}">Paired Δ</button><button data-v="scatter" class="${S.panel==='scatter'?'on':''}">산점도</button></div>
+ <div class="grp">${S.panel==='delta'?`<span class="lbl">지표</span><select class="pill" id="cMetric">${Object.entries(METRIC).map(([k,m])=>opt(k,m[0],S.metric)).join('')}</select>`:`<span class="lbl">X 계획시간</span><select class="pill" id="cX">${opt('reported','보고값 (planning_time_ms)',S.xsrc)}${opt('runner','실측 (runner_planning_time_ms)',S.xsrc)}</select>`}
+ <span class="lbl">결과</span><select class="pill" id="cOut">${opt('all','전체',S.cOut)}${opt('reached','도달만',S.cOut)}${opt('fail','실패만',S.cOut)}</select></div>
+ <div class="grp"><span class="lbl">planner</span>${planners().map(p=>`<button class="chip ${S.cPl[p]!==false?'on':''}" aria-pressed="${S.cPl[p]!==false}" data-p="${esc(p)}"><span class="dot" style="background:${color(p)}"></span>${esc(p)}${p===S.case.baseline?' (기준)':''}</button>`).join('')}</div>
+ <div class="grp"><span class="lbl">seed</span>${S.case.seeds.map(s=>`<button class="chip ${S.cSeed[s]!==false?'on':''}" aria-pressed="${S.cSeed[s]!==false}" data-s="${s}">${s}</button>`).join('')}</div>`}
+$('cmpCtl').onclick=e=>{const t=e.target.closest('button');if(!t)return;
+ if(t.dataset.v)S.panel=t.dataset.v;else if(t.dataset.p)S.cPl[t.dataset.p]=S.cPl[t.dataset.p]===false;else if(t.dataset.s)S.cSeed[t.dataset.s]=S.cSeed[t.dataset.s]===false;else return;focusSel=t.dataset.v?'#panelTabs [data-v="'+t.dataset.v+'"]':t.dataset.p?'#cmpCtl [data-p="'+CSS.escape(t.dataset.p)+'"]':'#cmpCtl [data-s="'+t.dataset.s+'"]';renderCompare()};
+$('cmpCtl').onchange=e=>{if(e.target.id==='cMetric')S.metric=e.target.value;else if(e.target.id==='cX')S.xsrc=e.target.value;else if(e.target.id==='cOut')S.cOut=e.target.value;else return;renderCompare()};
+async function renderCompare(){if(S.view!=='cmp')return;
+ if(!S.case){S.ctoken++;S.cmp=null;$('cmpCtl').innerHTML='';$('cmpSum').innerHTML='';$('cmpBody').innerHTML='<div class="empty">표시할 완료 case가 없습니다</div>';return}
+ S.cmp=null;renderCmpCtl();const token=++S.ctoken,panel=S.panel,kind=S.panel==='delta'?'delta?metric='+S.metric:'scatter?x='+S.xsrc;
+ try{const d=await api(`/api/compare/${kind}&run=${enc(S.run.id)}&case=${enc(S.case.id)}&${cmpQuery()}`);if(token!==S.ctoken)return;S.cmp=d;S.cmpPanel=panel;drawCompare();restoreFocus()}
+ catch(err){if(token!==S.ctoken)return;S.cmp=null;$('cmpSum').innerHTML='';$('cmpBody').innerHTML='<div class="empty">비교 데이터를 읽지 못했습니다.\n'+esc(err.message)+'</div>'}}
+const nice=(lo,hi,n)=>Array.from({length:n+1},(_,i)=>lo+(hi-lo)*i/n);
+function pointShape(x,y,r,fill,outcome,sel){const stroke=sel?'#1c1c1e':'#fff',sw=sel?2.5:1.5;
+ return outcome==='reached'?`<circle cx="${x}" cy="${y}" r="${r}" fill="${fill}" stroke="${stroke}" stroke-width="${sw}"/>`:`<rect x="${x-r}" y="${y-r}" width="${2*r}" height="${2*r}" rx="${r*.3}" fill="${fill}" stroke="${sel?'#1c1c1e':'#ff3b30'}" stroke-width="${sw}"/>`}
+function drawCompare(){const box=$('cmpBody'),d=S.cmp;if(!d||S.view!=='cmp'||S.cmpPanel!==S.panel)return;const w=box.clientWidth,h=box.clientHeight,fs=parseFloat(getComputedStyle($('app')).fontSize);if(!w||!h)return;
+ const m={l:(S.panel==='delta'?15:4.2)*fs,r:1.6*fs,t:1.2*fs,b:3.2*fs};let s='',sum='';
+ const txt=(x,y,t,a='start',c='#6e6e73',z=.88,wt=400)=>`<text x="${x}" y="${y}" text-anchor="${a}" font-size="${fs*z}" fill="${c}" font-weight="${wt}">${esc(t)}</text>`;
+ if(S.panel==='delta'){const [name,unit,dig,cond]=METRIC[S.metric],lanes=d.lanes;
+  const reasons=Object.entries(d.excluded).filter(([,n])=>n).map(([k,n])=>`${REASON[k]} ${n}`).join(' · ');
+  sum=d.baseline===null?'<span class="warnx">저장된 기준 planner가 없어 Δ를 표시하지 않습니다.</span>':`기준 <b>${esc(d.baseline)}</b>(저장된 값) · 후보 쌍 <b>${d.candidate}</b> · 표시 <b>${d.plotted}</b> · 제외 <b>${d.candidate-d.plotted}</b>${reasons?' ('+reasons+')':''} · ${cond}만 그리며 제외 쌍은 0에 찍지 않습니다.`;
+  if(!lanes.length){box.innerHTML='<div class="empty">비교할 planner가 없습니다.\n기준 planner는 비교 대상에서 빠집니다.</div>';$('cmpSum').innerHTML=sum;$('cmpNote').textContent='';return}
+  const all=lanes.flatMap(l=>l.points.map(p=>p.delta));let lo=Math.min(0,...all),hi=Math.max(0,...all);if(hi-lo<1e-9){lo-=1;hi+=1}const pad=(hi-lo)*.08;lo-=pad;hi+=pad;
+  const X=v=>m.l+(v-lo)/(hi-lo)*(w-m.l-m.r),lh=(h-m.t-m.b)/lanes.length;
+  nice(lo,hi,5).forEach(v=>{s+=`<line x1="${X(v)}" x2="${X(v)}" y1="${m.t}" y2="${h-m.b}" stroke="#d7dae2" stroke-width="1"/>`+txt(X(v),h-m.b+fs*1.2,v.toFixed(dig),'middle')});
+  s+=`<line x1="${X(0)}" x2="${X(0)}" y1="${m.t}" y2="${h-m.b}" stroke="#1c1c1e" stroke-width="1.5" stroke-dasharray="4 3"/>`;
+  const good=d.better==='lower';s+=txt(good?m.l:w-m.r,h-fs*.4,(good?'← 개선 (작을수록 좋음) · ':'개선 → (클수록 좋음) · ')+name+' ('+unit+') · 0 = 기준과 같음',good?'start':'end');
+  lanes.forEach((l,i)=>{const y0=m.t+i*lh,cy=y0+lh/2,ex=Object.values(l.excluded).reduce((a,b)=>a+b,0);
+   s+=`<rect x="0" y="${y0}" width="${w}" height="${lh}" fill="${i%2?'rgba(118,118,128,.05)':'transparent'}"/><circle cx="${fs*.9}" cy="${cy-fs*.5}" r="${fs*.45}" fill="${color(l.planner)}"/>`+txt(fs*1.7,cy-fs*.2,l.planner,'start','#1c1c1e',.95,600)+txt(fs*1.7,cy+fs*1.05,`표시 ${l.points.length}/${l.candidate} · 제외 ${ex}`,'start',ex?'#c9281e':'#6e6e73',.82)+(ex?txt(fs*1.7,cy+fs*2,Object.entries(l.excluded).filter(([,n])=>n).map(([k,n])=>REASON[k]+' '+n).join(' · '),'start','#6e6e73',.76):'');
+   if(l.median!==null)s+=`<line x1="${X(l.median)}" x2="${X(l.median)}" y1="${cy-lh*.38}" y2="${cy+lh*.38}" stroke="${color(l.planner)}" stroke-width="3" stroke-linecap="round" opacity=".55"/>`+txt(X(l.median),y0+fs*.9,'중앙값 '+l.median.toFixed(dig),'middle',color(l.planner),.78,600);
+   l.points.forEach((p,j)=>{const sel=S.sel===l.planner&&S.seed===p.seed,jit=Math.min(lh*.22,fs*.9)*((j%3)-1),label=`${l.planner} seed ${p.seed} · Δ ${p.delta.toFixed(dig)} ${unit} · ${outLabel(p.outcome)}`;
+    s+=`<g class="pt" tabindex="0" role="button" data-p="${esc(l.planner)}" data-s="${p.seed}" aria-label="${esc(label)}"><title>${esc(label)}</title>${pointShape(X(p.delta),cy+jit,fs*.55,color(l.planner),p.outcome,sel)}</g>`})});
+  $('cmpNote').textContent='점 = 같은 case·seed의 한 쌍 · 사각형 = 도달하지 못한 에피소드'}
+ else{const pts=d.points;
+  sum=`표시 <b>${d.plotted}</b> / 기록 <b>${d.records}</b> · 미도달 ${d.not_reached} · 값 없음·비유한 값 ${d.no_value} · 로그축 불가(X≤0) ${d.log_axis}. 점은 <b>도달 에피소드</b>이며 실패는 표와 요약에 남습니다. 같은 plan_id의 계획시간은 seed마다 반복되므로 독립 표본이 아닙니다.`;
+  $('cmpNote').textContent='점 = 도달 에피소드 하나';
+  if(!pts.length){box.innerHTML='<div class="empty">표시할 도달 에피소드가 없습니다.\n'+esc(`기록 ${d.records} · 미도달 ${d.not_reached} · 값 없음 ${d.no_value} · 로그축 불가 ${d.log_axis}`)+'</div>';$('cmpSum').innerHTML=sum;return}
+  const xs=pts.map(p=>Math.log10(p.x)),ys=pts.map(p=>p.y);let lx=Math.min(...xs),hx=Math.max(...xs);if(hx-lx<1e-9){lx-=.3;hx+=.3}const px=(hx-lx)*.08;lx-=px;hx+=px;const hy=Math.max(...ys,1e-9)*1.12;
+  const X=v=>m.l+(Math.log10(v)-lx)/(hx-lx)*(w-m.l-m.r),Y=v=>h-m.b-v/hy*(h-m.t-m.b);
+  let ticks=[];for(let e=Math.ceil(lx);e<=Math.floor(hx);e++)ticks.push(10**e);if(ticks.length<2)ticks=[10**lx,10**hx];
+  ticks.forEach(v=>{s+=`<line x1="${X(v)}" x2="${X(v)}" y1="${m.t}" y2="${h-m.b}" stroke="#d7dae2"/>`+txt(X(v),h-m.b+fs*1.2,v>=1?String(+v.toPrecision(3)):v.toPrecision(2),'middle')});
+  nice(0,hy,4).forEach(v=>{s+=`<line x1="${m.l}" x2="${w-m.r}" y1="${Y(v)}" y2="${Y(v)}" stroke="#d7dae2"/>`+txt(m.l-fs*.4,Y(v)+fs*.3,v.toFixed(2),'end')});
+  s+=txt(w/2,h-fs*.4,(S.xsrc==='runner'?'실측 계획시간 runner_planning_time_ms':'보고 계획시간 planning_time_ms')+' (ms, 로그축) · 세로: 추적 RMSE (m)','middle');
+  const groups={};pts.forEach(p=>{(groups[p.planner+'|'+p.x+'|'+p.y]??=[]).push(p)});
+  Object.values(groups).forEach(g=>{const p=g[0],sel=S.sel===p.planner&&g.some(q=>q.seed===S.seed),label=`${p.planner} seed ${g.map(q=>q.seed).join(', ')} · 계획 ${p.x.toFixed(2)} ms · RMSE ${p.y.toFixed(3)} m${g.length>1?' · 같은 좌표 '+g.length+'건':''}`;
+   const sx=X(p.x),sy=Y(p.y);s+=`<g class="pt" tabindex="0" role="button" data-p="${esc(p.planner)}" data-s="${(g.find(q=>q.seed===S.seed)||p).seed}" aria-label="${esc(label)}"><title>${esc(label)}</title>${pointShape(sx,sy,fs*.6,color(p.planner),'reached',sel)}${g.length>1?txt(sx+fs*.8,sy-fs*.5,'×'+g.length,'start','#1c1c1e',.82,700):''}</g>`})}
+ box.innerHTML=`<svg id="cmpSvg" width="${w}" height="${h}">${s}</svg>`;$('cmpSum').innerHTML=sum}
+let focusSel=null;
+function restoreFocus(){if(!focusSel)return;const el=document.querySelector(focusSel);focusSel=null;if(el)el.focus()}
+function pickPoint(g,kb){S.sel=g.dataset.p;S.seed=+g.dataset.s;$('seedSel').value=String(S.seed);if(kb)focusSel=`#cmpBody .pt[data-p="${CSS.escape(g.dataset.p)}"][data-s="${g.dataset.s}"]`;renderAll();restoreFocus()}
+$('cmpBody').onclick=e=>{const g=e.target.closest('.pt');if(g)pickPoint(g,false)};
+$('cmpBody').onkeydown=e=>{if(e.key!=='Enter'&&e.key!==' ')return;const g=e.target.closest('.pt');if(g){e.preventDefault();pickPoint(g,true)}};
+addEventListener('resize',()=>{if(S.view==='cmp')requestAnimationFrame(drawCompare)});
 
 (async()=>{try{const d=await api('/api/runs');S.runs=d.runs;renderRuns();
  const want=new URLSearchParams(location.search).get('run'),pick=S.runs.find(r=>r.id===want)||S.runs.find(r=>r.status==='complete')||S.runs[0];
+ const qs=new URLSearchParams(location.search);if(['delta','scatter'].includes(qs.get('panel')))S.panel=qs.get('panel');if(METRIC[qs.get('metric')])S.metric=qs.get('metric');if(qs.get('view')==='cmp'){S.view='cmp';$('app').classList.add('cmp');document.querySelectorAll('#tabs button').forEach(b=>b.classList.toggle('on',b.dataset.v==='cmp'))}
  if(pick)await openRun(pick.id);else showMsg('저장된 실행을 찾지 못했습니다.\n검색한 폴더: '+d.root)}catch(err){showMsg('결과 목록을 읽지 못했습니다.\n'+err.message)}})();
 </script></body></html>

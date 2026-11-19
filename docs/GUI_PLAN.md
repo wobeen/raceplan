@@ -1,6 +1,7 @@
 # GUI 계획: RacePlan Explorer
 
-브랜치 `feature/gui-explorer`. 상태: **1단계(결과 탐색) 구현 완료**, 2단계부터 미구현.
+브랜치 `feature/gui-explorer`(1단계), `feature/gui-compare`(2단계). 상태: **1단계(결과 탐색) 완료, 2단계는 비교 탭의
+Paired Δ·산점도까지 완료**, 나란히 재생·URL 저장·CSV 내보내기는 미구현.
 목업은 `docs/gui/mockup.html`(샘플 데이터, 브라우저에서 열기). 목업의 차트 옵션·터미널·코드 패널·
 실험 셋 생성·타일 재배치는 뒤 단계 기능이며 실제 앱에는 아직 없다.
 
@@ -72,3 +73,16 @@ pytest, 화면은 스크린샷 시각 확인. 결과 수치는 `report`/`analyze
 - 스타일: 흰색 기반 리퀴드 글라스(반투명 패널, 배경 블러, 상단 하이라이트, 알약형 컨트롤). 체크박스는 글자 크기에 비례하는 큰 크기.
 - 구현 시 주의: 창 비율이 16:9보다 넓으면 폭 기준 배치는 세로 스크롤이 생긴다. 실제 앱은 창 높이까지 고려해 16:9 영역을 맞춘다.
 - 타임라인: 화면 높이의 약 17%로 축소. planner 4개가 한계에 가까우므로 5개 이상이면 레인 스크롤이나 접기가 필요하다.
+
+## 2단계 진행 기록 (브랜치 feature/gui-compare)
+
+완료: 상단 `탐색 | 비교` 탭, Paired Δ strip plot(지표 RMSE·완료시간·clearance), 산점도(X 계획시간 로그, Y RMSE),
+planner·seed·결과 필터, 점 선택 → Inspector 연동. 집계는 서버(`raceplan/gui/analysis.py`)에서 저장 결과로만 계산하고
+`/api/compare/delta`, `/api/compare/scatter`로 제공한다. 필터 값은 키를 반복해 보낸다(`planners=a&planners=b`,
+빈 값은 "아무것도 선택 안 함"). 분모(후보 쌍/기록)와 제외 사유(짝 없음·결과 필터·조건 미충족·Δ 없음)는 화면에 항상 표시한다.
+
+설계 대비 변경: 초안은 "새 엔드포인트 없음, 브라우저 집계"였으나 분모·제외 사유를 pytest로 검증하려고 서버 집계로 바꿨다.
+`report._load`가 저장 기준 planner를 case에 `baseline`으로 추가한다(additive).
+
+남은 일(3·4단계): 두 planner 나란히 재생, 필터·선택의 URL 저장(현재는 `view`·`panel`·`metric`만 읽음), 에피소드·coverage CSV 내보내기,
+같은 좌표 점에서 seed 선택, 탐색 표 필터와 차트 선택 연동 보완.
