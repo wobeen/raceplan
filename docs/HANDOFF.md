@@ -1,5 +1,21 @@
 # 작업 인계 — 2026-11-19
 
+## GUI 2단계 (3): 화면 상태 URL 저장·복원 (브랜치 feature/gui-compare)
+
+run·case·seed·Inspector planner·탐색/비교·패널·표 필터/정렬·트랙 표시·비교 지표/X축/결과/planner·seed 필터·재생 A/B/속도·시각을
+주소에 담는다(스키마는 `docs/GUI_PLAN.md`). 시각만 바뀌면 `replaceState`, 다른 조작은 `pushState` 한 번이며, 첫 진입과 뒤로/앞으로는
+같은 `restore()`로 기본값에서 시작해 값을 검증한다. 맞지 않는 값은 기본값으로 대체하고(없거나 중복인 run·case는 대체하지 않음) 상단
+"링크 설정 N개" 알약과 상세로 알린다. 기존 `?run=` 링크는 그대로 동작한다. 서버 변경은 없다(pytest 1줄: 쿼리가 붙은 `/`도 같은 페이지).
+설계 gpt-6.2-sol, 구현 Claude, 검증 gpt-6.2-astra. Astra P1(느린 복원 중 사용자 조작 시 주소와 화면 불일치)과 P2 7건(재생 중 run 전환 시
+"새 run + 이전 case" 중간 항목, 늦게 실패한 이전 case 오류 표시, 응답 전 속도 변경 시 링크 시각 유실, 짧은 링크에서 첫 스크럽이 push,
+재생 불가 case의 패널 미기록, 탐색 경유 B 동기화 누락, 중복 run·case와 `metric=constructor`), P3 3건을 고쳤다. 미수정: 쉼표 이름
+planner의 HTTP 왕복 테스트(쉼표 이름 custom planner fixture가 필요, 기존 분석 함수 테스트로 대신).
+테스트는 전체 **133 passed**(테스트 수 변화 없음, 기존 페이지 테스트에 공유 링크 단언 추가). URL 복원은 브라우저 로직이라 pytest 대상이 아니며
+omp 브라우저 탭에서 확인했다: 조작 3회 = history 3개와 뒤로 6회·앞으로 정확 복원, 짧은 `?run=`에서 첫 스크럽은 replace, 재생 링크 `t=6.3`
+복원과 응답 지연 중 속도 변경 후에도 유지, 새로고침 왕복 동일, 잘못된 값 7종과 중복 run 경고, 없는 run·case 대체 없음, `/api/case` 지연 중
+뒤로+탭 클릭 시 주소·화면 일치, 재생 중 run 전환은 history 1개이고 뒤로 시 직전 시각 복원. 헤드리스 Edge 1280×720에서 복합 링크 화면
+스크롤 없음. 미검증: 쉼표·공백·한글 이름 planner의 실데이터 왕복(해당 결과 없음), Chrome 외 브라우저, 수정 후 Astra 재검토.
+
 ## GUI 2단계 (2): 나란히 재생 (브랜치 feature/gui-compare)
 
 비교 탭에 세 번째 패널 "나란히 재생"을 추가했다. 같은 case·seed의 planner 두 개를 같은 지도 범위·축척(같은 `viewBox`·같은 SVG 크기)에서

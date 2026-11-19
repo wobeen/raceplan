@@ -136,6 +136,8 @@ def test_unknown_runs_and_cases_are_rejected(saved):
 def test_server_serves_the_page_and_keeps_requests_local(client):
     response, body = client('/')
     assert response.status == 200 and b'RacePlan Explorer' in body
+    shared = client('/?run=nested%2Fbatch&case=batch&seed=1&view=cmp&planners=&planners=fast%2Cv2&t=1.5')
+    assert shared[0].status == 200 and shared[1] == body  # Shared links carry screen state only; the page restores it.
     policy = response.getheader('Content-Security-Policy')
     assert 'frame-ancestors' in policy and 'img-src' in policy and 'data:' in policy  # Checkbox ticks are data images.
     response, body = client('/api/runs')
