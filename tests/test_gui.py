@@ -307,3 +307,72 @@ def test_coverage_counts_are_plain_integers_only():
     assert _count(16) == 16 and _count(0) == 0
     for bad in ('<img src=x onerror=alert(1)>', None, 1.5, True, [1]):
         assert _count(bad) is None
+
+
+def test_replay_puts_both_planners_on_one_clock_from_saved_samples(saved, monkeypatch):
+    monkeypatch.setattr(AStarPlanner, 'plan', lambda *args, **kwargs: pytest.fail('replay must not plan'))
+    monkeypatch.setattr('raceplan.simulator.run_episode', lambda *args, **kwargs: pytest.fail('replay must not simulate'))
+    folder = saved / 'nested/batch'
+    samples = {}
+    for row in read_csv(folder / 'comparison_trajectory.csv'):
+        samples.setdefault(row['episode_id'], []).append(round(float(row['time_s']), 5))
+    outcomes = {row['episode_id']: row['failure_class'] for row in read_csv(folder / 'analysis/episodes.csv')}
+    result = Explorer(saved).replay('nested/batch', 'batch', 'dijkstra', 'astar', 1)
+    for side, episode_id in ((result['a'], 'dijkstra:1'), (result['b'], 'astar:1')):
+        times = samples[episode_id]
+        assert side['episode_id'] == episode_id and side['outcome'] == outcomes[episode_id]
+        assert (side['start_s'], side['end_s'], side['samples']) == (times[0], times[-1], len(times))
+        assert side['events'][-1] == [times[-1], 'ended'] and side['reason'] is None
+    assert result['duration_s'] == max(samples['dijkstra:1'][-1], samples['astar:1'][-1])
+    assert result['counts'] == {'slots': 2, 'episodes': 2, 'playable': 2}
+    traces = Explorer(saved).case('nested/batch', 'batch')['traces']
+    assert traces['dijkstra:1']['valid'] is True and traces['astar:1']['valid'] is True  # The page trusts this flag.
+
+    failed = Explorer(saved).replay('nested/batch', 'batch', 'astar', 'example_exception', 0)
+    assert failed['b']['outcome'] == 'planning_error' and failed['b']['reason'] == 'no_samples'
+    assert failed['b']['events'] == [[0.0, 'no_record']] and failed['b']['end_s'] is None
+    assert failed['duration_s'] == samples['astar:0'][-1]  # A missing record never stretches or shortens the clock.
+    assert failed['counts'] == {'slots': 2, 'episodes': 2, 'playable': 1}
+
+
+def test_replay_events_mark_waiting_driving_ended_and_unusable_records():
+    from raceplan.gui import analysis
+    def episode(planner):
+        return {'planner': planner, 'simulation_seed': 0, 'episode_id': f'{planner}:0', 'plan_id': planner,
+                'failure_class': 'reached'}
+    def trace(times, x=None):
+        return {'t': times, 'x': x or [0.0] * len(times), 'y': [0.0] * len(times)}
+    case = {'planners': ['late', 'long', 'single', 'bad', 'empty', 'gone'], 'seeds': [0],
+            'episodes': [episode(p) for p in ('late', 'long', 'single', 'bad', 'empty')]}
+    traces = {'late:0': trace([1.0, 2.0, 3.0]), 'long:0': trace([0.0, 2.5, 5.0]), 'single:0': trace([0.0]),
+              'bad:0': trace([0.0, 2.0, 1.0]), 'empty:0': trace([])}
+    result = analysis.replay(case, traces, 'late', 'long', 0)
+    assert result['a']['events'] == [[0.0, 'waiting'], [1.0, 'driving'], [3.0, 'ended']]
+    assert result['b']['events'] == [[0.0, 'driving'], [5.0, 'ended']]
+    assert result['duration_s'] == 5.0  # The later last sample, not the selected case's or other planners' ends.
+    single = analysis.replay(case, traces, 'single', 'late', 0)
+    assert single['a']['events'] == [[0.0, 'ended']] and single['duration_s'] == 3.0
+    for planner, reason in (('bad', 'invalid_samples'), ('empty', 'no_samples'), ('gone', 'missing_episode')):
+        side = analysis.replay(case, traces, planner, 'late', 0)['a']
+        assert side['reason'] == reason and side['events'] == [[0.0, 'no_record']] and side['end_s'] is None
+    for times, x in (([0.0, 1.0], [0.0, None]), ([0.0, None], None), ([-0.5, 1.0], None)):
+        traces['bad:0'] = trace(times, x=x)
+        assert analysis.replay(case, traces, 'bad', 'late', 0)['a']['reason'] == 'invalid_samples'
+        assert analysis.trace_valid(traces['bad:0']) is False
+    nothing = analysis.replay(case, traces, 'empty', 'gone', 0)
+    assert nothing['duration_s'] == 0.0 and nothing['counts'] == {'slots': 2, 'episodes': 1, 'playable': 0}
+    for a, b, seed in (('late', 'late', 0), ('late', 'nobody', 0), ('late', 'long', 7)):
+        with pytest.raises(analysis.BadQuery):
+            analysis.replay(case, traces, a, b, seed)
+
+
+def test_replay_endpoint_validates_queries(client):
+    base = '/api/compare/replay?run=nested%2Fbatch&case=batch'
+    response, body = client(base + '&a=astar&b=dijkstra&seed=0')
+    payload = json.loads(body)
+    assert response.status == 200 and (payload['a']['planner'], payload['b']['planner'], payload['seed']) == ('astar', 'dijkstra', 0)
+    for query in ('&a=astar&b=astar&seed=0', '&a=astar&b=nobody&seed=0', '&a=astar&b=dijkstra&seed=9',
+                  '&a=astar&b=dijkstra&seed=x', '&a=astar&b=dijkstra'):
+        assert client(base + query)[0].status == 400, query
+    assert client('/api/compare/replay?run=nested%2Fbatch&case=missing&a=astar&b=dijkstra&seed=0')[0].status == 404
+    assert client('/api/compare/replay?run=missing&case=batch&a=astar&b=dijkstra&seed=0')[0].status == 404

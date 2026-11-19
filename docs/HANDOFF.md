@@ -1,5 +1,20 @@
 # 작업 인계 — 2026-11-19
 
+## GUI 2단계 (2): 나란히 재생 (브랜치 feature/gui-compare)
+
+비교 탭에 세 번째 패널 "나란히 재생"을 추가했다. 같은 case·seed의 planner 두 개를 같은 지도 범위·축척(같은 `viewBox`·같은 SVG 크기)에서
+한 시계로 재생하며, 상태 전이(첫 표본 전·주행 중·종료·기록 없음)와 분모는 `analysis.replay()`가 저장 표본에서 계산해
+`/api/compare/replay`로 준다. 설계안은 gpt-6.2-sol, 구현은 Claude, 독립 검증은 gpt-6.2-astra가 맡았다. Astra는 P1 1건(마지막 시각이
+비어 있는 궤적에서 화면 예외)과 P2(재생 중 Inspector 값이 첫 표본 전·종료 뒤를 구분하지 않음, 요청 중 이전 재생 버튼 동작, 빈 run 전환 시
+이전 재생 그리기, 다른 패널에서 고른 planner와 지도 불일치)·P3(슬라이더 End가 마지막 시각에 닿지 않음)를 지적했고 모두 고쳤다.
+고치지 않은 지적: 2^53을 넘는 seed의 JS 정밀도(실제 seed 범위 밖), 에피소드 행 누락 시 run 전체 422(기존 무결성 계약 유지, 문서화),
+A/B 차량 위치를 브라우저에서 단언하는 테스트(브라우저 테스트 도구가 없어 아래 수동 확인으로 대체).
+테스트는 전체 **133 passed**(기존 130 + 재생 3), Windows TEMP를 basetemp로 사용했다. 헤드리스 Edge 1280×720에서 스크롤 없음을,
+omp 브라우저 탭에서 슬라이더 클릭·키보드(End/←/Home)·4× 재생 끝까지·A/B 머리줄 Enter·seed 전환·Starting grid 선택→B 전환과
+`/api/case` 응답을 바꿔 넣은 무효 궤적 화면(예외 없음)을 확인했다. 실데이터: holdout evaluation_offset_islands_q0(충돌 vs 도달),
+workflow_step2(계획 오류 쪽 "주행 기록 없음"). 미검증: 첫 표본이 0초보다 늦은 실데이터가 없어 `waiting` 상태는 합성 pytest로만 확인,
+수정 후 Astra 재검토는 받지 않았다. 남은 일은 `docs/GUI_PLAN.md` 2단계 기록을 따른다.
+
 ## GUI 2단계 (1): 비교 분석 탭 (브랜치 feature/gui-compare, feature/gui-explorer 기반)
 
 비교 탭에 Paired Δ strip plot과 산점도를 추가했다. 집계는 `raceplan/gui/analysis.py`가 저장 결과만으로 계산하며

@@ -145,6 +145,7 @@ def _case_detail(reader, case, folder):
         trace = {name: [_number(sample[field], 5) for sample in samples] for name, field in TRACE_FIELDS.items()}
         saved = clearances.get(episode_id, {})
         trace['clearance'] = [saved.get(step) for step in range(len(samples))] if saved else None
+        trace['valid'] = analysis.trace_valid(trace)
         traces[episode_id] = trace
     scenario = manifest['scenario']
     return {'id': case['id'], 'start': scenario['start'], 'goal': scenario['goal'],
@@ -229,3 +230,8 @@ class Explorer:
         if kind == 'delta':
             return analysis.paired_delta(case, **options)
         return analysis.scatter(case, **options)
+
+    def replay(self, run_id, case_id, a, b, seed):
+        detail = self.case(run_id, case_id)
+        case = next(item for item in self.run(run_id)['cases'] if item['id'] == case_id)
+        return analysis.replay(case, detail['traces'], a, b, seed)

@@ -1,7 +1,7 @@
 # GUI 계획: RacePlan Explorer
 
 브랜치 `feature/gui-explorer`(1단계), `feature/gui-compare`(2단계). 상태: **1단계(결과 탐색) 완료, 2단계는 비교 탭의
-Paired Δ·산점도까지 완료**, 나란히 재생·URL 저장·CSV 내보내기는 미구현.
+Paired Δ·산점도·나란히 재생까지 완료**, URL 저장·CSV 내보내기는 미구현.
 목업은 `docs/gui/mockup.html`(샘플 데이터, 브라우저에서 열기). 목업의 차트 옵션·터미널·코드 패널·
 실험 셋 생성·타일 재배치는 뒤 단계 기능이며 실제 앱에는 아직 없다.
 
@@ -84,5 +84,16 @@ planner·seed·결과 필터, 점 선택 → Inspector 연동. 집계는 서버(
 설계 대비 변경: 초안은 "새 엔드포인트 없음, 브라우저 집계"였으나 분모·제외 사유를 pytest로 검증하려고 서버 집계로 바꿨다.
 `report._load`가 저장 기준 planner를 case에 `baseline`으로 추가한다(additive).
 
-남은 일(3·4단계): 두 planner 나란히 재생, 필터·선택의 URL 저장(현재는 `view`·`panel`·`metric`만 읽음), 에피소드·coverage CSV 내보내기,
+나란히 재생(완료): 비교 탭 세 번째 패널. A/B planner와 상단 seed를 고르면 두 지도(같은 `viewBox`, 같은 CSS 크기)를
+한 시계로 재생한다. 시간축은 0초부터 **두 기록 중 늦은 마지막 표본**까지이고, 속도 0.5–4×, 슬라이더(키보드 포함)를 쓴다.
+상태 전이는 서버 `analysis.replay()`가 저장 표본에서 계산해 `/api/compare/replay?run&case&a&b&seed`로 준다:
+`waiting`(첫 표본 전, 차량 없음) → `driving` → `ended`(마지막 위치·결과·시각 고정, 충돌은 링) 또는 `no_record`
+(사유 `missing_episode`/`no_samples`/`invalid_samples`). 첫 표본 전·마지막 표본 뒤의 움직임은 만들지 않으며,
+"저장 에피소드 n/2 · 재생 가능 n/2" 분모를 항상 표시한다. 재생 패널에 들어갈 때 현재 선택 planner가 B가 되고(A는 저장 기준),
+A/B 머리줄을 누르면 Inspector 대상이 바뀐다. 설계안의 "차트별 별도 재생 버튼"은 이 규칙으로 대체했다.
+표본 유효성은 `analysis.trace_valid()` 한 곳에서 정하고 `/api/case` trace에 `valid`로 함께 준다(additive). 무효 궤적은 재생·시계열에
+쓰지 않고 "궤적 데이터 오류"로 표시한다. 에피소드 행 누락처럼 저장 결과 무결성이 깨진 경우는 기존 계약대로 run 전체가 422이며,
+`missing_episode`/`no_samples`는 무결성을 통과한 결과의 슬롯별 사유다(실제로는 계획 실패가 `no_samples`).
+
+남은 일(4단계): 필터·선택의 URL 저장(현재는 `view`·`panel`·`metric`만 읽음), 에피소드·coverage CSV 내보내기,
 같은 좌표 점에서 seed 선택, 탐색 표 필터와 차트 선택 연동 보완.

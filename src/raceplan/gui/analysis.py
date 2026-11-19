@@ -1,4 +1,4 @@
-"""Paired delta and scatter aggregation over saved episodes; never plans or simulates."""
+"""Paired delta, scatter and side-by-side replay timelines over saved episodes; never plans or simulates."""
 from __future__ import annotations
 
 from statistics import median
@@ -98,3 +98,54 @@ def scatter(case, x='reported', planners=None, seeds=None, outcomes=None):
                                      'plan_id': row['plan_id'], 'episode_id': row['episode_id'],
                                      'x': row[field], 'y': row['tracking_rmse_m']})
     return result
+
+
+def trace_valid(trace):
+    """Saved samples are playable only with t/x/y of equal length, no missing value and times rising from 0 s or later."""
+    times = trace['t']
+    return (bool(times) and len(trace['x']) == len(trace['y']) == len(times)
+            and all(value is not None for key in ('t', 'x', 'y') for value in trace[key])
+            and times[0] >= 0 and all(later >= earlier for earlier, later in zip(times, times[1:])))
+
+
+def _replay_side(episodes, traces, planner, seed):
+    """Describe one slot's saved samples as state events; never invent motion before or after them."""
+    row = episodes.get((planner, seed))
+    side = {'planner': planner, 'episode_id': None, 'plan_id': None, 'outcome': None, 'samples': 0,
+            'start_s': None, 'end_s': None, 'reason': None, 'events': [[0.0, 'no_record']]}
+    if row is None:
+        side['reason'] = 'missing_episode'
+        return side
+    side.update(episode_id=row['episode_id'], plan_id=row['plan_id'] or None, outcome=row['failure_class'])
+    trace = traces.get(row['episode_id'])
+    times = trace['t'] if trace else []
+    side['samples'] = len(times)
+    if not times:
+        side['reason'] = 'no_samples'
+        return side
+    if not trace_valid(trace):
+        side['reason'] = 'invalid_samples'
+        return side
+    start, end = times[0], times[-1]
+    events = [[0.0, 'waiting']] if start > 0 else []
+    if end > start:
+        events.append([start, 'driving'])
+    events.append([end, 'ended'])
+    side.update(start_s=start, end_s=end, events=events)
+    return side
+
+
+def replay(case, traces, a, b, seed):
+    """Put two planners of one case and seed on a shared clock from 0 s to the later last saved sample."""
+    if a not in case['planners'] or b not in case['planners']:
+        raise BadQuery('a and b must be planners of this case')
+    if a == b:
+        raise BadQuery('a and b must be different planners')
+    if seed not in case['seeds']:
+        raise BadQuery(f'unknown seed: {seed}')
+    episodes = {(row['planner'], row['simulation_seed']): row for row in case['episodes']}
+    sides = [_replay_side(episodes, traces, planner, seed) for planner in (a, b)]
+    ends = [side['end_s'] for side in sides if side['end_s'] is not None]
+    return {'seed': seed, 'duration_s': max(ends, default=0.0), 'a': sides[0], 'b': sides[1],
+            'counts': {'slots': 2, 'episodes': sum(side['episode_id'] is not None for side in sides),
+                       'playable': len(ends)}}

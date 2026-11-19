@@ -77,6 +77,13 @@ class Handler(BaseHTTPRequestHandler):
             elif url.path in ('/api/compare/delta', '/api/compare/scatter'):
                 self._json(HTTPStatus.OK, explorer.compare(query.get('run', ''), query.get('case', ''),
                                                            url.path.rsplit('/', 1)[1], **self._options(url.path, query, multi)))
+            elif url.path == '/api/compare/replay':
+                try:
+                    seed = int(query.get('seed', ''))
+                except ValueError:
+                    raise BadQuery('seed must be an integer') from None
+                self._json(HTTPStatus.OK, explorer.replay(query.get('run', ''), query.get('case', ''),
+                                                          query.get('a', ''), query.get('b', ''), seed))
             else:
                 self._json(HTTPStatus.NOT_FOUND, {'error': 'not found'})
         except BadQuery as exc:

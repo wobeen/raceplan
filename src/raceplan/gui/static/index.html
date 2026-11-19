@@ -94,6 +94,22 @@ select.fl{appearance:none;-webkit-appearance:none;font:inherit;font-size:.92em;c
 .cmpbody{position:relative;flex:1;min-height:0;background:rgba(255,255,255,.5);border:1px solid rgba(255,255,255,.85);box-shadow:inset 0 .05em .5em rgba(40,52,90,.07);border-radius:1em;overflow:hidden;display:flex}
 .cmpbody svg{display:block}.cmpbody .pt{cursor:pointer}.cmpbody .pt:focus-visible{outline:none}.cmpbody .pt:focus-visible *{stroke:var(--acc);stroke-width:2.5}
 .cmpsum{flex:none;font-size:.92em;line-height:1.45;color:var(--mut)}.cmpsum b{color:var(--ink);font-weight:600}.cmpsum .warnx{color:var(--red);font-weight:600}
+.rp{flex:1;min-width:0;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:.6em;padding:.5em}
+.rps{position:relative;display:flex;flex-direction:column;gap:.35em;min-width:0;min-height:0}
+.rps svg{flex:1;min-height:0;width:100%;background:rgba(255,255,255,.6);border-radius:.8em;box-shadow:inset 0 0 0 1px rgba(255,255,255,.9)}
+.rph{display:flex;align-items:center;gap:.45em;flex:none;min-width:0;padding:.2em .4em;border-radius:1em;cursor:pointer;border:1px solid transparent}
+.rph:hover{background:rgba(255,255,255,.55)}.rph.sel{background:rgba(255,255,255,.85);border-color:rgba(255,255,255,.95);box-shadow:0 .2em .7em rgba(40,52,90,.1)}.rph:focus-visible{outline:.18em solid rgba(0,122,255,.45)}
+.rph b{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}.rph .num{width:1.7em;height:1.7em;font-size:.8em;border-radius:.5em}.rph .tag{margin-left:auto}.rk{font-weight:700;color:var(--mut);font-size:.85em}
+.t-wait{background:rgba(118,118,128,.14);color:var(--mut)}.t-drv{background:rgba(0,122,255,.12);color:var(--acc)}
+.rpno{position:absolute;left:50%;top:55%;transform:translate(-50%,-50%);background:rgba(255,255,255,.92);color:var(--vio);font-weight:600;padding:.4em 1em;border-radius:1em;box-shadow:var(--lift);pointer-events:none;white-space:nowrap}
+.rpt{display:flex;flex-direction:column;gap:.25em;margin-bottom:.2em}
+.rpl{display:grid;grid-template-columns:10em minmax(0,1fr) 8em;align-items:center;gap:.6em}
+.rpl .lab{display:flex;align-items:center;gap:.4em;min-width:0;white-space:nowrap}.rpl .lab b{color:var(--ink);overflow:hidden;text-overflow:ellipsis}.rpl .num{width:1.35em;height:1.35em;font-size:.72em;border-radius:.4em}
+.rpl .r{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}.rpl input[type=range]{width:100%;margin:0;accent-color:var(--acc)}.rpl .play{margin:0;font-size:1em}
+.rtk{position:relative;height:.8em;background:rgba(118,118,128,.12);border-radius:1em}
+.rseg{position:absolute;top:0;bottom:0;border-radius:1em;opacity:.8}
+.rcur{position:absolute;top:-.3em;bottom:-.3em;width:2px;background:var(--acc);transform:translateX(-1px);pointer-events:none}
+.rnone{position:absolute;left:.6em;top:50%;transform:translateY(-50%);font-size:.85em;color:var(--vio);white-space:nowrap}
 </style></head><body>
 <div class="wrap"><div class="app" id="app">
  <div class="top">
@@ -136,7 +152,10 @@ const color=p=>COLORS[pIndex(p)%COLORS.length];
 const badge=p=>String(pIndex(p)+1).padStart(2,'0');
 const eps=()=>S.case?S.case.episodes:[];
 const ep=(p,s)=>eps().find(e=>e.planner===p&&e.simulation_seed===s);
-const trace=e=>e&&S.detail?S.detail.traces[e.episode_id]:null;
+/* 표본 유효성(valid)은 서버 analysis.trace_valid 한 곳에서 정한다. 무효 궤적은 재생·시계열에 쓰지 않는다 */
+const rawTrace=e=>e&&S.detail?S.detail.traces[e.episode_id]:null;
+const trace=e=>{const tr=rawTrace(e);return tr&&tr.valid?tr:null};
+const badTrace=e=>{const tr=rawTrace(e);return !!tr&&tr.t.length>0&&!tr.valid};
 function showMsg(t){$('msg').textContent=t||'';$('msg').classList.toggle('on',!!t)}
 async function api(path){const r=await fetch(path);const b=await r.json().catch(()=>({error:'응답을 읽지 못했습니다'}));if(!r.ok)throw new Error(b.error||('HTTP '+r.status));return b}
 
@@ -149,7 +168,7 @@ function renderRuns(){$('runCount').textContent=S.runs.length+'개';
   return `<div class="setrow ${S.run&&S.run.id===r.id?'on':''}" data-id="${esc(r.id)}" title="${esc(r.id)}"><b>${esc(r.name)}</b>${r.id.includes('/')?`<small>${esc(r.id.slice(0,r.id.lastIndexOf('/')))}</small>`:''}<small>${r.kind==='suite'?'suite':'batch'} · ${note}</small>${bar}</div>`}).join('')}
 $('runs').onclick=e=>{const r=e.target.closest('.setrow');if(r)openRun(r.dataset.id)};
 
-async function openRun(id){const token=++S.token;stop();showMsg('');
+async function openRun(id){const token=++S.token;stop();showMsg('');S.cmp=null;S.ctoken++;
  try{const run=await api('/api/run?id='+encodeURIComponent(id));if(token!==S.token)return;S.run=run;$('runName').textContent=run.name;
   history.replaceState(null,'','?run='+encodeURIComponent(id)+(S.view==='cmp'?'&view=cmp':''));renderRuns();renderCoverage();
   $('caseSel').innerHTML=run.cases.map(c=>`<option value="${esc(c.id)}">지도: ${esc(c.map)}${c.id==='batch'?'':' ('+esc(c.id)+')'}</option>`).join('');
@@ -157,11 +176,11 @@ async function openRun(id){const token=++S.token;stop();showMsg('');
  }catch(err){if(token!==S.token)return;S.run={id,cases:[],coverage:[]};S.case=null;S.detail=null;$('runName').textContent=id;renderRuns();renderCoverage();renderAll();showMsg('이 실행을 열 수 없습니다.\n'+err.message)}}
 async function openCase(id,token=++S.token){stop();
  const detail=await api('/api/case?run='+encodeURIComponent(S.run.id)+'&id='+encodeURIComponent(id));if(token!==S.token)return;
- S.case=S.run.cases.find(c=>c.id===id);S.detail=detail;$('caseSel').value=id;S.cmp=null;S.cPl={};S.cSeed={};S.on={};S.case.planners.forEach(p=>S.on[p]=true);
+ S.case=S.run.cases.find(c=>c.id===id);S.detail=detail;$('caseSel').value=id;S.cmp=null;S.ra=S.rb=null;S.cPl={};S.cSeed={};S.on={};S.case.planners.forEach(p=>S.on[p]=true);
  S.seed=S.case.seeds[0];$('seedSel').innerHTML=S.case.seeds.map(s=>`<option value="${esc(s)}">seed ${esc(s)}</option>`).join('');$('seedSel').value=String(S.seed);
  S.sel=(eps().find(e=>group(e.failure_class)!=='ok')||eps()[0]||{}).planner??S.case.planners[0];
  const first=eps().find(e=>e.planner===S.sel&&group(e.failure_class)!=='ok');if(first){S.seed=first.simulation_seed;$('seedSel').value=String(S.seed)}
- const ends=Object.values(detail.traces).map(t=>t.t[t.t.length-1]).filter(v=>v!==undefined);S.tMax=Math.max(1,...ends);S.t=S.tMax;
+ const ends=Object.values(detail.traces).filter(t=>t.valid).map(t=>t.t[t.t.length-1]);S.tMax=Math.max(1,...ends);S.t=S.tMax;
  $('scr').max=S.tMax;$('axis').innerHTML=[0,1/3,2/3,1].map(f=>`<span>${(f*S.tMax).toFixed(1)}${f===1?' s':''}</span>`).join('');
  buildStatic();renderAll()}
 $('caseSel').onchange=e=>{openCase(e.target.value).catch(err=>showMsg('이 지도를 열 수 없습니다.\n'+err.message))};
@@ -201,38 +220,44 @@ $('table').onclick=e=>{const th=e.target.closest('th');if(th){const k=th.dataset
 /* 트랙 */
 const W=()=>S.detail.grid.width*S.detail.grid.resolution,H=()=>S.detail.grid.height*S.detail.grid.resolution;
 const PX=x=>+(x-S.detail.grid.origin_x).toFixed(4),PY=y=>+(H()-(y-S.detail.grid.origin_y)).toFixed(4);
-function buildStatic(){const g=S.detail.grid,m=Math.max(W(),H())/60;
- $('track').setAttribute('viewBox',`0 0 ${W()} ${H()}`);
+function mapLayers(paths){const g=S.detail.grid,m=Math.max(W(),H())/60;
  const r=g.resolution;let d='';for(const [row,col,len] of g.occupied)d+=`M${(col*r).toFixed(3)} ${((g.height-1-row)*r).toFixed(3)}h${(len*r).toFixed(3)}v${r}h${(-len*r).toFixed(3)}z`;
- let s=`<rect width="${W()}" height="${H()}" fill="none" stroke="#c5cad4" stroke-width="1" vector-effect="non-scaling-stroke"/><path d="${d}" fill="#c3c8d3"/>`;
- planners().forEach(p=>{if(!S.on[p])return;const e=eps().find(x=>x.planner===p&&S.detail.paths[x.plan_id]);if(!e)return;
-  s+=`<polyline points="${S.detail.paths[e.plan_id].map(q=>PX(q[0])+','+PY(q[1])).join(' ')}" fill="none" stroke="${color(p)}" stroke-opacity=".55" stroke-dasharray="5 4" stroke-width="1.3" vector-effect="non-scaling-stroke"/>`});
+ let s=`<rect width="${W()}" height="${H()}" fill="none" stroke="#c5cad4" stroke-width="1" vector-effect="non-scaling-stroke"/><path d="${d}" fill="#c3c8d3"/>${paths}`;
  const st=S.detail.start,go=S.detail.goal,tol=S.detail.goal_tolerance;
  if(tol)s+=`<circle cx="${PX(go.x)}" cy="${PY(go.y)}" r="${tol}" fill="rgba(31,163,74,.1)" stroke="#1fa34a" stroke-dasharray="4 3" stroke-width="1.5" vector-effect="non-scaling-stroke"/>`;
  s+=`<circle cx="${PX(st.x)}" cy="${PY(st.y)}" r="${m*.7}" fill="none" stroke="#1c1c1e" stroke-width="2" vector-effect="non-scaling-stroke"/><text x="${PX(st.x)+m}" y="${PY(st.y)+m*.5}" font-size="${m*1.4}" font-weight="700" fill="#1c1c1e">START</text>`;
- s+=`<text x="${PX(go.x)}" y="${PY(go.y)-(tol||m)-m*.5}" font-size="${m*1.4}" font-weight="700" fill="#1c1c1e" text-anchor="middle">GOAL</text>`;
- $('trStatic').innerHTML=s}
+ return s+`<text x="${PX(go.x)}" y="${PY(go.y)-(tol||m)-m*.5}" font-size="${m*1.4}" font-weight="700" fill="#1c1c1e" text-anchor="middle">GOAL</text>`}
+const planLine=(id,c)=>S.detail.paths[id]?`<polyline points="${S.detail.paths[id].map(q=>PX(q[0])+','+PY(q[1])).join(' ')}" fill="none" stroke="${c}" stroke-opacity=".55" stroke-dasharray="5 4" stroke-width="1.3" vector-effect="non-scaling-stroke"/>`:'';
+function buildStatic(){$('track').setAttribute('viewBox',`0 0 ${W()} ${H()}`);let paths='';
+ planners().forEach(p=>{if(!S.on[p])return;const e=eps().find(x=>x.planner===p&&S.detail.paths[x.plan_id]);if(e)paths+=planLine(e.plan_id,color(p))});
+ $('trStatic').innerHTML=mapLayers(paths)}
 function indexAt(ts,t){let lo=0,hi=ts.length-1;while(lo<hi){const mid=(lo+hi+1)>>1;if(ts[mid]<=t)lo=mid;else hi=mid-1}return lo}
-function drawDyn(){if(!S.detail){$('trDyn').innerHTML='';return}const m=Math.max(W(),H())/60;let s='';
- planners().forEach(p=>{if(!S.on[p])return;const e=ep(p,S.seed),tr=trace(e);if(!tr||!tr.t.length)return;const n=indexAt(tr.t,S.t),pts=[];for(let i=0;i<=n;i++)pts.push(PX(tr.x[i])+','+PY(tr.y[i]));
-  const sel=S.sel===p,cx=PX(tr.x[n]),cy=PY(tr.y[n]),c=color(p);
-  s+=`<polyline points="${pts.join(' ')}" fill="none" stroke="${c}" stroke-width="${sel?4:2.5}" stroke-linecap="round" stroke-linejoin="round" opacity="${sel?1:.75}" vector-effect="non-scaling-stroke"/>`;
-  s+=`<g transform="translate(${cx},${cy})"><rect x="${-m}" y="${-m*.8}" width="${m*2}" height="${m*1.6}" rx="${m*.4}" fill="${c}" stroke="#fff" stroke-width="1.5" vector-effect="non-scaling-stroke"/><text y="${m*.42}" text-anchor="middle" font-size="${m*1.15}" font-weight="700" fill="#fff">${badge(p)}</text></g>`;
-  if(n===tr.t.length-1&&group(e.failure_class)==='col')s+=`<circle cx="${cx}" cy="${cy}" r="${m*1.7}" fill="none" stroke="#ff3b30" stroke-width="2.5" vector-effect="non-scaling-stroke"/>`});
+/* 실제 궤적(0..n 표본)과 차량 표시; crash면 마지막 위치에 충돌 링 */
+function vehicle(p,tr,n,sel,crash){const m=Math.max(W(),H())/60,pts=[];for(let i=0;i<=n;i++)pts.push(PX(tr.x[i])+','+PY(tr.y[i]));const cx=PX(tr.x[n]),cy=PY(tr.y[n]),c=color(p);
+ return `<polyline points="${pts.join(' ')}" fill="none" stroke="${c}" stroke-width="${sel?4:2.5}" stroke-linecap="round" stroke-linejoin="round" opacity="${sel?1:.75}" vector-effect="non-scaling-stroke"/>`+
+  `<g transform="translate(${cx},${cy})"><rect x="${-m}" y="${-m*.8}" width="${m*2}" height="${m*1.6}" rx="${m*.4}" fill="${c}" stroke="#fff" stroke-width="1.5" vector-effect="non-scaling-stroke"/><text y="${m*.42}" text-anchor="middle" font-size="${m*1.15}" font-weight="700" fill="#fff">${badge(p)}</text></g>`+
+  (crash?`<circle cx="${cx}" cy="${cy}" r="${m*1.7}" fill="none" stroke="#ff3b30" stroke-width="2.5" vector-effect="non-scaling-stroke"/>`:'')}
+function drawDyn(){if(!S.detail){$('trDyn').innerHTML='';return}let s='';
+ planners().forEach(p=>{if(!S.on[p])return;const e=ep(p,S.seed),tr=trace(e);if(!tr||!tr.t.length)return;const n=indexAt(tr.t,S.t);
+  s+=vehicle(p,tr,n,S.sel===p,n===tr.t.length-1&&group(e.failure_class)==='col')});
  $('trDyn').innerHTML=s;$('trk').textContent=`${S.t.toFixed(1)} s · seed ${S.seed}`}
 
 /* 타임라인 */
 function renderLanes(){if(!S.case){$('lanes').innerHTML='<div class="empty"></div>';return}
  $('lanes').innerHTML=planners().filter(p=>S.on[p]).map(p=>{const e=ep(p,S.seed);if(!e)return'';const g=group(e.failure_class),tr=trace(e),o=OUT[g],has=tr&&tr.t.length,end=has?tr.t[tr.t.length-1]:0;
-  return `<div class="lane"><div class="lab" data-p="${esc(p)}"><div class="num" style="background-color:${color(p)}">${badge(p)}</div><b>${esc(p)}</b></div><div class="rl" data-end="${end}">${has?`<div class="fillb" style="background-color:${color(p)}"></div><div class="ev" style="left:${end/S.tMax*100}%;color:${o[2]};border-color:${o[2]}" title="${esc(outLabel(e.failure_class))} ${end.toFixed(2)} s">${o[1]}</div>`:`<div class="ev" style="left:1.2em;color:${o[2]};border-color:${o[2]}">${o[1]}</div><span class="nodrive-l" style="left:2.4em">${esc(outLabel(e.failure_class))} — 주행 없음</span>`}</div></div>`}).join('');tick()}
+  return `<div class="lane"><div class="lab" data-p="${esc(p)}"><div class="num" style="background-color:${color(p)}">${badge(p)}</div><b>${esc(p)}</b></div><div class="rl" data-end="${end}">${has?`<div class="fillb" style="background-color:${color(p)}"></div><div class="ev" style="left:${end/S.tMax*100}%;color:${o[2]};border-color:${o[2]}" title="${esc(outLabel(e.failure_class))} ${end.toFixed(2)} s">${o[1]}</div>`:`<div class="ev" style="left:1.2em;color:${o[2]};border-color:${o[2]}">${o[1]}</div><span class="nodrive-l" style="left:2.4em">${badTrace(e)?'궤적 데이터 오류':esc(outLabel(e.failure_class))+' — 주행 없음'}</span>`}</div></div>`}).join('');tick()}
 $('lanes').onclick=e=>{const l=e.target.closest('.lab');if(l){S.sel=l.dataset.p;renderAll()}};
-function tick(){$('scr').value=S.t;$('scrub').style.left=S.t/S.tMax*100+'%';$('scrub').dataset.t=S.t.toFixed(1)+' s';
+function tick(){if(replayOn()){drawReplayDyn();sparkCursor();return}
+ $('scr').value=S.t;$('scrub').style.left=S.t/S.tMax*100+'%';$('scrub').dataset.t=S.t.toFixed(1)+' s';
  document.querySelectorAll('#lanes .rl').forEach(r=>{const f=r.querySelector('.fillb');if(f)f.style.width=Math.min(S.t,+r.dataset.end)/S.tMax*100+'%'});drawDyn();sparkCursor()}
 $('scr').oninput=e=>{stop();S.t=+e.target.value;tick()};
 let raf=null,last=0;
-function stop(){S.playing=false;if(raf)cancelAnimationFrame(raf);raf=null;$('play').textContent='▶ 재생'}
-function frame(now){const dt=(now-last)/1000;last=now;S.t=Math.min(S.tMax,S.t+dt);tick();if(S.t>=S.tMax){stop();return}raf=requestAnimationFrame(frame)}
-$('play').onclick=()=>{if(S.playing){stop();return}if(!S.detail)return;if(S.t>=S.tMax)S.t=0;S.playing=true;$('play').textContent='❚❚ 정지';last=performance.now();raf=requestAnimationFrame(frame)};
+function playText(){const t=S.playing?'❚❚ 정지':'▶ 재생';$('play').textContent=t;if($('rPlay'))$('rPlay').textContent=t}
+function stop(){S.playing=false;if(raf)cancelAnimationFrame(raf);raf=null;playText()}
+/* 탐색은 case 전체 길이, 나란히 재생은 두 기록 중 늦은 마지막 표본까지를 같은 시계로 돈다 */
+function frame(now){const dt=(now-last)/1000*(replayOn()?S.rspeed:1),max=clockMax();last=now;S.t=Math.min(max,S.t+dt);tick();if(S.t>=max){stop();return}raf=requestAnimationFrame(frame)}
+function togglePlay(){if(S.playing){stop();return}if(S.view==='cmp'&&!replayOn())return;const max=clockMax();if(replayOn()?!(max>0):!S.detail)return;if(S.t>=max)S.t=0;S.playing=true;playText();last=performance.now();raf=requestAnimationFrame(frame)}
+$('play').onclick=togglePlay;
 
 /* Inspector */
 const SERIES=[['추적오차','error','m',2,false],['Clearance','clearance','m',3,false],['속도','speed','m/s',2,false],['조향','steering','rad',2,true]];
@@ -240,8 +265,9 @@ function spark(tr,[,key,,,sym],c){const v=tr[key];const vals=v.filter(x=>x!==nul
  const Y=a=>30-(a-lo)/(hi-lo||1)*28-1,X=t=>t/S.tMax*150,base=Y(Math.max(lo,0));const step=Math.max(1,Math.floor(v.length/300));let pts=[];for(let i=0;i<v.length;i+=step)if(v[i]!==null)pts.push(X(tr.t[i]).toFixed(2)+','+Y(v[i]).toFixed(2));
  const l=v.length-1;if(v[l]!==null)pts.push(X(tr.t[l]).toFixed(2)+','+Y(v[l]).toFixed(2));
  return `<svg viewBox="0 0 150 30" preserveAspectRatio="none" role="img">${lo<0?`<line x1="0" x2="150" y1="${base}" y2="${base}" stroke="#a3a8b4" stroke-width="1" stroke-dasharray="2 2" vector-effect="non-scaling-stroke"/>`:''}<polygon points="${X(tr.t[0]).toFixed(2)},${base} ${pts.join(' ')} ${X(tr.t[l]).toFixed(2)},${base}" fill="${c}" opacity=".14"/><polyline points="${pts.join(' ')}" fill="none" stroke="${c}" stroke-width="1.5" vector-effect="non-scaling-stroke"/><line class="cur" y1="0" y2="30" stroke="#007aff" stroke-width="1.5" vector-effect="non-scaling-stroke"/></svg>`}
-function sparkCursor(){const box=$('sparks');if(!box)return;const tr=trace(ep(S.sel,S.seed));if(!tr)return;const n=indexAt(tr.t,S.t),px=S.t/S.tMax*150;
- box.querySelectorAll('.spk').forEach(d=>{const l=d.querySelector('.cur');l.setAttribute('x1',px);l.setAttribute('x2',px);const s=SERIES[+d.dataset.i],a=tr[s[1]][n];d.querySelector('b').textContent=a===null?'—':a.toFixed(s[3])+' '+s[2]})}
+/* 첫 표본 전에는 값 없음, 마지막 표본 뒤에는 마지막 값임을 밝힌다 */
+function sparkCursor(){const box=$('sparks');if(!box)return;const tr=trace(ep(S.sel,S.seed));if(!tr)return;const n=indexAt(tr.t,S.t),px=S.t/S.tMax*150,before=S.t<tr.t[0],after=S.t>tr.t[tr.t.length-1];
+ box.querySelectorAll('.spk').forEach(d=>{const l=d.querySelector('.cur');l.setAttribute('x1',px);l.setAttribute('x2',px);const s=SERIES[+d.dataset.i],a=tr[s[1]][n];d.querySelector('b').textContent=before||a===null?'—':a.toFixed(s[3])+' '+s[2]+(after?' (마지막)':'')})}
 function deltaCell(v,better,digits){if(v===null||v===undefined)return '<span class="d">—</span>';const r=+v.toFixed(digits),good=better==='low'?r<0:r>0,bad=better==='low'?r>0:r<0;
  return `<span class="d ${good?'up':bad?'dn':''}">${r>0?'+':r<0?'−':''}${Math.abs(r).toFixed(digits)}</span>`}
 function renderInspector(){if(!S.case){$('insp').innerHTML='';return}const e=ep(S.sel,S.seed);if(!e){$('insp').innerHTML='<div class="empty">이 조합의 에피소드가 없습니다</div>';return}
@@ -251,7 +277,7 @@ function renderInspector(){if(!S.case){$('insp').innerHTML='';return}const e=ep(
  if(g==='col'&&hasTr){const n=tr.t.length-1;fail=`<div class="fail col"><b>✕ ${esc(outLabel(e.failure_class))} · ${tr.t[n].toFixed(2)} s</b>마지막 위치 (${fmt(tr.x[n],2)}, ${fmt(tr.y[n],2)}) m · 최소 clearance ${fmt(e.driving_min_sampled_clearance_m)} m</div>`}
  if(g==='to'&&hasTr){const n=tr.t.length-1;fail=`<div class="fail to"><b>⏱ 시간 초과 · ${tr.t[n].toFixed(2)} s</b>마지막 위치 (${fmt(tr.x[n],2)}, ${fmt(tr.y[n],2)}) m · 목표까지 ${fmt(e.goal_distance_m,2)} m</div>`}
  if(g==='pe')fail=`<div class="fail pe"><b>! ${esc(outLabel(e.failure_class))}${e.planning_error_type?' · '+esc(e.planning_error_type):''}</b>${esc(e.planning_error_message||e.planning_status)}</div>`;
- const body=hasTr?`<div class="sparks" id="sparks">${SERIES.filter(s=>tr[s[1]]).map(s=>`<div class="spk" data-i="${SERIES.indexOf(s)}"><div class="sph"><span>${s[0]}</span><b></b></div>${spark(tr,s,color(S.sel))}</div>`).join('')}</div>`:'<div class="nodrive">주행이 없어 시계열이 없습니다</div>';
+ const body=hasTr?`<div class="sparks" id="sparks">${SERIES.filter(s=>tr[s[1]]).map(s=>`<div class="spk" data-i="${SERIES.indexOf(s)}"><div class="sph"><span>${s[0]}</span><b></b></div>${spark(tr,s,color(S.sel))}</div>`).join('')}</div>`:`<div class="nodrive">${badTrace(e)?'궤적 데이터 오류로 시계열을 표시하지 않습니다':'주행이 없어 시계열이 없습니다'}</div>`;
  const cmd=S.case.reproduce?S.case.reproduce.map(a=>/\s/.test(a)?`"${a}"`:a).join(' '):null;
  $('insp').innerHTML=`<div style="display:flex;align-items:center;gap:.6em;flex:none"><div class="num" style="background-color:${color(S.sel)}">${badge(S.sel)}</div><div style="min-width:0;flex:1"><b style="font-size:1.1em;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(S.sel)}</b><small style="color:var(--mut)">${esc(S.case.map)} · seed ${e.simulation_seed}</small></div><span class="tag ${o[0]}">${o[1]} ${esc(outLabel(e.failure_class))}</span></div>
  <div class="mt"><span></span><span class="h">값</span><span class="h">${isBase?'기준':esc(base?base+' 대비':'')}</span>
@@ -259,37 +285,49 @@ function renderInspector(){if(!S.case){$('insp').innerHTML='';return}const e=ep(
  ${fail}<div class="il"><span>시계열</span><span>타임라인과 연동</span></div>${body}
  <div class="il"><span>Provenance</span><span style="color:var(--teal)">✔ 저장 입력 검증 통과</span></div>${cmd?`<div class="cmd" title="새 출력 폴더로 다시 실행하는 명령">${esc(cmd)}</div>`:''}`;sparkCursor()}
 
-function renderAll(){if(S.cmp)drawCompare();else renderCompare();document.querySelector('.scrubz').classList.toggle('off',!S.detail);renderGrid();renderLeaderboard();renderTable();renderInspector();renderLanes();if(!S.detail){$('trStatic').innerHTML='';drawDyn();$('trk').textContent=''}}
+function renderAll(){if(S.cmp&&S.case)drawCompare();else renderCompare();document.querySelector('.scrubz').classList.toggle('off',!S.detail);renderGrid();renderLeaderboard();renderTable();renderInspector();renderLanes();if(!S.detail){$('trStatic').innerHTML='';drawDyn();$('trk').textContent=''}}
 
 /* 비교 분석: 집계(분모·제외 사유)는 서버가 저장 결과에서 계산한다 */
-Object.assign(S,{view:'explore',panel:'delta',metric:'rmse',xsrc:'reported',cOut:'all',cPl:{},cSeed:{},cmp:null,ctoken:0});
+Object.assign(S,{view:'explore',panel:'delta',metric:'rmse',xsrc:'reported',cOut:'all',cPl:{},cSeed:{},cmp:null,ctoken:0,ra:null,rb:null,rspeed:1});
 const REASON={missing_pair:'짝 없음',filtered_outcome:'결과 필터',condition:'조건 미충족',no_delta:'Δ 없음'};
 const METRIC={rmse:['RMSE Δ','m',3,'양쪽 도달 쌍'],time:['완료시간 Δ','s',2,'양쪽 도달 쌍'],clearance:['최소 clearance Δ','m',3,'양쪽 주행 쌍']};
 const enc=encodeURIComponent;
-function setView(v){S.view=v;$('app').classList.toggle('cmp',v==='cmp');document.querySelectorAll('#tabs button').forEach(b=>b.classList.toggle('on',b.dataset.v===v));if(v==='cmp')renderCompare();else stop()}
+function setView(v){stop();S.view=v;$('app').classList.toggle('cmp',v==='cmp');document.querySelectorAll('#tabs button').forEach(b=>b.classList.toggle('on',b.dataset.v===v));if(v==='cmp')renderCompare();else if(S.detail)tick()}
 $('tabs').onclick=e=>{const b=e.target.closest('button');if(b)setView(b.dataset.v)};
 function cmpQuery(){const keys=(k,list)=>list.length?list.map(v=>k+'='+enc(v)):[k+'='],pl=planners().filter(p=>S.cPl[p]!==false),sd=S.case.seeds.filter(s=>S.cSeed[s]!==false);
  let q=[...keys('planners',pl),...keys('seeds',sd)];
  if(S.cOut==='reached')q=q.concat(keys('outcomes',['reached']));else if(S.cOut==='fail')q=q.concat(keys('outcomes',[...new Set(eps().map(e=>e.failure_class).filter(c=>c!=='reached'))]));
  return q.join('&')}
 function renderCmpCtl(){const opt=(v,l,cur)=>`<option value="${v}" ${v===cur?'selected':''}>${l}</option>`;
- $('cmpCtl').innerHTML=`<div class="tabs" id="panelTabs"><button data-v="delta" class="${S.panel==='delta'?'on':''}">Paired Δ</button><button data-v="scatter" class="${S.panel==='scatter'?'on':''}">산점도</button></div>
+ const tabs=`<div class="tabs" id="panelTabs">${[['delta','Paired Δ'],['scatter','산점도'],['replay','나란히 재생']].map(([v,l])=>`<button data-v="${v}" class="${S.panel===v?'on':''}">${l}</button>`).join('')}</div>`;
+ if(S.panel==='replay'){const ps=planners(),po=(v,cur)=>`<option value="${esc(v)}" ${v===cur?'selected':''}>${esc(v)}${v===S.case.baseline?' (기준)':''}</option>`;
+  $('cmpCtl').innerHTML=tabs+(ps.length<2?'':`<div class="grp"><span class="lbl">A</span><select class="pill" id="rA">${ps.map(p=>po(p,S.ra)).join('')}</select><span class="lbl">B</span><select class="pill" id="rB">${ps.filter(p=>p!==S.ra).map(p=>po(p,S.rb)).join('')}</select></div>
+  <div class="grp"><span class="lbl">속도</span><select class="pill" id="rSpd">${[0.5,1,2,4].map(v=>opt(v,v+'×',S.rspeed)).join('')}</select><span class="lbl">seed ${esc(S.seed)} (상단에서 변경)</span></div>`);return}
+ $('cmpCtl').innerHTML=tabs+`
  <div class="grp">${S.panel==='delta'?`<span class="lbl">지표</span><select class="pill" id="cMetric">${Object.entries(METRIC).map(([k,m])=>opt(k,m[0],S.metric)).join('')}</select>`:`<span class="lbl">X 계획시간</span><select class="pill" id="cX">${opt('reported','보고값 (planning_time_ms)',S.xsrc)}${opt('runner','실측 (runner_planning_time_ms)',S.xsrc)}</select>`}
  <span class="lbl">결과</span><select class="pill" id="cOut">${opt('all','전체',S.cOut)}${opt('reached','도달만',S.cOut)}${opt('fail','실패만',S.cOut)}</select></div>
  <div class="grp"><span class="lbl">planner</span>${planners().map(p=>`<button class="chip ${S.cPl[p]!==false?'on':''}" aria-pressed="${S.cPl[p]!==false}" data-p="${esc(p)}"><span class="dot" style="background:${color(p)}"></span>${esc(p)}${p===S.case.baseline?' (기준)':''}</button>`).join('')}</div>
  <div class="grp"><span class="lbl">seed</span>${S.case.seeds.map(s=>`<button class="chip ${S.cSeed[s]!==false?'on':''}" aria-pressed="${S.cSeed[s]!==false}" data-s="${s}">${s}</button>`).join('')}</div>`}
 $('cmpCtl').onclick=e=>{const t=e.target.closest('button');if(!t)return;
- if(t.dataset.v)S.panel=t.dataset.v;else if(t.dataset.p)S.cPl[t.dataset.p]=S.cPl[t.dataset.p]===false;else if(t.dataset.s)S.cSeed[t.dataset.s]=S.cSeed[t.dataset.s]===false;else return;focusSel=t.dataset.v?'#panelTabs [data-v="'+t.dataset.v+'"]':t.dataset.p?'#cmpCtl [data-p="'+CSS.escape(t.dataset.p)+'"]':'#cmpCtl [data-s="'+t.dataset.s+'"]';renderCompare()};
-$('cmpCtl').onchange=e=>{if(e.target.id==='cMetric')S.metric=e.target.value;else if(e.target.id==='cX')S.xsrc=e.target.value;else if(e.target.id==='cOut')S.cOut=e.target.value;else return;renderCompare()};
+ if(t.dataset.v){stop();if(t.dataset.v==='replay'&&S.panel!=='replay'&&S.sel&&S.sel!==S.ra)S.rb=S.sel;S.panel=t.dataset.v}else if(t.dataset.p)S.cPl[t.dataset.p]=S.cPl[t.dataset.p]===false;else if(t.dataset.s)S.cSeed[t.dataset.s]=S.cSeed[t.dataset.s]===false;else return;focusSel=t.dataset.v?'#panelTabs [data-v="'+t.dataset.v+'"]':t.dataset.p?'#cmpCtl [data-p="'+CSS.escape(t.dataset.p)+'"]':'#cmpCtl [data-s="'+t.dataset.s+'"]';renderCompare()};
+$('cmpCtl').onchange=e=>{const id=e.target.id,v=e.target.value;
+ if(id==='cMetric')S.metric=v;else if(id==='cX')S.xsrc=v;else if(id==='cOut')S.cOut=v;else if(id==='rA'){S.ra=v;if(S.rb===v)S.rb=null}else if(id==='rB')S.rb=v;else if(id==='rSpd'){S.rspeed=+v;return}else return;focusSel='#'+id;renderCompare()};
 async function renderCompare(){if(S.view!=='cmp')return;
  if(!S.case){S.ctoken++;S.cmp=null;$('cmpCtl').innerHTML='';$('cmpSum').innerHTML='';$('cmpBody').innerHTML='<div class="empty">표시할 완료 case가 없습니다</div>';return}
- S.cmp=null;renderCmpCtl();const token=++S.ctoken,panel=S.panel,kind=S.panel==='delta'?'delta?metric='+S.metric:'scatter?x='+S.xsrc;
- try{const d=await api(`/api/compare/${kind}&run=${enc(S.run.id)}&case=${enc(S.case.id)}&${cmpQuery()}`);if(token!==S.ctoken)return;S.cmp=d;S.cmpPanel=panel;drawCompare();restoreFocus()}
+ S.cmp=null;const panel=S.panel;let url;
+ if(panel==='replay'){stop();S.t=0;const pair=replayPair();renderCmpCtl();
+  if(!pair){S.ctoken++;$('cmpSum').innerHTML='';$('cmpNote').textContent='';$('cmpBody').innerHTML='<div class="empty">나란히 재생하려면 이 case에 planner가 2개 이상 있어야 합니다</div>';return}
+  if(!pair.includes(S.sel)){S.sel=pair[1];renderGrid();renderTable();renderInspector()}
+  url=`/api/compare/replay?run=${enc(S.run.id)}&case=${enc(S.case.id)}&a=${enc(pair[0])}&b=${enc(pair[1])}&seed=${S.seed}`;
+  $('cmpSum').innerHTML='';$('cmpBody').innerHTML='<div class="empty">재생 데이터를 불러오는 중입니다</div>'}
+ else{renderCmpCtl();url=`/api/compare/${panel==='delta'?'delta?metric='+S.metric:'scatter?x='+S.xsrc}&run=${enc(S.run.id)}&case=${enc(S.case.id)}&${cmpQuery()}`}
+ const token=++S.ctoken;
+ try{const d=await api(url);if(token!==S.ctoken)return;S.cmp=d;S.cmpPanel=panel;drawCompare();restoreFocus()}
  catch(err){if(token!==S.ctoken)return;S.cmp=null;$('cmpSum').innerHTML='';$('cmpBody').innerHTML='<div class="empty">비교 데이터를 읽지 못했습니다.\n'+esc(err.message)+'</div>'}}
 const nice=(lo,hi,n)=>Array.from({length:n+1},(_,i)=>lo+(hi-lo)*i/n);
 function pointShape(x,y,r,fill,outcome,sel){const stroke=sel?'#1c1c1e':'#fff',sw=sel?2.5:1.5;
  return outcome==='reached'?`<circle cx="${x}" cy="${y}" r="${r}" fill="${fill}" stroke="${stroke}" stroke-width="${sw}"/>`:`<rect x="${x-r}" y="${y-r}" width="${2*r}" height="${2*r}" rx="${r*.3}" fill="${fill}" stroke="${sel?'#1c1c1e':'#ff3b30'}" stroke-width="${sw}"/>`}
-function drawCompare(){const box=$('cmpBody'),d=S.cmp;if(!d||S.view!=='cmp'||S.cmpPanel!==S.panel)return;const w=box.clientWidth,h=box.clientHeight,fs=parseFloat(getComputedStyle($('app')).fontSize);if(!w||!h)return;
+function drawCompare(){const box=$('cmpBody'),d=S.cmp;if(!d||S.view!=='cmp'||S.cmpPanel!==S.panel)return;if(S.panel==='replay'){drawReplay(box,d);return}const w=box.clientWidth,h=box.clientHeight,fs=parseFloat(getComputedStyle($('app')).fontSize);if(!w||!h)return;
  const m={l:(S.panel==='delta'?15:4.2)*fs,r:1.6*fs,t:1.2*fs,b:3.2*fs};let s='',sum='';
  const txt=(x,y,t,a='start',c='#6e6e73',z=.88,wt=400)=>`<text x="${x}" y="${y}" text-anchor="${a}" font-size="${fs*z}" fill="${c}" font-weight="${wt}">${esc(t)}</text>`;
  if(S.panel==='delta'){const [name,unit,dig,cond]=METRIC[S.metric],lanes=d.lanes;
@@ -324,12 +362,51 @@ function drawCompare(){const box=$('cmpBody'),d=S.cmp;if(!d||S.view!=='cmp'||S.c
 let focusSel=null;
 function restoreFocus(){if(!focusSel)return;const el=document.querySelector(focusSel);focusSel=null;if(el)el.focus()}
 function pickPoint(g,kb){S.sel=g.dataset.p;S.seed=+g.dataset.s;$('seedSel').value=String(S.seed);if(kb)focusSel=`#cmpBody .pt[data-p="${CSS.escape(g.dataset.p)}"][data-s="${g.dataset.s}"]`;renderAll();restoreFocus()}
-$('cmpBody').onclick=e=>{const g=e.target.closest('.pt');if(g)pickPoint(g,false)};
-$('cmpBody').onkeydown=e=>{if(e.key!=='Enter'&&e.key!==' ')return;const g=e.target.closest('.pt');if(g){e.preventDefault();pickPoint(g,true)}};
-addEventListener('resize',()=>{if(S.view==='cmp')requestAnimationFrame(drawCompare)});
+function pickSide(h,kb){S.sel=h.dataset.p;if(kb)focusSel=`#cmpBody .rph[data-p="${CSS.escape(h.dataset.p)}"]`;renderAll();restoreFocus()}
+$('cmpBody').onclick=e=>{const g=e.target.closest('.pt');if(g){pickPoint(g,false);return}const h=e.target.closest('.rph');if(h)pickSide(h,false)};
+$('cmpBody').onkeydown=e=>{if(e.key!=='Enter'&&e.key!==' ')return;const g=e.target.closest('.pt'),h=e.target.closest('.rph');if(g||h){e.preventDefault();if(g)pickPoint(g,true);else pickSide(h,true)}};
+addEventListener('resize',()=>{if(S.view==='cmp'&&!replayOn())requestAnimationFrame(drawCompare)});
+
+/* 나란히 재생: 상태 전이(첫 표본 전·주행 중·종료·기록 없음)는 서버가 저장 표본에서 계산하고, 화면은 현재 시각에 맞는 전이를 고른다 */
+const RREASON={missing_episode:'에피소드 미저장',no_samples:'궤적 표본 없음',invalid_samples:'궤적 데이터 오류'};
+const replayOn=()=>S.view==='cmp'&&S.panel==='replay'&&!!S.cmp&&S.cmpPanel==='replay';
+const clockMax=()=>replayOn()?S.cmp.duration_s:S.tMax;
+function replayPair(){const ps=planners();if(ps.length<2)return null;
+ const a=ps.includes(S.ra)?S.ra:ps.includes(S.case.baseline)?S.case.baseline:ps[0];
+ const b=ps.includes(S.rb)&&S.rb!==a?S.rb:ps.includes(S.sel)&&S.sel!==a?S.sel:ps.find(p=>p!==a);
+ S.ra=a;S.rb=b;return [a,b]}
+function sideState(side,t){let st=side.events[0][1];for(const [at,s] of side.events)if(t>=at)st=s;return st}
+function sideLabel(side,st){
+ if(st==='no_record')return ['t-wait','주행 기록 없음 · '+(side.reason==='no_samples'&&side.outcome&&group(side.outcome)==='pe'?outLabel(side.outcome):RREASON[side.reason])];
+ if(st==='waiting')return ['t-wait',`첫 표본 대기 · 시작 ${side.start_s.toFixed(2)} s`];
+ if(st==='driving')return ['t-drv','주행 중'];
+ const o=OUT[group(side.outcome)];return [o[0],`${o[1]} 종료 · ${outLabel(side.outcome)} · ${side.end_s.toFixed(2)} s`]}
+function drawReplay(box,d){if(S.sel!==S.ra&&S.sel!==S.rb&&planners().includes(S.sel))S.rb=S.sel;  // 다른 패널에서 고른 planner가 B가 된다
+ if(d.seed!==S.seed||d.a.planner!==S.ra||d.b.planner!==S.rb){renderCompare();return}
+ const dur=d.duration_s,pos=v=>(dur?v/dur*100:0)+'%',vb=`0 0 ${W()} ${H()}`;
+ const side=k=>{const sd=d[k],p=sd.planner;return `<div class="rps"><div class="rph ${S.sel===p?'sel':''}" data-p="${esc(p)}" role="button" tabindex="0" title="Inspector에 표시"><span class="rk">${k.toUpperCase()}</span><div class="num" style="background-color:${color(p)}">${badge(p)}</div><b>${esc(p)}</b><span class="tag" id="rpSt${k}"></span></div>`+
+  `<svg viewBox="${vb}" preserveAspectRatio="xMidYMid meet" role="img" aria-label="${esc(p)} 재생"><g>${mapLayers(sd.plan_id?planLine(sd.plan_id,color(p)):'')}</g><g id="rpDyn${k}"></g></svg>${sd.end_s===null?'<div class="rpno">주행 기록 없음</div>':''}</div>`};
+ const lane=k=>{const sd=d[k],o=sd.outcome?OUT[group(sd.outcome)]:null;
+  return `<div class="rpl"><span class="lab"><div class="num" style="background-color:${color(sd.planner)}">${badge(sd.planner)}</div><b>${esc(sd.planner)}</b></span><div class="rtk">${sd.end_s===null?`<span class="rnone">주행 기록 없음</span>`:
+   `<i class="rseg" style="left:${pos(sd.start_s)};width:${dur?(sd.end_s-sd.start_s)/dur*100:0}%;background:${color(sd.planner)}"></i><i class="ev" style="left:${pos(sd.end_s)};color:${o[2]};border-color:${o[2]}" title="${esc(outLabel(sd.outcome))} ${sd.end_s.toFixed(2)} s">${o[1]}</i>`}<i class="rcur"></i></div><span class="r">${sd.end_s===null?'—':sd.start_s.toFixed(2)+' – '+sd.end_s.toFixed(2)+' s'}</span></div>`};
+ box.innerHTML=`<div class="rp">${side('a')}${side('b')}</div>`;
+ const c=d.counts;$('cmpNote').textContent='같은 시간축 · 같은 지도 범위·축척 · 저장된 표본만 재생';
+ $('cmpSum').innerHTML=`<div class="rpt">${lane('a')}${lane('b')}<div class="rpl"><span class="lab"><button class="play" id="rPlay">▶ 재생</button></span><input type="range" id="rScr" min="0" max="${dur}" step="any" value="${Math.min(S.t,dur)}" aria-label="재생 시각 (←→ 0.1 s, Home/End 처음·끝)"><span class="r" id="rT"></span></div></div>`+
+  `seed <b>${d.seed}</b> · 저장 에피소드 <b>${c.episodes}/${c.slots}</b> · 재생 가능 <b class="${c.playable<c.slots?'warnx':''}">${c.playable}/${c.slots}</b> · 시간축 0 – ${dur.toFixed(2)} s(두 기록 중 늦은 마지막 표본) · 첫 표본 전과 마지막 표본 뒤의 움직임은 만들지 않습니다.`;
+ playText();drawReplayDyn()}
+function drawReplayDyn(){const d=S.cmp,dur=d.duration_s;
+ for(const k of ['a','b']){const sd=d[k],st=sideState(sd,S.t),el=$('rpDyn'+k);if(!el)return;let s='';
+  if(st==='driving'||st==='ended'){const tr=S.detail.traces[sd.episode_id],n=st==='ended'?tr.t.length-1:indexAt(tr.t,S.t);s=vehicle(sd.planner,tr,n,st==='driving',st==='ended'&&group(sd.outcome)==='col')}
+  el.innerHTML=s;const [cls,text]=sideLabel(sd,st),tag=$('rpSt'+k);tag.className='tag '+cls;tag.textContent=text}
+ const p=(dur?Math.min(S.t,dur)/dur*100:0)+'%';document.querySelectorAll('#cmpSum .rcur').forEach(c=>c.style.left=p);
+ $('rScr').value=S.t;$('rT').textContent=`${S.t.toFixed(2)} / ${dur.toFixed(2)} s`}
+$('cmpSum').onclick=e=>{if(e.target.closest('#rPlay'))togglePlay()};
+$('cmpSum').oninput=e=>{if(e.target.id==='rScr'){stop();S.t=+e.target.value;tick()}};
+$('cmpSum').onkeydown=e=>{if(e.target.id!=='rScr'||!replayOn())return;const dur=S.cmp.duration_s,t={ArrowLeft:S.t-.1,ArrowDown:S.t-.1,ArrowRight:S.t+.1,ArrowUp:S.t+.1,PageDown:S.t-1,PageUp:S.t+1,Home:0,End:dur}[e.key];
+ if(t===undefined)return;e.preventDefault();stop();S.t=Math.max(0,Math.min(dur,t));tick()};
 
 (async()=>{try{const d=await api('/api/runs');S.runs=d.runs;renderRuns();
  const want=new URLSearchParams(location.search).get('run'),pick=S.runs.find(r=>r.id===want)||S.runs.find(r=>r.status==='complete')||S.runs[0];
- const qs=new URLSearchParams(location.search);if(['delta','scatter'].includes(qs.get('panel')))S.panel=qs.get('panel');if(METRIC[qs.get('metric')])S.metric=qs.get('metric');if(qs.get('view')==='cmp'){S.view='cmp';$('app').classList.add('cmp');document.querySelectorAll('#tabs button').forEach(b=>b.classList.toggle('on',b.dataset.v==='cmp'))}
+ const qs=new URLSearchParams(location.search);if(['delta','scatter','replay'].includes(qs.get('panel')))S.panel=qs.get('panel');if(METRIC[qs.get('metric')])S.metric=qs.get('metric');if(qs.get('view')==='cmp'){S.view='cmp';$('app').classList.add('cmp');document.querySelectorAll('#tabs button').forEach(b=>b.classList.toggle('on',b.dataset.v==='cmp'))}
  if(pick)await openRun(pick.id);else showMsg('저장된 실행을 찾지 못했습니다.\n검색한 폴더: '+d.root)}catch(err){showMsg('결과 목록을 읽지 못했습니다.\n'+err.message)}})();
 </script></body></html>
