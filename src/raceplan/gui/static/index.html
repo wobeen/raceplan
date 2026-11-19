@@ -55,6 +55,7 @@ table{width:100%;border-collapse:collapse;font-size:.95em}th{position:sticky;top
 td{padding:.25em .5em;border-top:1px solid var(--line);white-space:nowrap}td.pl{max-width:0;width:40%;overflow:hidden;text-overflow:ellipsis}tbody tr{cursor:pointer}tbody tr:hover{background:rgba(255,255,255,.6)}tbody tr.sel{background:rgba(0,122,255,.12)}
 .dot{width:.7em;height:.7em;border-radius:50%;display:inline-block;margin-right:.4em}
 select.fl{appearance:none;-webkit-appearance:none;font:inherit;font-size:.92em;color:var(--acc);border:0;background:transparent;cursor:pointer;text-align:right;padding:0}
+.csvb{font:inherit;font-size:.85em;font-weight:600;border:0;background:rgba(0,122,255,.12);color:var(--acc);border-radius:2em;padding:.1em .75em;margin-left:.6em;cursor:pointer;white-space:nowrap}.csvb:hover{background:rgba(0,122,255,.2)}.csvb:disabled{opacity:.4;cursor:default}.csvb:focus-visible{outline:.18em solid rgba(0,122,255,.45)}
 #track{flex:1;min-height:0;width:100%;background:rgba(255,255,255,.5);border:1px solid rgba(255,255,255,.85);box-shadow:inset 0 .05em .5em rgba(40,52,90,.07);border-radius:1em}
 .lanes-w{position:relative;flex:1;min-height:0;display:flex;flex-direction:column}
 .lanes{flex:1;min-height:0;overflow-y:auto;overflow-x:hidden;display:flex;flex-direction:column;justify-content:space-around}
@@ -132,7 +133,7 @@ select.fl{appearance:none;-webkit-appearance:none;font:inherit;font-size:.92em;c
  <div class="work">
   <div class="card lbc"><h3>리더보드 <em id="lbNote"></em></h3><div class="cb"><div class="lbwrap" id="lb"></div>
    <div class="leg"><span style="color:var(--teal)">■</span> 도달 <span style="color:var(--red)">■</span> 충돌 <span style="color:var(--amb)">■</span> 시간 초과 <span style="color:var(--vio)">■</span> 계획 실패 · 성공과 합치지 않습니다</div></div></div>
-  <div class="card tbc"><h3>에피소드 <em><select class="fl" id="filter"><option value="all">전체 보기</option><option value="fail">실패만</option><option value="ok">도달만</option></select></em></h3><div class="cb"><div class="tw" id="table"></div></div></div>
+  <div class="card tbc"><h3>에피소드 <em><select class="fl" id="filter"><option value="all">전체 보기</option><option value="fail">실패만</option><option value="ok">도달만</option></select><button class="csvb" id="epCsv" disabled>CSV ↓</button></em></h3><div class="cb"><div class="tw" id="table"></div></div></div>
   <div class="card trc"><h3>트랙 · 체크한 planner 동시 주행 <em id="trk"></em></h3><div class="cb"><svg id="track"><g id="trStatic"></g><g id="trDyn"></g></svg><div class="leg">점선 = 계획 경로 · 실선 = 실제 궤적 · 저장된 결과만 표시합니다</div></div></div>
  </div>
  <div class="cmpv"><div class="card"><h3>비교 분석 <em id="cmpNote"></em></h3><div class="cb"><div class="cmpctl" id="cmpCtl"></div><div class="cmpbody" id="cmpBody"></div><div class="cmpsum" id="cmpSum"></div></div></div></div>
@@ -175,7 +176,8 @@ $('runs').onclick=e=>{const r=e.target.closest('.setrow');if(r)openRun(r.dataset
 
 /* want = {q, warn}: URL 복원 중에만 넘긴다. 사용자 조작 경로는 want 없이 호출되어 복원 상태를 끝내고, 대기 중인 시각을 지금 항목에 먼저 확정한다.
    S.loading 동안에는 주소를 쓰지 않아 "새 run + 이전 case" 같은 중간 상태가 history에 남지 않는다 */
-function beginLoad(token,want){stop();if(!want){S.restoring=0;S.pendingT=null;if(tTimer)writeUrl()}S.loading=token;S.cmp=null;S.ctoken++}
+function beginLoad(token,want){stop();if(!want){S.restoring=0;S.pendingT=null;if(tTimer)writeUrl()}S.loading=token;S.cmp=null;S.ctoken++;
+ $('epCsv').disabled=true;if($('covCsv'))$('covCsv').disabled=true}  // 전환 중에는 이전 run·case를 내려받지 않는다
 async function openRun(id,want=null){const token=++S.token;beginLoad(token,want);showMsg('');
  try{const run=want&&S.run&&S.run.id===id&&S.run.cases.length?S.run:await api('/api/run?id='+encodeURIComponent(id));if(token!==S.token)return;S.run=run;$('runName').textContent=run.name;renderRuns();renderCoverage();
   let cid=run.cases[0]?.id;
@@ -200,16 +202,28 @@ async function openCase(id,token=null,want=null){if(token===null){token=++S.toke
   if(S.view==='explore'){if(v>S.tMax+.005)want.warn.push(`시각 t ${v} s가 이 지도의 시간축(0–${S.tMax.toFixed(2)} s)을 넘어 끝으로 맞췄습니다`);S.t=Math.min(v,S.tMax)}
   else want.warn.push(`시각 t ${v} s: ${S.panel==='delta'?'Paired Δ':'산점도'} 화면에는 시각이 없어 무시했습니다`)}
  $('scr').max=S.tMax;$('axis').innerHTML=[0,1/3,2/3,1].map(f=>`<span>${(f*S.tMax).toFixed(1)}${f===1?' s':''}</span>`).join('');
- S.loading=0;buildStatic();renderAll()}
-$('caseSel').onchange=e=>{openCase(e.target.value).catch(err=>showMsg('이 지도를 열 수 없습니다.\n'+err.message))};
+ S.loading=0;if($('covCsv'))$('covCsv').disabled=false;buildStatic();renderAll()}
+$('caseSel').onchange=e=>{openCase(e.target.value).catch(err=>{if(S.case)$('caseSel').value=S.case.id;renderCoverage();renderTable();showMsg('이 지도를 열 수 없습니다.\n'+err.message)})};
 $('seedSel').onchange=e=>{S.seed=+e.target.value;renderAll()};
 $('filter').onchange=e=>{S.filter=e.target.value;renderTable();writeUrl()};
 
 function renderCoverage(){const c=S.run?S.run.coverage:[];const exp=c.every(x=>x.expected!==null&&x.expected!==undefined)?c.reduce((a,x)=>a+x.expected,0):null,inc=c.reduce((a,x)=>a+(x.included||0),0);
  const bad=c.filter(x=>x.status!=='complete'),el=$('cov');el.classList.toggle('warn',bad.length>0||(exp!==null&&inc<exp));
- el.innerHTML=c.length?`coverage <b>${inc}/${exp??'?'}</b>${bad.length?` · 미완료 case <b>${bad.length}</b>`:''}`:'';
+ el.innerHTML=c.length?`coverage <b>${inc}/${exp??'?'}</b>${bad.length?` · 미완료 case <b>${bad.length}</b>`:''}<button class="csvb" id="covCsv" title="현재 실행의 coverage CSV — 미완료 case 포함 모든 case" aria-label="현재 실행의 coverage CSV 내려받기 — 모든 case">CSV ↓</button>`:'';
  el.title=bad.map(x=>`${x.case_id}: ${x.status}${x.error?' — '+x.error:''}`).join('\n');
  if(bad.length)showMsg('완료되지 않은 case는 집계에서 뺐습니다.\n'+bad.map(x=>`${x.case_id}: ${x.status}${x.error?' — '+x.error:''}`).join('\n'))}
+
+/* CSV 내보내기: 서버가 저장 파일에서 만든다(에피소드는 저장 헤더·값·순서 그대로, coverage는 미완료 case 포함).
+   fetch로 받아 오류를 화면에 보이고, 수식으로 해석될 수 있는 값이 있으면 저장 전에 확인받는다. 주소·history는 바꾸지 않는다 */
+const FILTER_LABEL={all:'전체',fail:'실패만',ok:'도달만'};
+async function download(path){try{const r=await fetch(path);
+  if(!r.ok){const b=await r.json().catch(()=>({}));throw new Error(b.error||('HTTP '+r.status))}
+  if(r.headers.get('X-RacePlan-CSV-Formula-Risk')==='1'&&!confirm('이 CSV에는 스프레드시트가 수식으로 실행할 수 있는 값(=, +, -, @로 시작)이 있습니다.\n값은 저장 원본 그대로 둡니다. Excel에서는 바로 열지 말고 "텍스트/CSV 가져오기"로 여세요.\n\n저장할까요?'))return;
+  const m=/filename\*=UTF-8''([^;]+)/.exec(r.headers.get('Content-Disposition')||''),a=document.createElement('a');
+  a.href=URL.createObjectURL(await r.blob());a.download=m?decodeURIComponent(m[1]):'raceplan.csv';document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),1000)}
+ catch(err){showMsg('CSV를 내보내지 못했습니다.\n'+err.message)}}
+$('epCsv').onclick=()=>{if(S.run&&S.case&&!S.loading)download('/api/export/episodes.csv?'+new URLSearchParams({run:S.run.id,case:S.case.id,filter:S.filter}))};
+$('cov').onclick=e=>{if(e.target.closest('#covCsv')&&S.run&&!S.loading)download('/api/export/coverage.csv?'+new URLSearchParams({run:S.run.id}))};
 
 function renderGrid(){$('grid').innerHTML=planners().map(p=>`<div class="slot ${S.on[p]?'':'off'} ${S.sel===p?'sel':''}" data-p="${esc(p)}"><div class="num" style="background-color:${color(p)}">${badge(p)}</div><div><b>${esc(p)}</b><small>${S.on[p]?'트랙 표시 중':'트랙에서 숨김'}</small></div></div>`).join('')}
 $('grid').onclick=e=>{const s=e.target.closest('.slot');if(s){S.sel=s.dataset.p;if(S.view==='cmp'&&S.panel==='replay'&&S.sel!==S.ra)S.rb=S.sel;renderAll()}};  // 재생 중 고른 planner는 B가 된다
@@ -226,7 +240,8 @@ $('lb').onclick=e=>{if(e.target.type==='checkbox')return;const r=e.target.closes
 
 /* 에피소드 표 */
 const COLS=[['planner','planner',0],['simulation_seed','seed',0],['failure_class','결과',0],['tracking_rmse_m','RMSE m',1],['completion_time_s','시간 s',1],['driving_min_sampled_clearance_m','clear m',1]];
-function renderTable(){if(!S.case){$('table').innerHTML=S.run?`<div class="empty">표시할 완료 case가 없습니다</div>`:'';return}
+function renderTable(){const eb=$('epCsv');eb.disabled=!S.case;eb.title=S.case?`에피소드 CSV — ${FILTER_LABEL[S.filter]}, 일치하는 모든 행 (저장 순서·저장 값 그대로, 화면 정렬과 무관)`:'완료된 case가 없습니다';eb.setAttribute('aria-label',eb.title);
+ if(!S.case){$('table').innerHTML=S.run?`<div class="empty">표시할 완료 case가 없습니다</div>`:'';return}
  const {key,dir}=S.sort;let rows=eps().filter(e=>S.filter==='all'||(S.filter==='ok')===(e.failure_class==='reached'));
  rows=[...rows].sort((a,b)=>{const x=a[key],y=b[key];if(x===null||x===undefined)return 1;if(y===null||y===undefined)return -1;if(x<y)return -dir;if(x>y)return dir;return a.simulation_seed-b.simulation_seed});
  const top=$('table').scrollTop;
@@ -451,7 +466,8 @@ function writeUrl(){clearTimeout(tTimer);tTimer=null;if(S.restoring||S.loading)r
  history[S.urlBase!==null&&bare(q)===bare(S.urlBase)?'replaceState':'pushState'](null,'','?'+q);S.urlBase=q}
 function writeUrlSoon(){clearTimeout(tTimer);tTimer=setTimeout(writeUrl,300)}
 /* 사용자 입력은 진행 중인 복원의 쓰기 잠금을 풀고(주소와 화면이 어긋나지 않게), 대기 중인 시각을 먼저 지금 항목에 확정한다 */
-for(const ev of ['click','change','input'])document.addEventListener(ev,e=>{S.restoring=0;if(tTimer&&e.target.type!=='range')writeUrl()},true);
+for(const ev of ['click','change','input'])document.addEventListener(ev,e=>{if(e.target.closest&&e.target.closest('.csvb,a[download]'))return;  // 내려받기는 화면 상태가 아니다
+ S.restoring=0;if(tTimer&&e.target.type!=='range')writeUrl()},true);
 function linkWarn(m){if(S.restoring&&S.rwarn)S.rwarn.push(m);else{S.lw.push(m);renderLinkWarn()}}
 function one(q,warn,k,ok,label,fb='기본값을 씁니다'){const v=q.getAll(k);if(!v.length)return undefined;
  if(v.length>1){warn.push(`${label}: 값이 ${v.length}개라 ${fb}`);return undefined}

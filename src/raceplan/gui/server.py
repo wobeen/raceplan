@@ -5,13 +5,14 @@ import argparse
 import csv
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from io import StringIO
 import json
 from pathlib import Path
 from urllib.parse import parse_qs, quote, urlsplit
 import webbrowser
 
 from raceplan.gui.analysis import BadQuery
-from raceplan.gui.data import Explorer, UnknownItem, find_runs
+from raceplan.gui.data import Explorer, UnknownItem, _formula_risk, find_runs
 
 HOST = '127.0.0.1'
 PAGE = Path(__file__).parent / 'static/index.html'
@@ -24,13 +25,15 @@ class Handler(BaseHTTPRequestHandler):
     def log_message(self, format, *args):
         pass
 
-    def _send(self, status, body, content_type):
+    def _send(self, status, body, content_type, headers=()):
         self.send_response(status)
         self.send_header('Content-Type', content_type)
         self.send_header('Content-Length', str(len(body)))
         self.send_header('Cache-Control', 'no-store')
         self.send_header('X-Content-Type-Options', 'nosniff')
         self.send_header('Content-Security-Policy', "default-src 'self' 'unsafe-inline'; img-src 'self' data:; frame-ancestors 'none'")
+        for name, value in headers:
+            self.send_header(name, value)
         self.end_headers()
         self.wfile.write(body)
 
@@ -38,10 +41,30 @@ class Handler(BaseHTTPRequestHandler):
         self._send(status, json.dumps(value, allow_nan=False, ensure_ascii=False).encode('utf-8'),
                    'application/json; charset=utf-8')
 
+    def _csv(self, rows, name, fallback):
+        """UTF-8 with BOM (Excel reads Korean) and CRLF records; cells are written as saved, never rewritten.
+        Cells a spreadsheet could run as formulas are flagged for the page to warn about, not altered."""
+        stream = StringIO()
+        csv.writer(stream, lineterminator='\r\n').writerows(rows)
+        headers = [('Content-Disposition', f"attachment; filename=\"{fallback}\"; filename*=UTF-8''{quote(name, safe='')}")]
+        if _formula_risk(rows):
+            headers.append(('X-RacePlan-CSV-Formula-Risk', '1'))
+        self._send(HTTPStatus.OK, ('\ufeff' + stream.getvalue()).encode('utf-8'), 'text/csv; charset=utf-8', headers)
+
     def _host_allowed(self):
         # Rejecting other Host values stops a remote page reaching this server through DNS rebinding.
         port = self.server.server_address[1]
         return self.headers.get('Host') in {f'{HOST}:{port}', f'localhost:{port}'}
+
+    @staticmethod
+    def _single(multi, key, default=None):
+        """Exports name exactly what they contain: a key given twice or left blank is rejected, not guessed."""
+        values = multi.get(key)
+        if values is None and default is not None:
+            return default
+        if values is None or len(values) != 1 or not values[0]:
+            raise BadQuery(f'{key} must be given once and must not be empty')
+        return values[0]
 
     @staticmethod
     def _options(path, query, multi):
@@ -84,6 +107,13 @@ class Handler(BaseHTTPRequestHandler):
                     raise BadQuery('seed must be an integer') from None
                 self._json(HTTPStatus.OK, explorer.replay(query.get('run', ''), query.get('case', ''),
                                                           query.get('a', ''), query.get('b', ''), seed))
+            elif url.path == '/api/export/episodes.csv':
+                self._csv(*explorer.export_episodes(self._single(multi, 'run'), self._single(multi, 'case'),
+                                                    self._single(multi, 'filter', 'all')), 'episodes.csv')
+            elif url.path == '/api/export/coverage.csv':
+                if 'case' in multi or 'filter' in multi:
+                    raise BadQuery('coverage export covers the whole run; case and filter are not accepted')
+                self._csv(*explorer.export_coverage(self._single(multi, 'run')), 'coverage.csv')
             else:
                 self._json(HTTPStatus.NOT_FOUND, {'error': 'not found'})
         except BadQuery as exc:

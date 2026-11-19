@@ -3,9 +3,12 @@ from __future__ import annotations
 
 from collections import Counter
 import csv
+from hashlib import sha256
+from io import StringIO
 import json
 from math import isfinite
 from pathlib import Path
+import re
 from threading import Lock
 
 import numpy as np
@@ -24,6 +27,11 @@ EPISODE_TEXTS = ('episode_id', 'plan_id', 'planner', 'failure_class', 'planning_
 PAIR_NUMBERS = ('delta_tracking_rmse_m', 'delta_completion_time_s', 'delta_driving_min_sampled_clearance_m')
 TRACE_FIELDS = {'t': 'time_s', 'x': 'x_m', 'y': 'y_m', 'speed': 'speed_mps',
                 'steering': 'steering_angle_rad', 'error': 'tracking_error_m'}
+# Coverage export: suite coverage.csv column names, values as in raceplan-report's "Case coverage" table; unknown counts stay blank.
+COVERAGE_FIELDS = ('case_id', 'status', 'expected_episode_count', 'raw_episode_count', 'included_episode_count',
+                   'missing_episode_count', 'failed_phase', 'error_type', 'error_message')
+# Same conditions as the explorer table filter (전체 / 실패만 / 도달만).
+EXPORT_FILTERS = {'all': lambda outcome: True, 'fail': lambda outcome: outcome != 'reached', 'ok': lambda outcome: outcome == 'reached'}
 
 
 class UnknownItem(LookupError):
@@ -43,6 +51,26 @@ def _number(value, digits=None):
 def _count(value):
     """Coverage counts are shown in the page, so anything that is not a plain integer becomes unknown."""
     return value if isinstance(value, int) and not isinstance(value, bool) else None
+
+
+FORMULA_LEAD = re.compile(r'^[\s\x00-\x1f\x7f\ufeff]+')
+NUMBER_LITERAL = re.compile(r'[+-]?(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?')
+
+
+def _formula_risk(rows):
+    """Spreadsheets may run cells starting with = + - @, also after blanks, control characters or a BOM.
+    Only plain decimal/exponent literals are exempt; names like +INF are not."""
+    for row in rows:
+        for cell in row:
+            text = FORMULA_LEAD.sub('', cell)
+            if text[:1] in ('=', '+', '-', '@') and not NUMBER_LITERAL.fullmatch(text):
+                return True
+    return False
+
+
+def _download_name(ids, suffix):
+    """Ids without path separators, Windows-reserved or control characters; the suffix always survives shortening."""
+    return re.sub(r'[\\/:*?"<>|\x00-\x1f\x7f]+', '-', '-'.join(ids))[:120] + f'-{suffix}.csv'
 
 
 def _read_json(path):
@@ -186,6 +214,11 @@ class Explorer:
             cases, coverage = _load(reader, folder)
             entry = {'signature': signature, 'folder': folder, 'reader': reader, 'coverage': coverage,
                      'cases': {case['id']: case for case in cases}, 'details': {}}
+            # Pin each case's validated episodes.csv to its own path and hash; a redirected (symlinked) path is never exported.
+            entry['episode_files'] = {}
+            for case_id in entry['cases']:
+                path = self._case_folder(entry, case_id) / 'analysis/episodes.csv'
+                entry['episode_files'][case_id] = (path, reader.hashes.get(str(path.resolve())) if path.resolve() == path else None)
             self._cache.pop(run_id, None)
             self._cache[run_id] = entry
             while len(self._cache) > CACHE_SIZE:
@@ -235,3 +268,37 @@ class Explorer:
         detail = self.case(run_id, case_id)
         case = next(item for item in self.run(run_id)['cases'] if item['id'] == case_id)
         return analysis.replay(case, detail['traces'], a, b, seed)
+
+    def export_episodes(self, run_id, case_id, filter='all'):
+        """Rows of the saved analysis/episodes.csv as stored (header, cell text, order), limited to the table filter."""
+        if filter not in EXPORT_FILTERS:
+            raise analysis.BadQuery(f'unknown filter: {filter}')
+        entry = self._loaded(run_id)
+        if case_id not in entry['cases']:
+            raise UnknownItem(f'unknown or incomplete case: {case_id}')
+        path, digest = entry['episode_files'][case_id]
+        if digest is None or path.resolve() != path:
+            raise ValueError('saved episodes.csv is redirected outside its case folder; reopen the run')
+        data = path.read_bytes()
+        # Export exactly the bytes this case validated; a later edit must not slip through the cache.
+        if sha256(data).hexdigest() != digest:
+            raise ValueError('saved episodes.csv changed after it was validated; reopen the run')
+        rows = [row for row in csv.reader(StringIO(data.decode('utf-8-sig'), newline='')) if row]  # Blank records, as DictReader.
+        if not rows or len(set(rows[0])) != len(rows[0]):
+            raise ValueError('saved episodes.csv needs one header with unique column names')
+        column, keep = rows[0].index('failure_class'), EXPORT_FILTERS[filter]
+        selected = [row for row in rows[1:] if keep(row[column] if column < len(row) else '')]
+        return [rows[0], *selected], _download_name((run_id, case_id), f'episodes-{filter}')
+
+    def export_coverage(self, run_id):
+        """Every case of the run, including failed or unfinished ones, with the counts the page and report show.
+        Coverage is re-read and re-validated on each export, like raceplan-report, instead of trusting the page cache."""
+        _, coverage = _load(Reader(), self._folder(run_id))
+        rows = [list(COVERAGE_FIELDS)]
+        for record in coverage:
+            expected, included = _count(record.get('expected_episode_count')), _count(record.get('included_episode_count', 0)) or 0
+            error = record.get('error') if isinstance(record.get('error'), dict) else {}
+            values = (record.get('case_id'), record.get('status'), expected, _count(record.get('raw_episode_count')), included,
+                      None if expected is None else expected - included, record.get('failed_phase'), error.get('type'), error.get('message'))
+            rows.append(['' if value is None else str(value) for value in values])
+        return rows, _download_name((run_id,), 'coverage')

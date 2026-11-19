@@ -378,3 +378,116 @@ def test_replay_endpoint_validates_queries(client):
         assert client(base + query)[0].status == 400, query
     assert client('/api/compare/replay?run=nested%2Fbatch&case=missing&a=astar&b=dijkstra&seed=0')[0].status == 404
     assert client('/api/compare/replay?run=missing&case=batch&a=astar&b=dijkstra&seed=0')[0].status == 404
+
+
+def _csv_rows(text):
+    from io import StringIO
+    return list(csv.reader(StringIO(text, newline='')))
+
+
+def test_episode_export_is_the_saved_file_limited_to_the_table_filter(saved, client, monkeypatch):
+    monkeypatch.setattr(AStarPlanner, 'plan', lambda *args, **kwargs: pytest.fail('export must not plan'))
+    for target in ('raceplan.simulator.run_episode', 'raceplan.experiment.run_episode'):
+        monkeypatch.setattr(target, lambda *args, **kwargs: pytest.fail('export must not simulate'))
+    explorer = Explorer(saved)
+    for run_id, case_id, path in (('nested/batch', 'batch', saved / 'nested/batch/analysis/episodes.csv'),
+                                  ('suite', 'demo', saved / 'suite/cases/demo/analysis/episodes.csv'),
+                                  ('suite', 'open', saved / 'suite/cases/open/analysis/episodes.csv')):
+        header, *body = _csv_rows(path.read_text(encoding='utf-8-sig'))
+        column = header.index('failure_class')
+        for name, keep in (('all', lambda o: True), ('fail', lambda o: o != 'reached'), ('ok', lambda o: o == 'reached')):
+            rows, _ = explorer.export_episodes(run_id, case_id, name)
+            assert rows == [header, *(row for row in body if keep(row[column]))]  # Saved header, cell text and order.
+    failures = explorer.export_episodes('nested/batch', 'batch', 'fail')[0]
+    assert [row[failures[0].index('failure_class')] for row in failures[1:]] == ['planning_error', 'planning_error']
+
+    response, body = client('/api/export/episodes.csv?run=nested%2Fbatch&case=batch&filter=fail')
+    assert response.status == 200 and response.getheader('Content-Type') == 'text/csv; charset=utf-8'
+    assert body.startswith(b'\xef\xbb\xbf') and body.count(b'\n') == body.count(b'\r\n')
+    assert _csv_rows(body.decode('utf-8-sig')) == failures
+    assert response.getheader('Content-Disposition') == (
+        "attachment; filename=\"episodes.csv\"; filename*=UTF-8''nested-batch-batch-episodes-fail.csv")
+    assert response.getheader('X-RacePlan-CSV-Formula-Risk') is None
+    base = '/api/export/episodes.csv?run=nested%2Fbatch'
+    assert client(base + '&case=batch&filter=bogus')[0].status == 400
+    assert client(base + '&case=batch&filter=')[0].status == 400
+    assert client(base + '&case=missing')[0].status == 404
+    assert client('/api/export/episodes.csv?run=missing&case=batch')[0].status == 404
+    for query in ('&case=batch&filter=ok&filter=fail', '&case=', '', '&case=batch&case=batch'):
+        assert client(base + query)[0].status == 400, query  # Exports never guess between repeated or blank keys.
+    assert client('/api/export/coverage.csv?run=nested%2Fbatch&case=batch')[0].status == 400
+    assert client('/api/export/coverage.csv?run=')[0].status == 400
+
+
+def test_coverage_export_keeps_failed_cases_and_unknown_counts(saved, tmp_path):
+    import shutil
+    header = ['case_id', 'status', 'expected_episode_count', 'raw_episode_count', 'included_episode_count',
+              'missing_episode_count', 'failed_phase', 'error_type', 'error_message']
+    assert Explorer(saved).export_coverage('nested/batch')[0] == [header, ['batch', 'complete', '6', '6', '6', '0', '', '', '']]
+
+    root = tmp_path / 'root'
+    shutil.copytree(saved / 'suite', root / 'suite')
+    shutil.copytree(saved / 'nested/batch', root / 'failed')
+    shutil.copytree(saved / 'nested/batch', root / 'blank')
+    blank = root / 'blank/analysis/episodes.csv'
+    lines = blank.read_bytes().split(b'\r\n') if b'\r\n' in blank.read_bytes() else blank.read_bytes().split(b'\n')
+    blank.write_bytes(b'\r\n'.join([lines[0], b'', *lines[1:]]))  # Blank records pass validation, as csv.DictReader skips them.
+    state_path = root / 'suite/suite.json'
+    state = json.loads(state_path.read_text(encoding='utf-8'))
+    message = 'boom, "quoted"\nsecond line'
+    state['cases']['open'].update(status='failed', raw_episode_count=None, included_episode_count=0,
+                                  failed_phase='execution_or_collection', error={'type': 'RuntimeError', 'message': message})
+    state_path.write_text(json.dumps(state), encoding='utf-8')
+    workflow_path = root / 'failed/workflow.json'
+    workflow_state = json.loads(workflow_path.read_text(encoding='utf-8'))
+    workflow_state.update(status='failed', failed_phase='analysis', error={'type': 'ValueError', 'message': '=cmd|x'})
+    workflow_path.write_text(json.dumps(workflow_state), encoding='utf-8')
+
+    explorer = Explorer(root)
+    assert explorer.export_episodes('blank', 'batch', 'fail')[0] == Explorer(saved).export_episodes('nested/batch', 'batch', 'fail')[0]
+    header_row, *rows = explorer.export_coverage('suite')[0]
+    assert header_row == header
+    saved_demo = next(row for row in csv.DictReader((saved / 'suite/coverage.csv').open(newline='', encoding='utf-8')) if row['case_id'] == 'demo')
+    demo, failed = (dict(zip(header, row)) for row in rows)
+    for field in ('status', 'expected_episode_count', 'raw_episode_count', 'included_episode_count', 'missing_episode_count'):
+        assert demo[field] == saved_demo[field]
+    expected = str(state['cases']['open']['expected_episode_count'])
+    assert [failed[field] for field in header] == ['open', 'failed', expected, '', '0', expected,
+                                                   'execution_or_collection', 'RuntimeError', message]
+    # An unfinished workflow still reports its expected episodes from the manifest (3 planners x 2 seeds).
+    assert explorer.export_coverage('failed')[0][1] == ['batch', 'failed', '6', '', '0', '6', 'analysis', 'ValueError', '=cmd|x']
+    with pytest.raises(UnknownItem):
+        explorer.export_episodes('failed', 'batch')
+
+    server = make_server(root)
+    thread = Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        def get(path):
+            connection = http.client.HTTPConnection('127.0.0.1', server.server_address[1], timeout=30)
+            connection.request('GET', path)
+            response = connection.getresponse()
+            return response, response.read()
+        response, body = get('/api/export/coverage.csv?run=suite')
+        assert response.status == 200 and _csv_rows(body.decode('utf-8-sig'))[2][-1] == message  # Quotes and newline survive.
+        response, body = get('/api/export/coverage.csv?run=failed')
+        assert response.getheader('X-RacePlan-CSV-Formula-Risk') == '1'  # Flagged for the page, but kept as saved.
+        assert _csv_rows(body.decode('utf-8-sig'))[1][-1] == '=cmd|x'
+        # Another case's validated bytes in this case's place are refused, not served under this case's name.
+        assert get('/api/export/episodes.csv?run=suite&case=demo')[0].status == 200  # Validated and cached first.
+        (root / 'suite/cases/demo/analysis/episodes.csv').write_bytes((saved / 'suite/cases/open/analysis/episodes.csv').read_bytes())
+        response, body = get('/api/export/episodes.csv?run=suite&case=demo')
+        assert response.status == 422 and 'changed after it was validated' in json.loads(body)['error']
+    finally:
+        server.shutdown()
+        server.server_close()
+
+
+def test_formula_risk_ignores_numbers_and_download_names_drop_path_characters():
+    from raceplan.gui.data import _download_name, _formula_risk
+    assert not _formula_risk([['planner', 'delta'], ['astar', '-0.5'], ['b', '+3e-2'], ['c', ''], ['d', '-.5'], ['e', '1e5']])
+    for cell in ('=1+1', '@SUM(A1)', ' -x', '\t=cmd', '+A1', '+INF', '\ufeff=x', '\u3000@x'):
+        assert _formula_risk([['ok', cell]]), repr(cell)
+    assert _formula_risk([['=header'], ['1']])  # Header cells are checked too.
+    assert _download_name(('나의 실행/batch:1', 'case'), 'episodes-fail') == '나의 실행-batch-1-case-episodes-fail.csv'
+    assert _download_name(('x' * 300,), 'coverage').endswith('x-coverage.csv')  # Long ids never cut the suffix.

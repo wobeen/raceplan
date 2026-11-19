@@ -1,7 +1,7 @@
 # GUI 계획: RacePlan Explorer
 
 브랜치 `feature/gui-explorer`(1단계), `feature/gui-compare`(2단계). 상태: **1단계(결과 탐색) 완료, 2단계는 비교 탭의
-Paired Δ·산점도·나란히 재생과 화면 상태 URL 저장·복원까지 완료**, CSV 내보내기는 미구현.
+Paired Δ·산점도·나란히 재생, 화면 상태 URL 저장·복원, 에피소드·coverage CSV 내보내기까지 완료**.
 목업은 `docs/gui/mockup.html`(샘플 데이터, 브라우저에서 열기). 목업의 차트 옵션·터미널·코드 패널·
 실험 셋 생성·타일 재배치는 뒤 단계 기능이며 실제 앱에는 아직 없다.
 
@@ -103,4 +103,15 @@ URL 저장·복원(완료): 화면 상태를 주소에 담아 새로고침·링�
 맞지 않는 값은 기본값으로 대체하고(없는 run·case는 다른 결과로 대체하지 않음) 상단 "링크 설정 N개를 적용하지 못했습니다" 알약과
 상세 목록으로 알린다. 기존 `?run=` 링크는 그대로 동작한다. 설계안의 "결과 코드 목록" 대신 표·비교 결과 필터는 화면 선택지 그대로 저장한다.
 
-남은 일(4단계): 에피소드·coverage CSV 내보내기, 같은 좌표 점에서 seed 선택, 탐색 표 필터와 차트 선택 연동 보완.
+CSV 내보내기(완료): 서버가 저장 파일에서 만든다(`GET /api/export/episodes.csv?run&case&filter=all|fail|ok`,
+`GET /api/export/coverage.csv?run`). 에피소드는 저장 `analysis/episodes.csv`의 헤더·셀 문자열·행 순서 그대로이며, 탐색 표 필터와 같은
+조건으로 일치하는 행 전부를 담는다(화면 정렬과 무관, 빈 레코드는 report처럼 건너뜀). 로드 때 case별로 파일 경로와 sha256을 고정하고,
+경로가 다른 곳을 가리키거나 바이트가 바뀌면 422다. coverage는 내보낼 때마다 `_load`로 다시 검증해(report와 같은 경로) run의 모든 case
+(미완료 포함)를 suite `coverage.csv` 열 이름(`case_id, status, expected_episode_count, raw_episode_count, included_episode_count,
+missing_episode_count, failed_phase, error_type, error_message`)으로, 값은 report의 Case coverage 표와 같게 쓴다. 모르는 수는 빈 칸이다.
+필수 키(`run`, 에피소드는 `case`)가 없거나 비었거나 반복되면 400이고, coverage에 `case`·`filter`를 주면 400이다.
+UTF-8 BOM + CRLF, 파일명은 `filename*`(UTF-8). 공백·제어문자·BOM 뒤에 `=, +, -, @`로 시작하는 값(십진·지수 숫자 제외, 헤더 포함)이 있으면
+값은 원본 그대로 두고 `X-RacePlan-CSV-Formula-Risk: 1`을 보내 화면이 저장 전에 확인받는다. 버튼은 에피소드 카드 제목줄과 coverage 알약 안에
+있고 run·case 전환 중에는 꺼진다. 내려받기는 주소·history를 바꾸지 않는다.
+
+남은 일(4단계): 같은 좌표 점에서 seed 선택, 탐색 표 필터와 차트 선택 연동 보완.

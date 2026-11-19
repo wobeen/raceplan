@@ -1,5 +1,17 @@
 # 작업 인계 — 2026-11-19
 
+## GUI 2단계 (4): 에피소드·coverage CSV 내보내기 (브랜치 feature/gui-compare)
+
+`GET /api/export/episodes.csv`(현재 case, 탐색 표 필터와 같은 조건의 모든 행, 저장 헤더·값·순서 그대로)와 `GET /api/export/coverage.csv`
+(run의 모든 case, 미완료 포함)를 추가했다. 계약은 `docs/GUI_PLAN.md`. 설계 gpt-6.2-sol, 구현 Claude, 검증 gpt-6.2-astra.
+Astra P1(해시를 run 전체에서 경로로 찾아, case A 경로가 B 파일을 가리키면 B 행이 A 이름으로 나갈 수 있음)은 case별 경로·해시 고정과
+경로 변경 거부로, P2 5건(coverage 캐시 낡음, 필수/중복 쿼리, 전환 중 버튼, `+INF`·BOM 뒤 수식, 빈 레코드·중복 헤더)과 P3 3건(전역 클릭
+캡처, 긴 파일명의 접미사 잘림, 테스트 빈틈)을 고쳤다. 테스트 전체 **136 passed**(기존 133 + 내보내기 3).
+브라우저(omp)에서 내려받은 파일을 저장 원본과 대조했다: workflow_step2 실패만(6행)·suite_step3 open 도달만이 저장 파일의 해당 행과 동일,
+suite coverage가 저장 `coverage.csv`의 수·상태와 동일, BOM·CRLF, 한글 run 파일명, 수식 경고 취소 시 저장 안 됨·확인 시 저장, run·case
+전환 중 버튼 비활성, 내려받기 후 history 변화 없음. 헤드리스 Edge 1280×720 스크롤 없음. 미검증: case 파일을 심볼릭 링크로 바꾸는 경우
+(Windows 권한 문제로 테스트는 다른 case 바이트로 덮어쓰기로 대신), Excel에서 실제로 여는 동작, 수정 후 Astra 재검토.
+
 ## GUI 2단계 (3): 화면 상태 URL 저장·복원 (브랜치 feature/gui-compare)
 
 run·case·seed·Inspector planner·탐색/비교·패널·표 필터/정렬·트랙 표시·비교 지표/X축/결과/planner·seed 필터·재생 A/B/속도·시각을
