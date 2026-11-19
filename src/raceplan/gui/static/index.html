@@ -121,6 +121,19 @@ select.fl{appearance:none;-webkit-appearance:none;font:inherit;font-size:.92em;c
 .lw{font:inherit;cursor:pointer;color:#a95d06;background:rgba(232,131,12,.12);border:1px solid rgba(232,131,12,.35);border-radius:2em;padding:.35em 1em;white-space:nowrap}.lw:focus-visible{outline:.18em solid rgba(0,122,255,.45)}
 .lwd{position:absolute;right:.8em;top:3.8em;max-width:46%;z-index:60;background:rgba(255,255,255,.96);border:1px solid rgba(232,131,12,.45);color:#7a4304;box-shadow:0 1em 3em rgba(40,52,90,.2);border-radius:1em;padding:.7em 1.1em;white-space:pre-wrap;word-break:break-word;cursor:pointer}
 .lw[hidden],.lwd[hidden]{display:none}
+.jp{font:inherit;cursor:pointer;border-radius:2em;padding:.35em 1em;white-space:nowrap;border:1px solid rgba(0,122,255,.3);background:rgba(0,122,255,.1);color:var(--acc)}.jp.ok{border-color:rgba(52,199,89,.35);background:rgba(52,199,89,.12);color:var(--teal)}.jp.bad{border-color:rgba(255,59,48,.35);background:rgba(255,59,48,.1);color:var(--red)}.jp[hidden]{display:none}.jp:focus-visible{outline:.18em solid rgba(0,122,255,.45)}
+.dlgbg{position:absolute;inset:0;z-index:70;background:rgba(28,28,30,.18);display:grid;place-items:center}.dlgbg[hidden]{display:none}
+.dlg{width:min(46em,90%);max-height:90%;overflow:auto;background:rgba(255,255,255,.98);border-radius:1.2em;box-shadow:0 1.5em 4em rgba(40,52,90,.3);padding:1em 1.2em;display:flex;flex-direction:column;gap:.6em}
+.dlg h3{margin:0;font-size:1.15em;display:flex;align-items:center;gap:.6em}.dlg code{font-family:"SF Mono",Consolas,monospace;font-size:.92em}
+.dlg .f{display:flex;flex-direction:column;gap:.25em;font-size:.92em;color:var(--mut);min-width:0}.dlg .row{display:flex;gap:.9em;flex-wrap:wrap;align-items:flex-start}.dlg .row>.f{flex:1}
+.dlg select,.dlg input[type=text],.dlg textarea{font:inherit;color:var(--ink);border:1px solid rgba(60,60,67,.22);border-radius:.6em;padding:.3em .55em;background:#fff}
+.dlg textarea{font-family:"SF Mono",Consolas,monospace;font-size:.9em;resize:vertical}.dlg .ck{display:inline-flex;align-items:center;gap:.45em;color:var(--ink);font-size:.95em;margin-right:.6em}
+.dlg .warnbox{background:rgba(255,59,48,.07);border:1px solid rgba(255,59,48,.3);color:#b4231a;border-radius:.8em;padding:.5em .7em;font-size:.9em;line-height:1.5;display:flex;flex-direction:column;gap:.35em}.dlg .warnbox[hidden]{display:none}
+.dlg .err{color:var(--red);font-size:.9em;white-space:pre-wrap}.dlg .err:empty{display:none}.dlg .meta{color:var(--mut);font-size:.9em;word-break:break-all}
+.dlg .btns{display:flex;gap:.6em;align-items:center}.dlg .btns .sp{flex:1;font-size:.82em;color:var(--mut);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.btn{font:inherit;border:0;border-radius:2em;padding:.35em 1.1em;cursor:pointer;font-weight:600;background:rgba(118,118,128,.14);color:var(--ink);white-space:nowrap}.btn.pri{background:var(--acc);color:#fff}.btn:disabled{opacity:.45;cursor:default}.btn:focus-visible{outline:.18em solid rgba(0,122,255,.45);outline-offset:.1em}
+.joblog{font-family:"SF Mono",Consolas,monospace;font-size:.8em;background:#1c1c1e;color:#e5e5ea;border-radius:.7em;padding:.6em .8em;height:13em;overflow:auto;white-space:pre-wrap;word-break:break-all;margin:0;flex:none}
+.phases{display:flex;gap:.5em;flex-wrap:wrap}.ph{font-size:.85em;border-radius:2em;padding:.1em .75em;background:rgba(118,118,128,.12);color:var(--mut)}.ph.running{background:rgba(0,122,255,.14);color:var(--acc)}.ph.complete{background:rgba(52,199,89,.16);color:var(--teal)}.ph.failed{background:rgba(255,59,48,.13);color:var(--red)}
 </style></head><body>
 <div class="wrap"><div class="app" id="app">
  <div class="top">
@@ -128,13 +141,15 @@ select.fl{appearance:none;-webkit-appearance:none;font:inherit;font-size:.92em;c
   <div class="crumb"><span>실행</span><b id="runName">—</b><span>›</span><select class="pill" id="caseSel" title="지도 / case"></select><select class="pill" id="seedSel" title="seed"></select></div>
   <div class="tabs" id="tabs"><button data-v="explore" class="on">탐색</button><button data-v="cmp">비교</button></div>
   <div class="sp"></div>
+  <button class="jp" id="jobPill" hidden></button>
   <button class="lw" id="lw" hidden></button>
   <div class="cov" id="cov"></div>
  </div>
  <div class="msg" id="msg"></div>
  <div class="lwd" id="lwd" hidden title="눌러서 닫기"></div>
+ <div class="dlgbg" id="dlgbg" hidden><div class="dlg" id="dlg" role="dialog" aria-modal="true" aria-labelledby="dlgT"></div></div>
  <div class="rail">
-  <div class="card runs"><h3>저장된 실행 <em id="runCount"></em></h3><div class="cb"><div class="list" id="runs"></div></div></div>
+  <div class="card runs"><h3>저장된 실행 <em id="runCount"></em><button class="csvb" id="newRun" hidden>+ 새 실행</button></h3><div class="cb"><div class="list" id="runs"></div></div></div>
   <div class="card grid"><h3>Starting grid <em>선택 → Inspector</em></h3><div class="cb"><div class="list" id="grid"></div></div></div>
  </div>
  <div class="work">
@@ -566,7 +581,84 @@ $('lw').onclick=()=>{$('lwd').hidden=!$('lwd').hidden};
 $('lwd').onclick=()=>{S.lw=[];renderLinkWarn()};
 addEventListener('popstate',()=>{if(S.runs.length)restore().catch(err=>showMsg('주소의 화면을 복원하지 못했습니다.\n'+err.message))});
 
-(async()=>{try{const d=await api('/api/runs');S.runs=d.runs;renderRuns();
- if(!S.runs.length){showMsg('저장된 실행을 찾지 못했습니다.\n검색한 폴더: '+d.root);return}
+/* 새 비교 실행: 서버가 raceplan-workflow를 별도 프로세스로 돌린다(시간 제한·취소). 쓰기 요청은 세션 토큰을 붙인
+   JSON POST로만 보낸다. 진행·로그는 0.7초마다 읽고, 완료되면 목록을 다시 읽어 새 run을 연다. 실패·시간 초과·취소는 그대로 보인다 */
+/* 세션 토큰: raceplan-gui가 열거나 출력한 주소의 #token=…(서버로 전송되지 않는 조각)에서만 받는다. 이 출처의 localStorage에 두고
+   주소에서 지워 링크·기록에 남기지 않는다. 페이지 본문·API 응답에는 토큰이 없어, 페이지만 받아 가는 다른 프로그램은 실행을 시작할 수 없다 */
+const TOKEN=(()=>{const m=/(?:^|&)token=([A-Za-z0-9_-]+)/.exec(location.hash.slice(1));
+ if(m){try{localStorage.setItem('raceplan-token',m[1])}catch(err){}history.replaceState(null,'',location.pathname+location.search)}
+ try{return localStorage.getItem('raceplan-token')||(m?m[1]:'')}catch(err){return m?m[1]:''}})();
+const NO_TOKEN='이 탭에는 실행 권한이 없습니다. raceplan-gui가 열거나 출력한 주소(#token 포함)로 여세요.';
+const tokenHint=msg=>/session token/.test(msg)?'이 탭의 실행 권한이 이 서버와 맞지 않습니다(서버가 다시 시작되었을 수 있음). raceplan-gui가 출력한 주소로 다시 여세요.':msg;
+const JOB_LABEL={running:'실행 중',complete:'완료',failed:'실패',timeout:'시간 초과로 중지',cancelled:'취소됨'};
+const PHASE_LABEL={experiment:'계획·주행',analysis:'분석',report:'그림'},PHASE_STATE={pending:'대기',running:'진행 중',complete:'완료',failed:'실패'};
+Object.assign(S,{ro:null,job:null,jobTimer:null,dlgFrom:null,jobShown:null});
+async function post(path,body){const r=await fetch(path,{method:'POST',headers:{'Content-Type':'application/json','X-RacePlan-Token':TOKEN},body:JSON.stringify(body)});
+ const b=await r.json().catch(()=>({error:'응답을 읽지 못했습니다'}));if(!r.ok)throw new Error(b.error||('HTTP '+r.status));return b}
+async function loadRunOptions(){try{S.ro=await api('/api/run-options')}catch(err){S.ro={enabled:false,reason:err.message}}
+ const b=$('newRun');b.hidden=false;b.disabled=!S.ro.enabled||!TOKEN;b.title=!S.ro.enabled?'실행 기능 꺼짐: '+(S.ro.reason||''):!TOKEN?NO_TOKEN:'새 비교를 별도 프로세스로 실행합니다';
+ if(S.ro.current_job){S.job=S.ro.current_job;if(S.job.status==='running')pollJob()}renderJobPill()}
+function renderJobPill(){const j=S.job,p=$('jobPill');p.hidden=!j;if(!j)return;const ph=j.workflow&&j.workflow.current_phase;
+ p.className='jp'+(j.status==='complete'?' ok':j.status==='running'?'':' bad');
+ p.textContent=j.status==='running'?`실행 중 · ${PHASE_LABEL[ph]||'준비'} · ${Math.round(j.elapsed_s)} s`:`실행 ${JOB_LABEL[j.status]||j.status}`}
+function openDialog(mode){if(!$('dlgbg').hidden&&$('dlg').dataset.mode===mode)return;S.dlgFrom=S.dlgFrom||document.activeElement;$('dlgbg').hidden=false;if(mode==='form')renderForm();else{S.jobShown=null;renderJob(true)}}
+function closeDialog(){$('dlgbg').hidden=true;$('dlg').innerHTML='';$('dlg').dataset.mode='';S.jobShown=null;const f=S.dlgFrom;S.dlgFrom=null;if(f&&f.isConnected&&f.focus)f.focus()}
+$('newRun').onclick=()=>openDialog(S.job&&S.job.status==='running'?'job':'form');
+$('jobPill').onclick=()=>openDialog('job');
+$('dlgbg').onclick=e=>{if(e.target===$('dlgbg'))closeDialog()};
+/* 대화상자가 열려 있으면 Esc로 닫고, Tab 포커스는 대화상자 안에서만 돈다(포커스가 body로 빠져도) */
+document.addEventListener('keydown',e=>{if($('dlgbg').hidden)return;if(e.key==='Escape'){e.preventDefault();closeDialog();return}if(e.key!=='Tab')return;
+ const f=[...$('dlg').querySelectorAll('button,select,input,textarea,[tabindex="0"]')].filter(x=>!x.disabled&&x.offsetParent!==null);if(!f.length)return;const i=f.indexOf(document.activeElement);
+ if(e.shiftKey&&i<=0){e.preventDefault();f[f.length-1].focus()}else if(!e.shiftKey&&(i<0||i===f.length-1)){e.preventDefault();f[0].focus()}});
+function renderForm(){const ro=S.ro,sc=ro.scenarios||[],d=$('dlg');d.dataset.mode='form';
+ d.innerHTML=`<h3 id="dlgT">새 비교 실행</h3>${sc.length?'':'<div class="err">scenarios 폴더에 실행할 시나리오가 없습니다.</div>'}
+ <label class="f">시나리오<select id="rdScn">${sc.map(s=>`<option value="${esc(s.id)}">${esc(s.name)} — ${esc(s.id)}</option>`).join('')}</select></label>
+ <div class="f">내장 planner (1개 이상)<div>${ro.planners.map(p=>`<label class="ck"><input type="checkbox" class="rdP" value="${esc(p)}" ${p==='astar'?'checked':''}>${esc(p)}</label>`).join('')}</div></div>
+ <label class="f">사용자 플래너 — 한 줄에 하나, <span><code>FILE.py:CLASS</code> (상대 경로는 GUI 서버를 시작한 폴더 기준)</span><textarea id="rdCustom" rows="2" placeholder="examples/my_planner.py:MyPlanner" spellcheck="false"></textarea></label>
+ <div class="warnbox" id="rdWarn" hidden><b>사용자 플래너 파일의 파이썬 코드가 이 컴퓨터에서 그대로 실행됩니다.</b><span>GUI 서버와 다른 프로세스에서 시간 제한을 두고 돌지만, 파일·네트워크 접근은 막지 않습니다. 신뢰하는 파일만 실행하세요.</span><label class="ck"><input type="checkbox" id="rdTrust">이 파일들을 신뢰합니다</label></div>
+ <div class="row"><label class="f">seed (공백·쉼표로 구분)<input type="text" id="rdSeeds" value="${esc(sc[0]?sc[0].simulation_seed:0)}"></label>
+ <label class="f">기준 planner<select id="rdBase"><option value="">자동 (astar, 없으면 첫 내장 planner)</option>${ro.planners.map(p=>`<option value="${esc(p)}">${esc(p)}</option>`).join('')}</select></label></div>
+ <div class="err" id="rdErr" role="alert"></div>
+ <div class="btns"><span class="sp">별도 프로세스 · 시간 제한 ${esc(ro.timeout_s)} s · 결과는 ${esc(ro.output_folder)}/ 아래 새 폴더</span><button class="btn" id="rdClose">닫기</button><button class="btn pri" id="rdGo" ${sc.length?'':'disabled'}>실행</button></div>`;
+ $('rdScn').onchange=()=>{const s=sc.find(x=>x.id===$('rdScn').value);if(s&&!$('rdSeeds').dataset.touched)$('rdSeeds').value=s.simulation_seed};
+ $('rdSeeds').oninput=()=>{$('rdSeeds').dataset.touched='1'};
+ $('rdCustom').oninput=()=>{$('rdWarn').hidden=!$('rdCustom').value.trim()};
+ $('rdClose').onclick=closeDialog;$('rdGo').onclick=startJob;($('rdScn')||$('rdClose')).focus()}
+async function startJob(){const err=$('rdErr'),planners=[...document.querySelectorAll('.rdP:checked')].map(c=>c.value),custom=$('rdCustom').value.split('\n').map(s=>s.trim()).filter(Boolean),raw=$('rdSeeds').value.trim(),base=$('rdBase').value;
+ const seeds=raw?raw.split(/[\s,]+/).filter(Boolean).map(Number):[];
+ if(!planners.length){err.textContent='내장 planner를 하나 이상 고르세요. 분석 기준이 내장 planner여야 합니다.';return}
+ if(!seeds.length||seeds.some(s=>!Number.isSafeInteger(s)||s<0)){err.textContent='seed는 0 이상의 정수를 공백이나 쉼표로 구분해 적으세요.';return}
+ if(custom.length&&!$('rdTrust').checked){err.textContent='사용자 플래너를 실행하려면 "이 파일들을 신뢰합니다"를 체크하세요.';$('rdTrust').focus();return}
+ if(base&&!planners.includes(base)){err.textContent='기준 planner는 고른 내장 planner 중 하나여야 합니다.';return}
+ $('rdGo').disabled=true;err.textContent='';
+ try{S.job=await post('/api/jobs',{scenario:$('rdScn').value,planners,custom_planners:custom,seeds,baseline:base||null,...(custom.length?{trust_user_code:true}:{})});renderJobPill();S.jobShown=null;renderJob(true);pollJob()}
+ catch(e){err.textContent='실행을 시작하지 못했습니다: '+tokenHint(e.message);$('rdGo').disabled=false}}
+/* 작업 화면: 틀은 상태가 바뀔 때만 다시 만들고(버튼 포커스 유지), 진행·로그는 제자리에서 바꾼다 */
+function renderJob(force){const j=S.job,d=$('dlg');if($('dlgbg').hidden||(!force&&d.dataset.mode!=='job'))return;if(!j){closeDialog();return}
+ if(S.jobShown!==j.id+'|'+j.status){S.jobShown=j.id+'|'+j.status;d.dataset.mode='job';const tag=j.status==='complete'?'t-ok':j.status==='running'?'t-drv':'t-col';
+  d.innerHTML=`<h3 id="dlgT">비교 실행 <span class="tag ${tag}">${esc(JOB_LABEL[j.status]||j.status)}</span></h3><div class="meta" id="jbMeta"></div><div class="phases" id="jbPh"></div><div id="jbErr"></div>
+  <pre class="joblog" id="jobLog" tabindex="0" aria-label="실행 로그 (마지막 400줄)"></pre>
+  <div class="btns"><span class="sp">결과 폴더 ${esc(j.run_id)}</span>${j.status==='running'?'<button class="btn" id="jbCancel">실행 취소</button>':'<button class="btn" id="jbNew">새 실행</button>'}${j.status==='complete'?'<button class="btn pri" id="jbOpen">결과 열기</button>':''}<button class="btn" id="jbClose">닫기</button></div>`;
+  if($('jbCancel'))$('jbCancel').onclick=async()=>{$('jbCancel').disabled=true;try{await post(`/api/jobs/${j.id}/cancel`,{});pollJob()}catch(e){$('jbErr').textContent='취소하지 못했습니다: '+tokenHint(e.message);$('jbCancel').disabled=false}};  // 최종 상태는 polling이 가져온다
+  if($('jbNew'))$('jbNew').onclick=()=>{S.jobShown=null;renderForm()};
+  if($('jbOpen'))$('jbOpen').onclick=()=>{closeDialog();openRun(j.run_id)};
+  $('jbClose').onclick=closeDialog;($('jbCancel')||$('jbOpen')||$('jbClose')).focus()}
+ const wf=j.workflow,names=custom=>custom.map(c=>c.split(/[\\/]/).pop());
+ $('jbMeta').textContent=`${j.scenario} · ${[...j.planners,...names(j.custom_planners)].join(', ')} · seed ${j.seeds.join(' ')} · ${Math.round(j.elapsed_s)} / ${j.timeout_s} s`;
+ $('jbPh').innerHTML=['experiment','analysis','report'].map(n=>{const st=(wf&&wf.phases&&wf.phases[n])||'pending';return `<span class="ph ${esc(st)}">${PHASE_LABEL[n]} · ${esc(PHASE_STATE[st]||st)}</span>`}).join('');
+ const bad=j.status!=='running'&&j.status!=='complete';
+ $('jbErr').innerHTML=(bad?`<div class="warnbox"><b>${esc(JOB_LABEL[j.status]||j.status)}${j.status==='timeout'?` — 시간 제한 ${esc(j.timeout_s)} s를 넘어 프로세스를 멈췄습니다`:j.status==='cancelled'?' — 사용자가 멈췄습니다':` — 종료 코드 ${esc(j.exit_code)}`}</b>${wf&&wf.error?`<span>${esc(wf.failed_phase||'')}: ${esc(wf.error.type||'')} ${esc(wf.error.message||'')}</span>`:''}<span>부분 결과는 <code>${esc(j.run_id)}</code>에 남고 목록에는 실패로 보입니다.</span></div>`:'')+(j.pollError?`<div class="err">상태를 읽지 못했습니다: ${esc(j.pollError)}</div>`:'');
+ // 로그는 바뀌었을 때만, 그리고 사용자가 로그를 선택(복사)하는 중이 아닐 때만 바꾼다
+ const log=$('jobLog'),text=j.log.length?j.log.join('\n'):'(아직 출력 없음)',sel=getSelection(),selecting=sel&&!sel.isCollapsed&&log.contains(sel.anchorNode);
+ if(text!==log.textContent&&!selecting){const atEnd=log.scrollHeight-log.scrollTop-log.clientHeight<4;log.textContent=text;if(atEnd)log.scrollTop=log.scrollHeight}}
+function pollJob(){clearTimeout(S.jobTimer);const id=S.job&&S.job.id;if(!id)return;
+ S.jobTimer=setTimeout(async()=>{let j;try{j=await api('/api/jobs/'+id)}catch(e){if(S.job&&S.job.id===id){S.job={...S.job,pollError:e.message};renderJobPill();renderJob();pollJob()}return}
+  if(!S.job||S.job.id!==id)return;const was=S.job.status;S.job=j;renderJobPill();renderJob();
+  if(j.status==='running'){pollJob();return}if(was==='running')jobFinished(j)},700)}
+async function jobFinished(j){try{const d=await api('/api/runs');S.runs=d.runs;renderRuns()}catch(err){showMsg('결과 목록을 다시 읽지 못했습니다.\n'+err.message)}
+ if(j.status==='complete'&&S.runs.some(r=>r.id===j.run_id)){if(!$('dlgbg').hidden)closeDialog();await openRun(j.run_id)}}
+
+(async()=>{loadRunOptions();try{const d=await api('/api/runs');S.runs=d.runs;renderRuns();
+ if(!S.runs.length){showMsg('저장된 실행을 찾지 못했습니다.\n검색한 폴더: '+d.root+'\n[+ 새 실행]으로 비교를 실행할 수 있습니다(실행 기능이 켜져 있을 때).');return}
  await restore()}catch(err){showMsg('결과 목록을 읽지 못했습니다.\n'+err.message)}})();
 </script></body></html>

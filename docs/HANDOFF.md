@@ -1,5 +1,23 @@
 # 작업 인계 — 2026-11-19
 
+## GUI 3단계 (1): 실행 연결 (브랜치 feature/gui-run, main d9e87d3 기반)
+
+GUI에서 새 비교를 실행한다(`+ 새 실행` 대화상자 → 별도 프로세스 → 진행·로그·취소 → 완료 시 새 run 열기). 계약·보안은 `docs/GUI_PLAN.md`
+3단계 기록. 새 모듈 `raceplan/gui/jobs.py`(작업 실행), `raceplan/gui/workflow_runner.py`(workflow 상태 저장 재시도 래퍼).
+`raceplan-gui`에 `--scenarios`(기본 `scenarios`), `--no-run`, `--run-timeout`(기본 900 s)을 추가했고, 출력 주소에 `#token=…`이 붙는다.
+**GPT(openai-codex) 사용 한도**로 설계(sol)·검증(Astra)을 못 해 사용자 결정에 따라 설계는 Claude, 독립 검증은 Claude 보안 리뷰어·정확성
+리뷰어 에이전트가 맡았다. 둘 다 P1 없음. 보안 P2(같은 PC의 다른 계정·프로세스가 페이지에서 토큰을 얻어 실행 가능) → 토큰을 페이지에서 빼고
+주소 조각으로만 전달. 정확성 P2 3건(서버 종료 시 기록 누락, 기록 실패 시 작업이 영원히 실행 중, Windows 읽기와 상태 저장 충돌) → shutdown이
+기록까지 대기·상태 게시는 finally·`workflow_runner` 재시도 래퍼. 마지막 충돌은 테스트에서 실제로 재현됐다(모든 phase가 끝났는데
+workflow.json이 running으로 남고 종료 코드 1). P3(프로세스 트리 종료, `-P`, 줄 길이 제한, 끝난 작업 정리, 이상한 JSON 400, 정상 종료와 취소
+경합, reader join, 취소 응답 덮어쓰기, 로그 선택, Esc·Tab, 테스트 보강)도 반영했다.
+테스트 전체 **142 passed**(기존 137 + 실행 5: 보안 거부, 요청 검증, 실제 subprocess 실행, 단일·취소·시간 초과·종료 기록, 저장 재시도),
+실제 실행·취소 테스트는 5회 반복 모두 통과. 브라우저(omp, 임시 결과 폴더): 대화상자로 examples/my_planner.py 포함 실행→완료→새 run 열림,
+느린 플래너 취소→목록에 failed, 로그의 HTML이 글자로 표시, 토큰 없는 탭은 읽기 전용, 토큰 주소로 열면 실행 가능·주소에서 토큰 제거·새로고침
+후 유지, `--no-run` 비활성, Esc·알약 재열기. 헤드리스 Edge 1280×720 스크롤 없음.
+미검증: Linux·macOS(프로세스 그룹 kill·SIGHUP), 실제 다중 사용자 PC, 사용자 플래너가 띄운 손자 프로세스 정리(Windows taskkill /T 경로는
+코드만), Astra 독립 검증(한도 해제 후 받을 예정).
+
 ## GUI 2단계 (5): 겹친 점 seed 선택·표↔차트 선택 연동 (브랜치 feature/gui-compare) — 2단계 완료
 
 산점도는 원본 (x, y)가 같은 점을(planner 무관), Paired Δ는 같은 레인의 같은 Δ를 ×N 표식으로 묶고, 마우스·키보드로 seed를 고르는 목록을

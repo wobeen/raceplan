@@ -3,6 +3,7 @@ import http.client
 import json
 from pathlib import Path
 from threading import Thread
+from urllib.parse import quote
 
 import pytest
 import yaml
@@ -149,7 +150,7 @@ def test_server_serves_the_page_and_keeps_requests_local(client):
     assert client('/api/case?run=suite&id=..')[0].status == 404
     assert client('/static/index.html')[0].status == 404
     assert client('/', host='evil.example')[0].status == 403
-    assert client('/', method='POST')[0].status == 501
+    assert client('/', method='POST')[0].status == 404  # Only the job routes accept POST.
 
 
 def test_tampered_saved_results_return_a_readable_error(saved, tmp_path):
@@ -529,3 +530,208 @@ def test_formula_risk_ignores_numbers_and_download_names_drop_path_characters():
     assert _formula_risk([['=header'], ['1']])  # Header cells are checked too.
     assert _download_name(('나의 실행/batch:1', 'case'), 'episodes-fail') == '나의 실행-batch-1-case-episodes-fail.csv'
     assert _download_name(('x' * 300,), 'coverage').endswith('x-coverage.csv')  # Long ids never cut the suffix.
+
+
+SLOW_PLANNER = '''
+import time
+from raceplan.planners.base import Planner
+
+
+class SlowPlanner(Planner):
+    name = 'slow'
+
+    def plan(self, grid, start, goal, *, timeout_s=None):
+        time.sleep(120)
+'''
+
+
+class RunServer:
+    """A run-enabled server over an empty results folder, with helpers that act like the page."""
+
+    def __init__(self, root, timeout=120.0, scenarios=ROOT / 'scenarios'):
+        self.server = make_server(root, scenarios=scenarios, run_timeout=timeout)
+        self.port = self.server.server_address[1]
+        Thread(target=self.server.serve_forever, daemon=True).start()
+
+    def request(self, method, path, body=None, headers=None):
+        connection = http.client.HTTPConnection('127.0.0.1', self.port, timeout=30)
+        connection.request(method, path, body=body, headers={'Host': f'127.0.0.1:{self.port}', **(headers or {})})
+        response = connection.getresponse()
+        data = response.read()
+        connection.close()
+        return response.status, json.loads(data) if response.getheader('Content-Type', '').startswith('application/json') else data
+
+    def post(self, path, value, **override):
+        headers = {'Origin': f'http://127.0.0.1:{self.port}', 'X-RacePlan-Token': self.server.token,
+                   'Content-Type': 'application/json', **override}
+        return self.request('POST', path, json.dumps(value).encode(), {k: v for k, v in headers.items() if v is not None})
+
+    def wait(self, job_id, limit=120.0):
+        import time
+        deadline = time.monotonic() + limit
+        while time.monotonic() < deadline:
+            status, job = self.request('GET', f'/api/jobs/{job_id}')
+            assert status == 200
+            if job['status'] != 'running':
+                return job
+            time.sleep(0.2)
+        raise AssertionError(f'job still running after {limit} s')
+
+    def close(self):
+        if self.server.jobs:
+            self.server.jobs.shutdown()
+        self.server.shutdown()
+        self.server.server_close()
+
+
+@pytest.fixture
+def runner(tmp_path):
+    servers = []
+
+    def start(**options):
+        (tmp_path / 'results').mkdir(exist_ok=True)
+        servers.append(RunServer(tmp_path / 'results', **options))
+        return servers[-1]
+
+    yield start
+    for server in servers:
+        server.close()
+
+
+def test_write_requests_need_this_pages_origin_token_and_json(runner, saved):
+    from raceplan.gui.server import explorer_url
+    server = runner()
+    status, page = server.request('GET', '/')
+    assert status == 200 and server.server.token.encode() not in page  # Fetching the page never hands out the token.
+    assert explorer_url(server.server, 'my run') == f'http://127.0.0.1:{server.port}/?run=my%20run#token={server.server.token}'
+    status, options = server.request('GET', '/api/run-options')
+    assert options['enabled'] and server.server.token not in json.dumps(options)
+    ids = [item['id'] for item in options['scenarios']]
+    assert 'demo.yaml' in ids and not any(name.endswith('_map.yaml') for name in ids)  # Map files are not scenarios.
+    body = {'scenario': 'demo.yaml', 'planners': ['astar'], 'seeds': [0]}
+    other = f'http://127.0.0.1:{server.port + 1}'
+    for override, expected in (({'Origin': None}, 403), ({'Origin': 'http://evil.example'}, 403), ({'Origin': other}, 403),
+                               ({'X-RacePlan-Token': None}, 403), ({'X-RacePlan-Token': 'x' * 43}, 403),
+                               ({'Content-Type': 'text/plain'}, 415), ({'Host': 'evil.example'}, 403)):
+        assert server.post('/api/jobs', body, **override)[0] == expected, override  # A cross-site form can do none of these.
+    assert server.post('/api/jobs?x=1', body)[0] == 404
+    page_headers = {'Origin': f'http://127.0.0.1:{server.port}', 'X-RacePlan-Token': server.server.token, 'Content-Type': 'application/json'}
+    assert server.request('POST', '/api/jobs', b'{' * 20000, page_headers)[0] == 413
+    assert server.request('POST', '/api/jobs', b'{"scenario"', page_headers)[0] == 400
+    assert not (server.server.explorer.root / 'gui-runs').exists()  # Nothing started.
+
+    read_only = RunServer(saved, scenarios=None)
+    try:
+        status, options = read_only.request('GET', '/api/run-options')
+        assert status == 200 and options['enabled'] is False and options['reason']
+        assert read_only.post('/api/jobs', body)[0] == 403
+    finally:
+        read_only.close()
+
+
+def test_run_requests_are_checked_against_what_the_server_offers(runner, tmp_path):
+    server = runner()
+    good = {'scenario': 'demo.yaml', 'planners': ['astar'], 'seeds': [0]}
+    planner_file = tmp_path / 'slow.py'
+    planner_file.write_text(SLOW_PLANNER, encoding='utf-8')
+    for change in ({'scenario': '../scenarios/demo.yaml'}, {'scenario': str(ROOT / 'scenarios/demo.yaml')},
+                   {'scenario': 'corridor_width/gate_03_map.yaml'}, {'scenario': ['demo.yaml']}, {'planners': []},
+                   {'planners': ['astar', 'astar']}, {'planners': ['rm -rf']}, {'planners': [['astar']]}, {'seeds': []},
+                   {'seeds': [0, 0]}, {'seeds': [-1]}, {'seeds': [True]}, {'seeds': [2**31]}, {'seeds': ['1']}, {'seeds': [[1]]},
+                   {'baseline': 'dijkstra'}, {'baseline': ['astar']}, {'extra': 1},
+                   {'custom_planners': ['slow.py']}, {'custom_planners': [f'{tmp_path / "missing.py"}:Slow']},
+                   {'custom_planners': [f'{planner_file}:not-a-name']}, {'custom_planners': ['\\\\host\\share\\p.py:P'], 'trust_user_code': True},
+                   {'custom_planners': [f'{planner_file}:A', f'{planner_file}:A'], 'trust_user_code': True},
+                   {'custom_planners': [f'{planner_file}:SlowPlanner']}, {'custom_planners': [f'{planner_file}:SlowPlanner'], 'trust_user_code': 'yes'}):
+        status, reply = server.post('/api/jobs', {**good, **change})
+        assert status == 400 and reply['error'], change
+    assert server.post('/api/jobs', [1, 2])[0] == 400
+    assert not (server.server.explorer.root / 'gui-runs').exists()  # Rejected requests never create folders or processes.
+    assert server.request('GET', '/api/jobs/0123456789abcdef')[0] == 404
+    assert server.post('/api/jobs/0123456789abcdef/cancel', {})[0] == 404
+
+
+def test_started_comparison_runs_in_its_own_process_and_opens_as_a_saved_run(runner):
+    import os
+    server = runner()
+    status, job = server.post('/api/jobs', {'scenario': 'demo.yaml', 'planners': ['astar', 'dijkstra'], 'seeds': [0], 'baseline': 'astar'})
+    assert status == 202 and job['status'] == 'running' and job['run_id'].startswith('gui-runs/')
+    assert server.server.jobs.current.process.pid != os.getpid()
+    # The server's folder is not importable (-P); the runner is raceplan.workflow with patient state saves.
+    assert server.server.jobs.current.command[1:4] == ['-P', '-m', 'raceplan.gui.workflow_runner']
+    done = server.wait(job['id'])
+    assert done['status'] == 'complete' and done['exit_code'] == 0, done['log'][-20:]
+    assert done['workflow']['phases'] == {'experiment': 'complete', 'analysis': 'complete', 'report': 'complete'}
+    assert any(line.startswith('workflow=') for line in done['log'])
+    status, runs = server.request('GET', '/api/runs')
+    assert job['run_id'] in {run['id'] for run in runs['runs']}
+    status, run = server.request('GET', '/api/run?id=' + quote(job['run_id'], safe=''))
+    assert status == 200 and run['cases'][0]['planners'] == ['astar', 'dijkstra'] and run['cases'][0]['baseline'] == 'astar'
+    assert server.request('GET', '/api/run-options')[1]['current_job']['status'] == 'complete'
+
+
+def test_slow_comparisons_are_single_cancellable_and_time_limited(runner, tmp_path):
+    planner_file = tmp_path / 'slow.py'
+    planner_file.write_text(SLOW_PLANNER, encoding='utf-8')
+    body = {'scenario': 'demo.yaml', 'planners': ['astar'], 'custom_planners': [f'{planner_file}:SlowPlanner'], 'seeds': [0],
+            'trust_user_code': True}
+    server = runner()
+    status, job = server.post('/api/jobs', body)
+    assert status == 202
+    assert server.post('/api/jobs', body)[0] == 409  # One comparison at a time.
+    state_file = server.server.explorer.root / job['run_id'] / 'workflow.json'
+    started_driving(server, job['id'])
+    assert server.post(f'/api/jobs/{job["id"]}/cancel', {})[0] == 200
+    done = server.wait(job['id'], limit=30)
+    assert done['status'] == 'cancelled' and server.server.jobs.current.process.poll() is not None
+    state = json.loads(state_file.read_text(encoding='utf-8'))
+    assert state['status'] == 'failed' and state['error']['type'] == 'Cancelled' and state['phases']['experiment']['status'] == 'failed'
+
+    limited = runner(timeout=10.0)
+    status, job = limited.post('/api/jobs', body)
+    done = limited.wait(job['id'], limit=40)
+    assert done['status'] == 'timeout' and done['elapsed_s'] < 30 and limited.server.jobs.current.process.poll() is not None
+    state = json.loads((limited.server.explorer.root / done['run_id'] / 'workflow.json').read_text(encoding='utf-8'))
+    assert state['status'] == 'failed' and state['error']['type'] == 'Timeout' and state['failed_phase'] == 'experiment'
+    assert state['phases']['experiment']['status'] == 'failed'  # Killed mid-run: recorded as failed, never complete or running.
+    status, runs = limited.request('GET', '/api/runs')
+    assert {run['id']: run['status'] for run in runs['runs']}[done['run_id']] == 'failed'
+
+    status, job = server.post('/api/jobs', body)
+    started_driving(server, job['id'])
+    server.server.jobs.shutdown()  # Closing the explorer stops what it started and waits until the stop is recorded.
+    state = json.loads((server.server.explorer.root / job['run_id'] / 'workflow.json').read_text(encoding='utf-8'))
+    assert state['status'] == 'failed' and state['error']['type'] == 'Cancelled'
+    assert server.server.jobs.get(job['id'])['status'] == 'cancelled'
+
+
+def test_runner_retries_a_state_save_blocked_by_a_reader_but_not_forever(monkeypatch):
+    from raceplan.gui import workflow_runner
+    monkeypatch.setattr(workflow_runner, 'PAUSE_S', 0)
+    calls = []
+
+    def blocked_twice(path, state):
+        calls.append(state)
+        if len(calls) <= 2:
+            raise PermissionError('target is open in another process')  # What os.replace hits on Windows.
+    monkeypatch.setattr(workflow_runner, '_save_state', blocked_twice)
+    workflow_runner._patient_save_state('workflow.json', {'status': 'complete'})
+    assert len(calls) == 3
+
+    def always_blocked(path, state):
+        raise PermissionError('still open')
+    monkeypatch.setattr(workflow_runner, '_save_state', always_blocked)
+    with pytest.raises(PermissionError):
+        workflow_runner._patient_save_state('workflow.json', {'status': 'complete'})
+
+
+def started_driving(server, job_id, limit=30.0):
+    """Wait until the workflow has written its state and entered the experiment phase."""
+    import time
+    deadline = time.monotonic() + limit
+    while time.monotonic() < deadline:
+        job = server.request('GET', f'/api/jobs/{job_id}')[1]
+        if job['workflow'] and job['workflow']['current_phase'] == 'experiment':
+            return
+        time.sleep(0.2)
+    raise AssertionError('workflow never reached the experiment phase')

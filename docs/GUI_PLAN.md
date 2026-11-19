@@ -123,4 +123,22 @@ seed 선택 목록이 열리고(↑↓·Enter·Esc·닫기), 확정만 선택을
 표는 선택·필터·run·case가 바뀔 때만 선택 행으로 스크롤한다. 새 URL 키는 없다. 설계안의 Inspector 상태줄·버튼은 공간 때문에 넣지 않았다.
 목록은 Tab으로 벗어나거나 run·case 전환·재요청·복원 때 닫히고, 로딩 중에는 열기·확정을 막는다. 요약을 먼저 배치한 뒤 차트 영역을 잰다.
 
-다음: 3단계(실행 연결) — 위 "단계" 목록.
+## 3단계 진행 기록 (브랜치 feature/gui-run)
+
+3-1 실행 연결(완료): "저장된 실행" 카드의 `+ 새 실행` 대화상자에서 시나리오(서버가 `--scenarios` 폴더에서 찾은 시나리오 YAML),
+내장 planner(1개 이상), 사용자 플래너 `FILE.py:CLASS`(줄마다 하나, 상대 경로는 서버를 시작한 폴더 기준, 네트워크 공유 경로 불가), seed, 기준을 골라
+실행한다. 사용자 플래너가 있으면 "이 파일의 코드가 이 컴퓨터에서 실행됨" 경고와 신뢰 확인이 필요하고, API도 `trust_user_code: true`를 요구한다.
+실행은 GUI 서버가 아니라 `python -P -m raceplan.gui.workflow_runner` 별도 프로세스다. 이 모듈은 `raceplan.workflow.main`을 그대로 부르되
+Windows에서 서버가 workflow.json을 읽는 순간 상태 저장(`os.replace`)이 막히면 잠깐 재시도한다(workflow.py는 출처 해시 대상이라 바꾸지 않음).
+`-P`는 서버 작업 폴더의 같은 이름 모듈이 import되는 것을 막는다. 한 번에 하나, 시간 제한(`--run-timeout`, 기본 900 s)과 취소가 있고,
+멈출 때는 프로세스 트리 전체를 끈다(Windows `taskkill /T`, POSIX 프로세스 그룹). 결과는 `<root>/gui-runs/<시각>-<시나리오>`에 저장되어
+기존 탐색·비교 화면으로 열린다. 진행은 workflow.json phase, 로그는 stdout·stderr 끝 400줄(한 줄 2000자, 한 번 읽기 64 KiB 제한).
+완료되면 목록을 다시 읽고 새 run을 연다. 시간 초과·취소·서버 종료(SIGTERM·SIGHUP·SIGBREAK 포함)로 멈춘 실행은 서버가 그 폴더의
+workflow.json을 workflow 자체의 중단 기록과 같은 형식(status failed, error Timeout/Cancelled)으로 남긴 뒤 종료해, 목록·coverage에 실패로 보인다.
+보안: 읽기는 그대로 GET. 실행·취소는 POST만 받으며 Host 검사, Origin이 정확히 이 서버, 세션 토큰(`X-RacePlan-Token`), `application/json`,
+본문 16 KiB 이하가 모두 맞아야 한다. 토큰은 페이지·API 응답에 없고 `raceplan-gui`가 열거나 출력하는 주소의 `#token=…`(서버로 전송되지 않는
+조각)으로만 전달된다. 페이지는 그것을 이 출처의 localStorage에 두고 주소에서 지운다. 그래서 페이지만 받아 가는 다른 로컬 프로그램·계정은
+실행을 시작할 수 없고, 토큰 없이 연 탭은 읽기 전용이다. 시나리오·planner는 서버가 제시한 목록만 받는다. 실행 기능은 `--scenarios` 폴더가
+있을 때 켜지고 `--no-run`으로 끈다. GPT 사용 한도 때문에 설계는 Claude, 독립 검증은 Claude 보안·정확성 리뷰어 에이전트가 맡았다(Astra는 한도 해제 후).
+
+다음: 3-2 watch — 플래너 파일 변경 감지 시 자동 재실행, `raceplan-watch` CLI, 새 결과 자동 갱신.
