@@ -38,7 +38,7 @@ MVP 장난감이 아니라 `raceplan-report`와 같은 층위의 정식 기능�
 2. **비교 분석** — paired Δ 지표 strip plot(제외 쌍 수 표기), 지표 산점도, 두 planner
    같은 시간축 나란히 재생, 차트 점→표 행 연동, 필터 상태 URL 저장·CSV 내보내기.
 3. **실행 연결** — 사용자 플래너 선택, 비교 실행, 로그/진행, 파일 변경 감지 시 자동
-   재실행(watch), 새 결과 자동 갱신. CLI는 `raceplan watch FILE.py:CLASS` 병행.
+   재실행(watch), 새 결과 자동 갱신. CLI는 `raceplan-watch FILE.py:CLASS` 병행.
    사용자 코드는 별도 프로세스·timeout으로 격리, 임의 코드 실행 경고를 UI에 표시.
 4. **exe 배포** — PyInstaller 단일 폴더/exe, 설치 검증 문서.
 
@@ -141,4 +141,15 @@ workflow.json을 workflow 자체의 중단 기록과 같은 형식(status failed
 실행을 시작할 수 없고, 토큰 없이 연 탭은 읽기 전용이다. 시나리오·planner는 서버가 제시한 목록만 받는다. 실행 기능은 `--scenarios` 폴더가
 있을 때 켜지고 `--no-run`으로 끈다. GPT 사용 한도 때문에 설계는 Claude, 독립 검증은 Claude 보안·정확성 리뷰어 에이전트가 맡았다(Astra는 한도 해제 후).
 
-다음: 3-2 watch — 플래너 파일 변경 감지 시 자동 재실행, `raceplan-watch` CLI, 새 결과 자동 갱신.
+3-2 watch(완료): 실행 대화상자에서 사용자 플래너를 고르고 "저장할 때마다 자동으로 다시 실행"을 켜면 서버가 그 파일들을 1초마다 확인한다
+(크기·시각·inode가 바뀔 때만 sha256). **같은 새 내용이 두 번 연속 보일 때만** 변경으로 쳐서 쓰다 만 저장·에디터의 파일 교체 중 사라짐·되돌린
+저장은 실행하지 않는다. 변경되면 실행 중인 watch 실행을 취소해 workflow.json에 "stopped by watch: the planner file changed"로 남기고 새 실행을
+시작한다. 16 MiB 초과 파일, POSIX에서 다른 사용자 소유가 된 파일은 실행하지 않고 이유를 watch 줄에 보인다. watch는 하나뿐이고 watch 중에는
+단일 실행이 409, "watch 끄기" 뒤에는 새 실행이 시작되지 않는다. watch 스레드가 예기치 않게 죽으면 꺼짐과 원인을 보인다.
+API: POST `/api/watch`(실행 요청과 같은 본문·검사), POST `/api/watch/stop`, GET `/api/runs-version`(run id + 상태 파일 mtime 서명),
+run-options에 `watch` 상태, 작업에 `trigger`(start/change)·`watch_run`. 페이지는 run-options를 1.5초마다 읽어 서버의 현재 작업을 따라가고,
+완료되면 대화상자를 연 채로 새 결과를 연다. 목록은 3초마다 서명만 확인해 바뀌면 다시 읽고 새 run에 "새" 표시(열면 사라짐). 다른 창의
+CLI가 만든 결과도 나타난다. CLI `raceplan-watch FILE.py:CLASS... --scenario X.yaml [--planners] [--seeds] [--baseline] [--output-root results/raw]
+[--interval ≥0.2] [--timeout] [--once]`는 같은 Jobs를 쓰고(명령줄에 파일을 적는 것이 신뢰 확인), 실행마다 planner별 도달 수 또는 실패 이유와
+로그 끝을 출력한다. `--once`는 완료면 0, 실패 1, 중단 130. 결과 폴더 이름에 무작위 4자리를 붙여 탐색기와 CLI가 같은 초에 만들어도 겹치지 않는다.
+저장마다 폴더가 쌓이며 자동 정리는 하지 않는다(대화상자 안내).

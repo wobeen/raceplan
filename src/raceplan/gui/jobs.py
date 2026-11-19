@@ -11,6 +11,7 @@ from __future__ import annotations
 
 from collections import deque
 from datetime import datetime, timezone
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -34,6 +35,8 @@ MAX_SEEDS = 50
 SEED_LIMIT = 2**31 - 1
 FIELDS = {'scenario', 'planners', 'custom_planners', 'seeds', 'baseline', 'trust_user_code'}
 FINISH_WAIT_S = 15.0
+WATCH_INTERVAL_S = 1.0
+MAX_WATCH_BYTES = 16 * 1024 * 1024  # A planner file larger than this is not hashed every second or run.
 
 
 class JobError(ValueError):
@@ -46,6 +49,14 @@ class Busy(RuntimeError):
 
 def _now():
     return datetime.now(timezone.utc).isoformat()
+
+
+def _warn(message):
+    """Last-resort note on stderr for trouble in a background thread; never raises itself."""
+    try:
+        print(f'raceplan: {message}', file=sys.stderr, flush=True)
+    except Exception:
+        pass
 
 
 def _kill_tree(process):
@@ -95,16 +106,16 @@ def _custom_spec(text):
 
 
 class Job:
-    def __init__(self, job_id, spec, output, run_id, command, timeout_s):
+    def __init__(self, job_id, spec, output, run_id, command, timeout_s, trigger='start', watch_run=None):
         self.id, self.spec, self.output, self.run_id, self.command = job_id, spec, output, run_id, command
-        self.timeout_s = timeout_s
+        self.timeout_s, self.trigger, self.watch_run = timeout_s, trigger, watch_run
         self.status = 'running'
         self.exit_code = None
         self.created_at, self.finished_at = _now(), None
         self.started = time.monotonic()
         self.elapsed_s = None
         self.log = deque(maxlen=LOG_LINES)
-        self.cancel_requested = False
+        self.cancel_requested, self.stop_note = False, None
         self.process = self.reader = self.waiter = None
 
     def snapshot(self, lock):
@@ -123,21 +134,71 @@ class Job:
             workflow_state = None  # Not written yet, mid-write or damaged; the next poll reads it again.
         return {'id': self.id, 'status': status, 'exit_code': exit_code, 'created_at': self.created_at,
                 'finished_at': finished_at, 'elapsed_s': round(elapsed, 2), 'timeout_s': self.timeout_s,
-                'run_id': self.run_id, **self.spec, 'workflow': workflow_state, 'log': log}
+                'run_id': self.run_id, 'trigger': self.trigger, 'watch_run': self.watch_run, **self.spec,
+                'workflow': workflow_state, 'log': log}
+
+
+def _fingerprint(paths, cache):
+    """Content identity of the watched files, re-hashed only when size, time or inode changed. A None mark is a file
+    that is missing, unreadable or refused; the returned problem says why a present file is refused."""
+    marks, problem = [], None
+    for path in paths:
+        try:
+            info = path.stat()
+            if hasattr(os, 'getuid') and info.st_uid != os.getuid():
+                problem = f'{path.name} is owned by another user now; not run until it is yours again'
+                marks.append(None)
+                continue
+            if info.st_size > MAX_WATCH_BYTES:
+                problem = f'{path.name} is larger than {MAX_WATCH_BYTES // 2**20} MiB; not run'
+                marks.append(None)
+                continue
+            key = (info.st_size, info.st_mtime_ns, info.st_ino)
+            if path not in cache or cache[path][0] != key:
+                digest = hashlib.sha256()
+                with path.open('rb') as stream:
+                    for chunk in iter(lambda: stream.read(1 << 20), b''):
+                        digest.update(chunk)
+                cache[path] = (key, digest.hexdigest())
+            marks.append(cache[path][1])
+        except OSError:
+            marks.append(None)
+    return tuple(marks), problem
+
+
+class Watch:
+    """Re-run one comparison when a user planner file changes. A change counts once the file content has been the
+    same for two polls in a row, so a half-written save never starts a run; a running watch run is cancelled first."""
+
+    def __init__(self, spec, files, interval_s):
+        self.spec, self.files, self.interval_s = spec, files, interval_s
+        self.active, self.runs, self.missing, self.blocked, self.error = True, 0, False, None, None
+        self.started_at, self.last_change = _now(), None
+        self.stop_event = threading.Event()
+        self.cache = {}
+        self.thread = None
+
+    def snapshot(self):
+        return {'active': self.active, 'files': [str(path) for path in self.files], 'runs': self.runs,
+                'started_at': self.started_at, 'last_change': self.last_change, 'missing': self.missing,
+                'blocked': self.blocked, 'error': self.error, 'interval_s': self.interval_s, **self.spec}
 
 
 class Jobs:
-    def __init__(self, root, scenarios, timeout_s=900.0, cwd=None):
+    def __init__(self, root, scenarios, timeout_s=900.0, cwd=None, watch_interval_s=WATCH_INTERVAL_S, on_finish=None):
         self.root, self.scenarios = Path(root).resolve(), Path(scenarios).resolve()
         self.timeout_s, self.cwd = float(timeout_s), Path(cwd or Path.cwd()).resolve()
+        self.watch_interval_s, self.on_finish = float(watch_interval_s), on_finish
         self.lock = threading.Lock()
-        self.jobs, self.current = {}, None
+        self.jobs, self.current, self.watcher = {}, None, None
 
     def options(self):
         current = self.current.snapshot(self.lock) if self.current else None
+        with self.lock:
+            watch = self.watcher.snapshot() if self.watcher else None
         return {'enabled': True, 'reason': None, 'scenarios': list_scenarios(self.scenarios),
                 'planners': list(experiment.PLANNER_FACTORIES), 'timeout_s': self.timeout_s,
-                'output_folder': OUTPUT_FOLDER, 'current_job': current}
+                'output_folder': OUTPUT_FOLDER, 'current_job': current, 'watch': watch}
 
     def validate(self, body):
         """Check types before using values as set members or dict keys, so odd JSON is a 400 and never a crash."""
@@ -173,7 +234,8 @@ class Jobs:
     def _output(self, scenario):
         folder = self.root / OUTPUT_FOLDER
         folder.mkdir(exist_ok=True)
-        stem = datetime.now().strftime('%Y%m%d-%H%M%S') + '-' + Path(scenario).stem
+        # Seconds plus a random tag: raceplan-watch and the explorer may start runs in the same folder in the same second.
+        stem = f'{datetime.now():%Y%m%d-%H%M%S}-{Path(scenario).stem}-{secrets.token_hex(2)}'
         for index in range(1, 1000):
             output = folder / (stem if index == 1 else f'{stem}-{index}')
             if not output.exists():
@@ -183,6 +245,14 @@ class Jobs:
     def start(self, body):
         spec = self.validate(body)
         with self.lock:
+            if self.watcher is not None and self.watcher.active:
+                raise Busy('a watch is running; stop it to start a single comparison')
+        return self._launch(spec)
+
+    def _launch(self, spec, trigger='start', watch=None):
+        with self.lock:
+            if watch is not None and not watch.active:
+                raise Busy('the watch was stopped')  # "watch 끄기" pressed between the change and this launch.
             if self.current is not None and self.current.status == 'running':
                 raise Busy('another comparison is still running')
             output = self._output(spec['scenario'])
@@ -193,7 +263,10 @@ class Jobs:
                        '--simulation-seeds', *map(str, spec['seeds'])]
             if spec['baseline']:
                 command += ['--baseline', spec['baseline']]
-            job = Job(secrets.token_hex(8), spec, output, output.relative_to(self.root).as_posix(), command, self.timeout_s)
+            if watch is not None:
+                watch.runs += 1
+            job = Job(secrets.token_hex(8), spec, output, output.relative_to(self.root).as_posix(), command, self.timeout_s,
+                      trigger, watch.runs if watch is not None else None)
             flags = subprocess.CREATE_NEW_PROCESS_GROUP if os.name == 'nt' else 0
             job.process = subprocess.Popen(command, cwd=self.cwd, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
                                            stderr=subprocess.STDOUT, creationflags=flags, start_new_session=os.name != 'nt',
@@ -207,6 +280,78 @@ class Jobs:
         job.reader.start()
         job.waiter.start()
         return job.snapshot(self.lock)
+
+    def watch(self, body, on_event=None):
+        """Run now, then again whenever a user planner file changes, until stop_watch()."""
+        spec = self.validate(body)
+        if not spec['custom_planners']:
+            raise JobError('watch needs at least one user planner file to watch')
+        files = [Path(item.rpartition(':')[0]) for item in spec['custom_planners']]
+        with self.lock:
+            if self.watcher is not None and self.watcher.active:
+                raise Busy('a watch is already running')
+            if self.current is not None and self.current.status == 'running':
+                raise Busy('another comparison is still running')
+            watch = self.watcher = Watch(spec, files, self.watch_interval_s)
+        baseline = _fingerprint(files, watch.cache)[0]  # Before the first run, so a save during it still triggers a rerun.
+        try:
+            job = self._launch(spec, 'start', watch)
+        except Exception:
+            watch.active = False
+            raise
+        watch.thread = threading.Thread(target=self._watch_loop, args=(watch, baseline, on_event), daemon=True)
+        watch.thread.start()
+        return {'watch': watch.snapshot(), 'job': job}
+
+    def _watch_loop(self, watch, last, on_event):
+        try:
+            self._watch_changes(watch, last, on_event)
+        except Exception as exc:  # A dead watch must say so instead of showing "watching" forever.
+            with self.lock:
+                watch.error, watch.active = f'watch stopped: {type(exc).__name__}: {exc}', False
+            watch.stop_event.set()
+
+    def _watch_changes(self, watch, last, on_event):
+        pending = None
+        while not watch.stop_event.wait(watch.interval_s):
+            now, watch.blocked = _fingerprint(watch.files, watch.cache)
+            watch.missing = None in now
+            if now == last or watch.missing:
+                pending = None  # Unchanged, or mid-save / deleted / refused: wait for a readable, stable file.
+                continue
+            if now != pending:
+                pending = now  # Changed: confirm on the next poll that the content has settled.
+                continue
+            last, pending = now, None
+            watch.last_change = _now()
+            running = self.current if self.current is not None and self.current.status == 'running' else None
+            if running is not None:
+                # The old code's result is no longer what the user is looking at.
+                self.cancel(running.id, 'stopped by watch: the planner file changed')
+                running.waiter.join(timeout=FINISH_WAIT_S)
+            if watch.stop_event.is_set():
+                break
+            try:
+                job = self._launch(watch.spec, 'change', watch)
+                watch.error = None
+            except (OSError, JobError, Busy) as exc:
+                watch.error, job = str(exc), None
+            if on_event is not None:
+                try:
+                    on_event('change', job, running)
+                except Exception as exc:  # Reporting trouble (closed pipe, console encoding) must not stop watching.
+                    _warn(f'could not report a watch change: {exc!r}')
+
+    def stop_watch(self):
+        with self.lock:
+            watch = self.watcher
+            if watch is None or not watch.active:
+                return watch.snapshot() if watch else None
+            watch.active = False
+            watch.stop_event.set()
+        if watch.thread is not None and watch.thread is not threading.current_thread():
+            watch.thread.join(timeout=FINISH_WAIT_S)
+        return watch.snapshot()
 
     def _read(self, job):
         for raw in iter(lambda: job.process.stdout.readline(READ_LIMIT), b''):
@@ -235,6 +380,11 @@ class Jobs:
                 job.elapsed_s = time.monotonic() - job.started
                 job.finished_at = _now()
                 job.status = status
+        if self.on_finish is not None:
+            try:
+                self.on_finish(job.snapshot(self.lock))
+            except Exception as exc:  # A reporting callback must never keep a job from finishing, but must not vanish.
+                _warn(f'could not report job {job.id} ({job.status}): {exc!r}')
 
     @staticmethod
     def _record_stop(job, status):
@@ -249,8 +399,8 @@ class Jobs:
                 phase = state.get('current_phase')
                 if isinstance(state.get('phases'), dict) and isinstance(state['phases'].get(phase), dict):
                     state['phases'][phase]['status'] = 'failed'
-                message = (f'stopped by the explorer after the {job.timeout_s:g} s time limit' if status == 'timeout'
-                           else 'stopped by the user from the explorer')
+                message = (f'stopped after the {job.timeout_s:g} s time limit' if status == 'timeout'
+                           else job.stop_note or 'stopped by the user from the explorer')
                 state.update(status='failed', failed_phase=phase, finished_at_utc=_now(),
                              error={'type': 'Timeout' if status == 'timeout' else 'Cancelled', 'message': message,
                                     'exit_code': job.process.returncode, 'control_exception': True})
@@ -267,24 +417,26 @@ class Jobs:
             raise KeyError(job_id)
         return job.snapshot(self.lock)
 
-    def cancel(self, job_id):
+    def cancel(self, job_id, note=None):
         job = self.jobs.get(job_id)
         if job is None:
             raise KeyError(job_id)
         with self.lock:
             stop = job.status == 'running' and job.process.poll() is None
             if stop:
-                job.cancel_requested = True
+                job.cancel_requested, job.stop_note = True, note
         if stop:
             _kill_tree(job.process)
         return job.snapshot(self.lock)
 
     def shutdown(self):
-        """Stop running jobs and wait until their stop is recorded, so closing the explorer leaves no 'running' run."""
+        """Stop watching and stop running jobs, waiting until their stop is recorded, so closing the explorer leaves
+        no 'running' run behind."""
+        self.stop_watch()
         with self.lock:
             running = [job for job in self.jobs.values() if job.status == 'running']
             for job in running:
-                job.cancel_requested = True
+                job.cancel_requested, job.stop_note = True, 'stopped because the explorer or raceplan-watch was closed'
         for job in running:
             _kill_tree(job.process)
         for job in running:

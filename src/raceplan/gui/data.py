@@ -197,6 +197,17 @@ class Explorer:
         summaries = [_run_summary(self.root, folder) for folder in find_runs(self.root)]
         return sorted(summaries, key=lambda item: (-item['modified'], item['id']))
 
+    def runs_signature(self):
+        """Cheap change marker for the run list (run ids and state-file times), so the page can refresh only on change."""
+        digest = sha256()
+        for folder in find_runs(self.root):
+            try:
+                stamp = _state_file(folder).stat().st_mtime_ns
+            except (OSError, AttributeError):
+                stamp = 0
+            digest.update(f'{folder.relative_to(self.root).as_posix()}|{stamp}\n'.encode())
+        return digest.hexdigest()[:16]
+
     def _folder(self, run_id):
         for folder in find_runs(self.root):
             if folder.relative_to(self.root).as_posix() == run_id:

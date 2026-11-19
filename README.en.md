@@ -57,12 +57,26 @@ Coverage, denominators, and deterministic selection are documented in the
 ## Saved results explorer
 
 Browse saved results in your browser. With no argument it finds runs under
-`results/raw`; you can also open one folder directly. It never re-runs planning or
-driving and only accepts connections from this computer (127.0.0.1). Stop it with `Ctrl+C`.
+`results/raw`; you can also open one folder directly. Viewing saved results never re-runs
+planning or driving, and it only accepts connections from this computer (127.0.0.1).
+Stop it with `Ctrl+C`.
 
 ```powershell
 .\.venv\Scripts\raceplan-gui.exe results/raw/my_suite
 ```
+
+Opened from the address the command opens or prints (it carries `#token=…`), the
+`+ 새 실행` button runs a new comparison in a separate process (time limit, cancel; results go
+to a new folder under `gui-runs/`). With a planner file selected, watch re-runs it on every save.
+`--no-run` turns running off. The same from a terminal:
+
+```powershell
+.\.venv\Scripts\raceplan-watch.exe examples/my_planner.py:MyPlanner --scenario scenarios/demo.yaml
+```
+
+Every save writes a new result under `results/raw/gui-runs/` and prints reached counts per
+planner; an open explorer lists it within 3 s. `--once` runs once and reports completion in the
+exit code. Planner files run as code on this computer: only use files you trust.
 
 ## Multiple scenarios
 

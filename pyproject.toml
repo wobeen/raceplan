@@ -24,6 +24,7 @@ raceplan-workflow = "raceplan.workflow:main"
 raceplan-suite = "raceplan.suite:main"
 raceplan-report = "raceplan.report:main"
 raceplan-gui = "raceplan.gui.server:main"
+raceplan-watch = "raceplan.gui.watch:main"
 
 [project.optional-dependencies]
 dev = [

@@ -1,6 +1,6 @@
 """Serve the saved-results explorer on this computer only.
 
-Reading is GET only. Starting or cancelling a comparison is a POST that must come from this page: the Host and Origin
+Reading is GET only. Starting, cancelling or watching a comparison is a POST that must come from this page: the Host and Origin
 must be this server, the X-RacePlan-Token header must carry the session token, and the body must be a small JSON object.
 The token is never in the page or an API answer: it travels only in the #fragment of the address this command opens
 or prints (fragments are not sent to servers), so another program that merely fetches the page cannot start a run.
@@ -32,7 +32,7 @@ TOKEN_FRAGMENT = 'token'
 LOAD_ERRORS = (OSError, ValueError, KeyError, TypeError, AttributeError, csv.Error)
 MAX_BODY = 16 * 1024
 JOB_PATH = re.compile(r'/api/jobs/([0-9a-f]{16})')
-JOB_POST = re.compile(r'/api/jobs(?:/([0-9a-f]{16})/cancel)?')
+JOB_POST = re.compile(r'/api/(?:jobs(?:/([0-9a-f]{16})/cancel)?|(watch)(/stop)?)')
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -151,6 +151,8 @@ class Handler(BaseHTTPRequestHandler):
                 self._csv(*explorer.export_coverage(self._single(multi, 'run')), 'coverage.csv')
             elif url.path == '/api/run-options':
                 self._json(HTTPStatus.OK, self._run_options())
+            elif url.path == '/api/runs-version':
+                self._json(HTTPStatus.OK, {'version': explorer.runs_signature()})
             elif JOB_PATH.fullmatch(url.path):
                 if self.server.jobs is None:
                     raise UnknownItem('running comparisons is off')
@@ -196,6 +198,10 @@ class Handler(BaseHTTPRequestHandler):
             body = json.loads(self.rfile.read(length).decode('utf-8')) if length else {}
             if route[1]:
                 self._json(HTTPStatus.OK, jobs.cancel(route[1]))
+            elif route[2] and route[3]:
+                self._json(HTTPStatus.OK, {'watch': jobs.stop_watch()})
+            elif route[2]:
+                self._json(HTTPStatus.ACCEPTED, jobs.watch(body))
             else:
                 self._json(HTTPStatus.ACCEPTED, jobs.start(body))
         except (ValueError, UnicodeDecodeError, TypeError) as exc:  # JobError, malformed JSON, odd JSON types

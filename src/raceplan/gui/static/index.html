@@ -134,6 +134,8 @@ select.fl{appearance:none;-webkit-appearance:none;font:inherit;font-size:.92em;c
 .btn{font:inherit;border:0;border-radius:2em;padding:.35em 1.1em;cursor:pointer;font-weight:600;background:rgba(118,118,128,.14);color:var(--ink);white-space:nowrap}.btn.pri{background:var(--acc);color:#fff}.btn:disabled{opacity:.45;cursor:default}.btn:focus-visible{outline:.18em solid rgba(0,122,255,.45);outline-offset:.1em}
 .joblog{font-family:"SF Mono",Consolas,monospace;font-size:.8em;background:#1c1c1e;color:#e5e5ea;border-radius:.7em;padding:.6em .8em;height:13em;overflow:auto;white-space:pre-wrap;word-break:break-all;margin:0;flex:none}
 .phases{display:flex;gap:.5em;flex-wrap:wrap}.ph{font-size:.85em;border-radius:2em;padding:.1em .75em;background:rgba(118,118,128,.12);color:var(--mut)}.ph.running{background:rgba(0,122,255,.14);color:var(--acc)}.ph.complete{background:rgba(52,199,89,.16);color:var(--teal)}.ph.failed{background:rgba(255,59,48,.13);color:var(--red)}
+.fresh{display:inline-block;margin-left:.45em;font-size:.72em;font-weight:700;color:#fff;background:var(--acc);border-radius:1em;padding:0 .5em;vertical-align:.1em}
+.watchbar{display:flex;align-items:center;gap:.6em;background:rgba(0,122,255,.08);border:1px solid rgba(0,122,255,.25);border-radius:.8em;padding:.4em .7em;font-size:.9em}.watchbar span{flex:1;min-width:0;color:var(--mut);word-break:break-all}.watchbar.off{background:rgba(118,118,128,.08);border-color:rgba(118,118,128,.25)}
 </style></head><body>
 <div class="wrap"><div class="app" id="app">
  <div class="top">
@@ -193,14 +195,14 @@ function renderRuns(){$('runCount').textContent=S.runs.length+'개';
  $('runs').innerHTML=S.runs.map(r=>{const c={ok:0,col:0,to:0,pe:0};Object.entries(r.outcomes).forEach(([k,v])=>{if(k)c[group(k)]+=v});const n=r.episodes||1;
   const bar=r.episodes?`<div class="mini">${[['ok','teal'],['col','red'],['to','amb'],['pe','vio']].map(([k,v])=>`<i style="width:${c[k]/n*100}%;background:var(--${v})"></i>`).join('')}</div>`:'';
   const note=r.status==='complete'?`${r.episodes} ep · 도달 ${c.ok}`:esc(r.status);
-  return `<div class="setrow ${S.run&&S.run.id===r.id?'on':''}" data-id="${esc(r.id)}" title="${esc(r.id)}"><b>${esc(r.name)}</b>${r.id.includes('/')?`<small>${esc(r.id.slice(0,r.id.lastIndexOf('/')))}</small>`:''}<small>${r.kind==='suite'?'suite':'batch'} · ${note}</small>${bar}</div>`}).join('')}
+  return `<div class="setrow ${S.run&&S.run.id===r.id?'on':''}" data-id="${esc(r.id)}" title="${esc(r.id)}"><b>${esc(r.name)}${S.fresh.has(r.id)?'<span class="fresh" title="이 화면을 연 뒤 새로 생긴 결과">새</span>':''}</b>${r.id.includes('/')?`<small>${esc(r.id.slice(0,r.id.lastIndexOf('/')))}</small>`:''}<small>${r.kind==='suite'?'suite':'batch'} · ${note}</small>${bar}</div>`}).join('')}
 $('runs').onclick=e=>{const r=e.target.closest('.setrow');if(r)openRun(r.dataset.id)};
 
 /* want = {q, warn}: URL 복원 중에만 넘긴다. 사용자 조작 경로는 want 없이 호출되어 복원 상태를 끝내고, 대기 중인 시각을 지금 항목에 먼저 확정한다.
    S.loading 동안에는 주소를 쓰지 않아 "새 run + 이전 case" 같은 중간 상태가 history에 남지 않는다 */
 function beginLoad(token,want){stop();if(!want){S.restoring=0;S.pendingT=null;if(tTimer)writeUrl()}S.loading=token;S.cmp=null;S.ctoken++;closePicker(false);
  $('epCsv').disabled=true;if($('covCsv'))$('covCsv').disabled=true}  // 전환 중에는 이전 run·case를 내려받지 않는다
-async function openRun(id,want=null){const token=++S.token;beginLoad(token,want);showMsg('');
+async function openRun(id,want=null){const token=++S.token;beginLoad(token,want);showMsg('');if(S.fresh.delete(id))renderRuns();
  try{const run=want&&S.run&&S.run.id===id&&S.run.cases.length?S.run:await api('/api/run?id='+encodeURIComponent(id));if(token!==S.token)return;S.run=run;$('runName').textContent=run.name;renderRuns();renderCoverage();
   let cid=run.cases[0]?.id;
   if(want&&want.q.has('case')){const asked=want.q.getAll('case')[0],cov=run.coverage.find(c=>c.case_id===asked);
@@ -592,15 +594,16 @@ const NO_TOKEN='이 탭에는 실행 권한이 없습니다. raceplan-gui가 열
 const tokenHint=msg=>/session token/.test(msg)?'이 탭의 실행 권한이 이 서버와 맞지 않습니다(서버가 다시 시작되었을 수 있음). raceplan-gui가 출력한 주소로 다시 여세요.':msg;
 const JOB_LABEL={running:'실행 중',complete:'완료',failed:'실패',timeout:'시간 초과로 중지',cancelled:'취소됨'};
 const PHASE_LABEL={experiment:'계획·주행',analysis:'분석',report:'그림'},PHASE_STATE={pending:'대기',running:'진행 중',complete:'완료',failed:'실패'};
-Object.assign(S,{ro:null,job:null,jobTimer:null,dlgFrom:null,jobShown:null});
+Object.assign(S,{ro:null,job:null,jobTimer:null,dlgFrom:null,jobShown:null,watch:null,watchTimer:null,watchShown:null,runsVersion:null,fresh:new Set()});
 async function post(path,body){const r=await fetch(path,{method:'POST',headers:{'Content-Type':'application/json','X-RacePlan-Token':TOKEN},body:JSON.stringify(body)});
  const b=await r.json().catch(()=>({error:'응답을 읽지 못했습니다'}));if(!r.ok)throw new Error(b.error||('HTTP '+r.status));return b}
 async function loadRunOptions(){try{S.ro=await api('/api/run-options')}catch(err){S.ro={enabled:false,reason:err.message}}
  const b=$('newRun');b.hidden=false;b.disabled=!S.ro.enabled||!TOKEN;b.title=!S.ro.enabled?'실행 기능 꺼짐: '+(S.ro.reason||''):!TOKEN?NO_TOKEN:'새 비교를 별도 프로세스로 실행합니다';
- if(S.ro.current_job){S.job=S.ro.current_job;if(S.job.status==='running')pollJob()}renderJobPill()}
+ S.watch=S.ro.watch||null;if(S.ro.current_job){S.job=S.ro.current_job;if(S.job.status==='running')pollJob()}if(S.watch&&S.watch.active)pollWatch();renderJobPill()}
 function renderJobPill(){const j=S.job,p=$('jobPill');p.hidden=!j;if(!j)return;const ph=j.workflow&&j.workflow.current_phase;
  p.className='jp'+(j.status==='complete'?' ok':j.status==='running'?'':' bad');
- p.textContent=j.status==='running'?`실행 중 · ${PHASE_LABEL[ph]||'준비'} · ${Math.round(j.elapsed_s)} s`:`실행 ${JOB_LABEL[j.status]||j.status}`}
+ const w=S.watch&&S.watch.active?`watch ${S.watch.runs}회 · `:'';
+ p.textContent=w+(j.status==='running'?`실행 중 · ${PHASE_LABEL[ph]||'준비'} · ${Math.round(j.elapsed_s)} s`:`실행 ${JOB_LABEL[j.status]||j.status}`)}
 function openDialog(mode){if(!$('dlgbg').hidden&&$('dlg').dataset.mode===mode)return;S.dlgFrom=S.dlgFrom||document.activeElement;$('dlgbg').hidden=false;if(mode==='form')renderForm();else{S.jobShown=null;renderJob(true)}}
 function closeDialog(){$('dlgbg').hidden=true;$('dlg').innerHTML='';$('dlg').dataset.mode='';S.jobShown=null;const f=S.dlgFrom;S.dlgFrom=null;if(f&&f.isConnected&&f.focus)f.focus()}
 $('newRun').onclick=()=>openDialog(S.job&&S.job.status==='running'?'job':'form');
@@ -615,7 +618,8 @@ function renderForm(){const ro=S.ro,sc=ro.scenarios||[],d=$('dlg');d.dataset.mod
  <label class="f">시나리오<select id="rdScn">${sc.map(s=>`<option value="${esc(s.id)}">${esc(s.name)} — ${esc(s.id)}</option>`).join('')}</select></label>
  <div class="f">내장 planner (1개 이상)<div>${ro.planners.map(p=>`<label class="ck"><input type="checkbox" class="rdP" value="${esc(p)}" ${p==='astar'?'checked':''}>${esc(p)}</label>`).join('')}</div></div>
  <label class="f">사용자 플래너 — 한 줄에 하나, <span><code>FILE.py:CLASS</code> (상대 경로는 GUI 서버를 시작한 폴더 기준)</span><textarea id="rdCustom" rows="2" placeholder="examples/my_planner.py:MyPlanner" spellcheck="false"></textarea></label>
- <div class="warnbox" id="rdWarn" hidden><b>사용자 플래너 파일의 파이썬 코드가 이 컴퓨터에서 그대로 실행됩니다.</b><span>GUI 서버와 다른 프로세스에서 시간 제한을 두고 돌지만, 파일·네트워크 접근은 막지 않습니다. 신뢰하는 파일만 실행하세요.</span><label class="ck"><input type="checkbox" id="rdTrust">이 파일들을 신뢰합니다</label></div>
+ <div class="warnbox" id="rdWarn" hidden><b>사용자 플래너 파일의 파이썬 코드가 이 컴퓨터에서 그대로 실행됩니다.</b><span>GUI 서버와 다른 프로세스에서 시간 제한을 두고 돌지만, 파일·네트워크 접근은 막지 않습니다. 신뢰하는 파일만 실행하세요.</span><label class="ck"><input type="checkbox" id="rdTrust">이 파일들을 신뢰합니다</label>
+ <label class="ck"><input type="checkbox" id="rdWatch">파일을 저장할 때마다 자동으로 다시 실행 (watch) — 결과가 저장마다 새 폴더로 쌓이고, 실행 중에 저장하면 그 실행은 취소됩니다</label></div>
  <div class="row"><label class="f">seed (공백·쉼표로 구분)<input type="text" id="rdSeeds" value="${esc(sc[0]?sc[0].simulation_seed:0)}"></label>
  <label class="f">기준 planner<select id="rdBase"><option value="">자동 (astar, 없으면 첫 내장 planner)</option>${ro.planners.map(p=>`<option value="${esc(p)}">${esc(p)}</option>`).join('')}</select></label></div>
  <div class="err" id="rdErr" role="alert"></div>
@@ -631,18 +635,21 @@ async function startJob(){const err=$('rdErr'),planners=[...document.querySelect
  if(custom.length&&!$('rdTrust').checked){err.textContent='사용자 플래너를 실행하려면 "이 파일들을 신뢰합니다"를 체크하세요.';$('rdTrust').focus();return}
  if(base&&!planners.includes(base)){err.textContent='기준 planner는 고른 내장 planner 중 하나여야 합니다.';return}
  $('rdGo').disabled=true;err.textContent='';
- try{S.job=await post('/api/jobs',{scenario:$('rdScn').value,planners,custom_planners:custom,seeds,baseline:base||null,...(custom.length?{trust_user_code:true}:{})});renderJobPill();S.jobShown=null;renderJob(true);pollJob()}
+ const body={scenario:$('rdScn').value,planners,custom_planners:custom,seeds,baseline:base||null,...(custom.length?{trust_user_code:true}:{})},watching=custom.length>0&&$('rdWatch').checked;
+ try{if(watching){const r=await post('/api/watch',body);S.watch=r.watch;S.job=r.job;pollWatch()}else S.job=await post('/api/jobs',body);
+  renderJobPill();S.jobShown=null;renderJob(true);pollJob()}
  catch(e){err.textContent='실행을 시작하지 못했습니다: '+tokenHint(e.message);$('rdGo').disabled=false}}
 /* 작업 화면: 틀은 상태가 바뀔 때만 다시 만들고(버튼 포커스 유지), 진행·로그는 제자리에서 바꾼다 */
 function renderJob(force){const j=S.job,d=$('dlg');if($('dlgbg').hidden||(!force&&d.dataset.mode!=='job'))return;if(!j){closeDialog();return}
  if(S.jobShown!==j.id+'|'+j.status){S.jobShown=j.id+'|'+j.status;d.dataset.mode='job';const tag=j.status==='complete'?'t-ok':j.status==='running'?'t-drv':'t-col';
-  d.innerHTML=`<h3 id="dlgT">비교 실행 <span class="tag ${tag}">${esc(JOB_LABEL[j.status]||j.status)}</span></h3><div class="meta" id="jbMeta"></div><div class="phases" id="jbPh"></div><div id="jbErr"></div>
+  d.innerHTML=`<h3 id="dlgT">비교 실행 <span class="tag ${tag}">${esc(JOB_LABEL[j.status]||j.status)}</span>${j.watch_run?`<small style="color:var(--mut);font-weight:400">watch ${esc(j.watch_run)}번째 · ${j.trigger==='change'?'파일 변경':'시작'}</small>`:''}</h3><div id="jbWatch"></div><div class="meta" id="jbMeta"></div><div class="phases" id="jbPh"></div><div id="jbErr"></div>
   <pre class="joblog" id="jobLog" tabindex="0" aria-label="실행 로그 (마지막 400줄)"></pre>
   <div class="btns"><span class="sp">결과 폴더 ${esc(j.run_id)}</span>${j.status==='running'?'<button class="btn" id="jbCancel">실행 취소</button>':'<button class="btn" id="jbNew">새 실행</button>'}${j.status==='complete'?'<button class="btn pri" id="jbOpen">결과 열기</button>':''}<button class="btn" id="jbClose">닫기</button></div>`;
   if($('jbCancel'))$('jbCancel').onclick=async()=>{$('jbCancel').disabled=true;try{await post(`/api/jobs/${j.id}/cancel`,{});pollJob()}catch(e){$('jbErr').textContent='취소하지 못했습니다: '+tokenHint(e.message);$('jbCancel').disabled=false}};  // 최종 상태는 polling이 가져온다
   if($('jbNew'))$('jbNew').onclick=()=>{S.jobShown=null;renderForm()};
   if($('jbOpen'))$('jbOpen').onclick=()=>{closeDialog();openRun(j.run_id)};
-  $('jbClose').onclick=closeDialog;($('jbCancel')||$('jbOpen')||$('jbClose')).focus()}
+  $('jbClose').onclick=closeDialog;($('jbCancel')||$('jbOpen')||$('jbClose')).focus();S.watchShown=null}  // 틀을 새로 만들었으니 watch 줄도 새로
+ renderWatchBar();
  const wf=j.workflow,names=custom=>custom.map(c=>c.split(/[\\/]/).pop());
  $('jbMeta').textContent=`${j.scenario} · ${[...j.planners,...names(j.custom_planners)].join(', ')} · seed ${j.seeds.join(' ')} · ${Math.round(j.elapsed_s)} / ${j.timeout_s} s`;
  $('jbPh').innerHTML=['experiment','analysis','report'].map(n=>{const st=(wf&&wf.phases&&wf.phases[n])||'pending';return `<span class="ph ${esc(st)}">${PHASE_LABEL[n]} · ${esc(PHASE_STATE[st]||st)}</span>`}).join('');
@@ -656,9 +663,26 @@ function pollJob(){clearTimeout(S.jobTimer);const id=S.job&&S.job.id;if(!id)retu
   if(!S.job||S.job.id!==id)return;const was=S.job.status;S.job=j;renderJobPill();renderJob();
   if(j.status==='running'){pollJob();return}if(was==='running')jobFinished(j)},700)}
 async function jobFinished(j){try{const d=await api('/api/runs');S.runs=d.runs;renderRuns()}catch(err){showMsg('결과 목록을 다시 읽지 못했습니다.\n'+err.message)}
- if(j.status==='complete'&&S.runs.some(r=>r.id===j.run_id)){if(!$('dlgbg').hidden)closeDialog();await openRun(j.run_id)}}
+ if(j.status==='complete'&&S.runs.some(r=>r.id===j.run_id)){if(!$('dlgbg').hidden&&!(S.watch&&S.watch.active))closeDialog();await openRun(j.run_id)}}
+/* watch: 서버가 파일 변경마다 새 작업을 시작한다. 1.5초마다 상태를 읽어 새 작업이 생기면 그 작업을 따라가고, 끝나면 새 결과를 연다 */
+function pollWatch(){clearTimeout(S.watchTimer);if(!S.watch||!S.watch.active)return;
+ S.watchTimer=setTimeout(async()=>{let ro;try{ro=await api('/api/run-options')}catch(err){pollWatch();return}
+  S.watch=ro.watch||null;const cur=ro.current_job;
+  if(cur&&(!S.job||cur.id!==S.job.id)){S.job=cur;S.jobShown=null;renderJob();if(cur.status==='running')pollJob()}
+  renderJobPill();renderWatchBar();pollWatch()},1500)}
+function renderWatchBar(){const box=$('jbWatch');if(!box)return;const w=S.watch;
+ const key=w?JSON.stringify([w.active,w.runs,w.last_change,w.missing,w.blocked,w.error]):'';if(key===S.watchShown)return;S.watchShown=key;  // 버튼 포커스를 지키려고 바뀔 때만 다시 그린다
+ if(!w){box.innerHTML='';return}const t=w.last_change?new Date(w.last_change).toLocaleTimeString():'';
+ box.innerHTML=`<div class="watchbar ${w.active?'':'off'}"><b>${w.active?'watch 중':'watch 꺼짐'}</b><span>${esc(w.files.map(f=>f.split(/[\\/]/).pop()).join(', '))} · 실행 ${esc(w.runs)}회${t?' · 마지막 변경 '+esc(t):''}${w.blocked?' · 실행 안 함: '+esc(w.blocked):w.missing?' · 파일을 읽을 수 없음(저장 중이거나 삭제됨)':''}${w.error?' · '+esc(w.error):''}</span>${w.active?'<button class="btn" id="jbUnwatch">watch 끄기</button>':''}</div>`}
+$('dlg').addEventListener('click',async e=>{if(e.target.id!=='jbUnwatch')return;e.target.disabled=true;
+ try{const r=await post('/api/watch/stop',{});S.watch=r.watch;renderJobPill();renderWatchBar()}catch(err){e.target.disabled=false;$('jbErr').textContent='watch를 끄지 못했습니다: '+tokenHint(err.message)}});
+/* 새 결과 자동 갱신: 다른 창의 raceplan-watch나 CLI가 만든 결과도 3초 안에 목록에 나타난다(목록 서명이 바뀔 때만 다시 읽음) */
+async function refreshRuns(){if(!S.listReady)return;let v;try{v=(await api('/api/runs-version')).version}catch(err){return}if(v===S.runsVersion)return;
+ try{const d=await api('/api/runs'),before=new Set(S.runs.map(r=>r.id)),wasEmpty=!S.runs.length;S.runs=d.runs;S.runsVersion=v;  // 목록을 읽은 뒤에야 서명을 기억한다
+  d.runs.forEach(r=>{if(!before.has(r.id))S.fresh.add(r.id)});renderRuns();if(wasEmpty&&S.runs.length&&!S.run)showMsg('')}catch(err){}}
+setInterval(()=>{if(!document.hidden)refreshRuns()},3000);
 
-(async()=>{loadRunOptions();try{const d=await api('/api/runs');S.runs=d.runs;renderRuns();
+(async()=>{loadRunOptions();try{S.runsVersion=(await api('/api/runs-version')).version}catch(err){}try{const d=await api('/api/runs');S.runs=d.runs;renderRuns();S.listReady=true;  // 첫 목록 전에는 자동 갱신(새 표시)을 하지 않는다
  if(!S.runs.length){showMsg('저장된 실행을 찾지 못했습니다.\n검색한 폴더: '+d.root+'\n[+ 새 실행]으로 비교를 실행할 수 있습니다(실행 기능이 켜져 있을 때).');return}
  await restore()}catch(err){showMsg('결과 목록을 읽지 못했습니다.\n'+err.message)}})();
 </script></body></html>

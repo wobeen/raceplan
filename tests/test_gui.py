@@ -735,3 +735,119 @@ def started_driving(server, job_id, limit=30.0):
             return
         time.sleep(0.2)
     raise AssertionError('workflow never reached the experiment phase')
+
+
+TUNABLE_PLANNER = '''
+import time
+from raceplan.planners import AStarPlanner
+from raceplan.planners.base import Planner
+
+DELAY = {delay}
+
+
+class Tunable(Planner):
+    name = 'tunable'
+
+    def plan(self, grid, start, goal, *, timeout_s=None):
+        time.sleep(DELAY)
+        return AStarPlanner().plan(grid, start, goal, timeout_s=timeout_s)
+'''
+
+
+def test_watch_reruns_on_save_replacing_a_stale_run_until_stopped(runner, tmp_path):
+    import time
+    planner_file = tmp_path / 'tunable.py'
+    planner_file.write_text(TUNABLE_PLANNER.format(delay=120), encoding='utf-8')
+    body = {'scenario': 'demo.yaml', 'planners': ['astar'], 'custom_planners': [f'{planner_file}:Tunable'], 'seeds': [0],
+            'trust_user_code': True}
+    server = runner()
+    server.server.jobs.watch_interval_s = 0.2
+    assert server.post('/api/watch', {**body, 'custom_planners': []})[0] == 400  # Nothing to watch.
+    status, started = server.post('/api/watch', body)
+    assert status == 202 and started['watch']['active'] and started['job']['watch_run'] == 1
+    first = started['job']
+    assert server.post('/api/jobs', body)[0] == 409 and server.post('/api/watch', body)[0] == 409  # The watch owns the runner.
+    started_driving(server, first['id'])
+
+    planner_file.write_text(TUNABLE_PLANNER.format(delay=0), encoding='utf-8')  # Saving the fixed planner...
+    deadline = time.monotonic() + 30
+    while (current := server.request('GET', '/api/run-options')[1]['current_job'])['id'] == first['id']:
+        assert time.monotonic() < deadline, 'saving the planner did not start a new run'
+        time.sleep(0.2)
+    assert current['trigger'] == 'change' and current['watch_run'] == 2
+    stale = server.request('GET', f'/api/jobs/{first["id"]}')[1]
+    assert stale['status'] == 'cancelled' and stale['workflow']['status'] == 'failed'  # ...stops the old code's run, on record,
+    assert 'planner file changed' in stale['workflow']['error']['message']  # with the reason it was stopped.
+    done = server.wait(current['id'])
+    assert done['status'] == 'complete', done['log'][-20:]
+    status, run = server.request('GET', '/api/run?id=' + quote(done['run_id'], safe=''))
+    assert status == 200 and 'tunable' in run['cases'][0]['planners']
+
+    status, stopped = server.post('/api/watch/stop', {})
+    assert status == 200 and stopped['watch']['active'] is False and stopped['watch']['runs'] == 2
+    planner_file.write_text(TUNABLE_PLANNER.format(delay=1), encoding='utf-8')
+    time.sleep(1.5)
+    options = server.request('GET', '/api/run-options')[1]
+    assert options['current_job']['id'] == done['id'] and options['watch']['runs'] == 2  # Stopped means no more runs.
+    assert server.post('/api/watch/stop', {}, **{'X-RacePlan-Token': None})[0] == 403
+
+
+def test_watch_reruns_once_per_settled_new_content_and_reports_a_dead_watch(tmp_path, monkeypatch):
+    from raceplan.gui import jobs as jobs_module
+    jobs = jobs_module.Jobs(tmp_path, ROOT / 'scenarios')
+    launched = []
+    monkeypatch.setattr(jobs, '_launch', lambda spec, trigger, watch: launched.append(trigger) or {'watch_run': len(launched)})
+    watch = jobs_module.Watch({}, [tmp_path / 'p.py'], 0)
+    # Saved 'a' at start; half-written 'b'; missing while an editor swaps the file; 'c' settled; 'd' settled;
+    # 'c' briefly then back to 'd' (reverted); deleted and restored identical.
+    polls = iter(['b', None, 'c', 'c', 'c', 'd', 'd', 'c', 'd', None, 'd', 'd'])
+
+    def poll(paths, cache):
+        mark = next(polls, StopIteration)
+        if mark is StopIteration:
+            raise RuntimeError('disk went away')
+        return (mark,), None
+    monkeypatch.setattr(jobs_module, '_fingerprint', poll)
+    jobs._watch_loop(watch, ('a',), None)
+    assert launched == ['change', 'change']  # Once for c and once for d; never for b, a revert or a restored copy.
+    assert watch.active is False and 'disk went away' in watch.error  # A broken watch says so instead of "watching".
+
+    stopped = jobs_module.Watch({}, [], 0)
+    stopped.active = False
+    with pytest.raises(jobs_module.Busy):  # "watch 끄기" between a change and its launch starts nothing.
+        jobs_module.Jobs(tmp_path, ROOT / 'scenarios')._launch({}, 'change', stopped)
+
+
+def test_watch_refuses_oversized_planner_files(tmp_path, monkeypatch):
+    from raceplan.gui import jobs as jobs_module
+    planner_file = tmp_path / 'p.py'
+    planner_file.write_text('x = 1\n', encoding='utf-8')
+    cache = {}
+    marks, problem = jobs_module._fingerprint([planner_file], cache)
+    assert marks[0] and problem is None
+    monkeypatch.setattr(jobs_module, 'MAX_WATCH_BYTES', 4)
+    marks, problem = jobs_module._fingerprint([planner_file], cache)
+    assert marks == (None,) and 'larger than' in problem
+
+
+def test_watch_command_runs_once_and_reports_the_saved_outcome(tmp_path, capsys):
+    from raceplan.gui.data import Explorer
+    from raceplan.gui.watch import main
+    planner_file = tmp_path / 'tunable.py'
+    planner_file.write_text(TUNABLE_PLANNER.format(delay=0), encoding='utf-8')
+    root = tmp_path / 'results'
+    args = [f'{planner_file}:Tunable', '--scenario', str(ROOT / 'scenarios/demo.yaml'), '--output-root', str(root), '--once']
+    root.mkdir()
+    before = Explorer(root).runs_signature()
+    assert main(args) == 0
+    out = capsys.readouterr().out
+    assert 'run: complete' in out and 'tunable 1/1 reached' in out and 'astar 1/1 reached' in out, out
+    explorer = Explorer(root)
+    assert explorer.runs_signature() != before  # The explorer's list refresh sees the new run.
+    [saved_run] = explorer.runs()
+    assert saved_run['id'].startswith('gui-runs/') and saved_run['status'] == 'complete'
+
+    planner_file.write_text('raise RuntimeError("broken planner")\n', encoding='utf-8')
+    assert main(args) == 1
+    out = capsys.readouterr().out
+    assert 'run: failed' in out and 'broken planner' in out, out
