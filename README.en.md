@@ -78,6 +78,9 @@ Every save writes a new result under `results/raw/gui-runs/` and prints reached 
 planner; an open explorer lists it within 3 s. `--once` runs once and reports completion in the
 exit code. Planner files run as code on this computer: only use files you trust.
 
+Without Python, use the Windows `RacePlan.exe` package (zip); installing, running and building are in the
+[Windows exe guide](docs/WINDOWS_EXE.md) (Korean).
+
 ## Multiple scenarios
 
 The YAML applies common settings to sequential case workflows and writes combined

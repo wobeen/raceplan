@@ -348,7 +348,7 @@ function renderInspector(){if(!S.case){$('insp').innerHTML='';return}const e=ep(
  <div class="mt"><span></span><span class="h">값</span><span class="h">${isBase?'기준':esc(base?base+' 대비':'')}</span>
  ${row('RMSE',fmt(e.tracking_rmse_m)+' m',cell('delta_tracking_rmse_m','low',3))}${row('완료시간',fmt(e.completion_time_s,2)+' s',cell('delta_completion_time_s','low',2))}${row('최소 clearance',fmt(e.driving_min_sampled_clearance_m)+' m',cell('delta_driving_min_sampled_clearance_m','high',3))}${row('계획시간',fmt(e.runner_planning_time_ms??e.planning_time_ms,2)+' ms',dash)}</div>
  ${fail}<div class="il"><span>시계열</span><span>타임라인과 연동</span></div>${body}
- <div class="il"><span>Provenance</span><span style="color:var(--teal)">✔ 저장 입력 검증 통과</span></div>${cmd?`<div class="cmd" title="새 출력 폴더로 다시 실행하는 명령">${esc(cmd)}</div>`:''}`;sparkCursor()}
+ <div class="il"><span>Provenance</span><span style="color:var(--teal)">✔ 저장 입력 검증 통과</span></div>${cmd?`${S.ro&&S.ro.frozen?'<div class="il"><span>다시 실행</span><span>Python 설치판용 명령 · exe에는 없음</span></div>':''}<div class="cmd" title="새 출력 폴더로 다시 실행하는 명령">${esc(cmd)}</div>`:''}`;sparkCursor()}
 
 function renderAll(){if(S.cmp&&S.case)drawCompare();else renderCompare();document.querySelector('.scrubz').classList.toggle('off',!S.detail);renderGrid();renderLeaderboard();renderTable();renderInspector();renderLanes();if(!S.detail){$('trStatic').innerHTML='';drawDyn();$('trk').textContent=''}writeUrl()}
 
@@ -599,7 +599,8 @@ async function post(path,body){const r=await fetch(path,{method:'POST',headers:{
  const b=await r.json().catch(()=>({error:'응답을 읽지 못했습니다'}));if(!r.ok)throw new Error(b.error||('HTTP '+r.status));return b}
 async function loadRunOptions(){try{S.ro=await api('/api/run-options')}catch(err){S.ro={enabled:false,reason:err.message}}
  const b=$('newRun');b.hidden=false;b.disabled=!S.ro.enabled||!TOKEN;b.title=!S.ro.enabled?'실행 기능 꺼짐: '+(S.ro.reason||''):!TOKEN?NO_TOKEN:'새 비교를 별도 프로세스로 실행합니다';
- S.watch=S.ro.watch||null;if(S.ro.current_job){S.job=S.ro.current_job;if(S.job.status==='running')pollJob()}if(S.watch&&S.watch.active)pollWatch();renderJobPill()}
+ S.watch=S.ro.watch||null;if(S.ro.current_job){S.job=S.ro.current_job;if(S.job.status==='running')pollJob()}if(S.watch&&S.watch.active)pollWatch();renderJobPill();
+ if(S.ro.frozen&&S.case)renderInspector()}  // 결과가 먼저 그려졌으면 exe 안내를 넣어 다시 그린다
 function renderJobPill(){const j=S.job,p=$('jobPill');p.hidden=!j;if(!j)return;const ph=j.workflow&&j.workflow.current_phase;
  p.className='jp'+(j.status==='complete'?' ok':j.status==='running'?'':' bad');
  const w=S.watch&&S.watch.active?`watch ${S.watch.runs}회 · `:'';
@@ -654,7 +655,7 @@ function renderJob(force){const j=S.job,d=$('dlg');if($('dlgbg').hidden||(!force
  $('jbMeta').textContent=`${j.scenario} · ${[...j.planners,...names(j.custom_planners)].join(', ')} · seed ${j.seeds.join(' ')} · ${Math.round(j.elapsed_s)} / ${j.timeout_s} s`;
  $('jbPh').innerHTML=['experiment','analysis','report'].map(n=>{const st=(wf&&wf.phases&&wf.phases[n])||'pending';return `<span class="ph ${esc(st)}">${PHASE_LABEL[n]} · ${esc(PHASE_STATE[st]||st)}</span>`}).join('');
  const bad=j.status!=='running'&&j.status!=='complete';
- $('jbErr').innerHTML=(bad?`<div class="warnbox"><b>${esc(JOB_LABEL[j.status]||j.status)}${j.status==='timeout'?` — 시간 제한 ${esc(j.timeout_s)} s를 넘어 프로세스를 멈췄습니다`:j.status==='cancelled'?' — 사용자가 멈췄습니다':` — 종료 코드 ${esc(j.exit_code)}`}</b>${wf&&wf.error?`<span>${esc(wf.failed_phase||'')}: ${esc(wf.error.type||'')} ${esc(wf.error.message||'')}</span>`:''}${j.record?`<span>${esc(j.record)}</span>`:`<span>부분 결과는 <code>${esc(j.run_id)}</code>에 남고 목록에는 실패로 보입니다.</span>`}</div>`:'')+(j.pollError?`<div class="err">상태를 읽지 못했습니다: ${esc(j.pollError)}</div>`:'');
+ $('jbErr').innerHTML=(bad?`<div class="warnbox"><b>${esc(JOB_LABEL[j.status]||j.status)}${j.status==='timeout'?` — 시간 제한 ${esc(j.timeout_s)} s를 넘어 프로세스를 멈췄습니다`:j.status==='cancelled'?' — 사용자가 멈췄습니다':` — 종료 코드 ${esc(j.exit_code)}`}</b>${wf&&wf.error?`<span>${esc(wf.failed_phase||'')}: ${esc(wf.error.type||'')} ${esc(wf.error.message||'')}</span>`:''}${j.missing_module?`<span>모듈 <code>${esc(j.missing_module)}</code>이(가) ${S.ro&&S.ro.frozen?'RacePlan.exe에 들어 있지 않습니다. exe에는 RacePlan·NumPy·Pillow·PyYAML과 Python 표준 라이브러리만 있습니다. 이 모듈이 필요하면 Python에 RacePlan을 설치해 실행하세요.':'이 Python 환경에 설치돼 있지 않습니다. 설치한 뒤 다시 실행하세요.'}</span>`:''}${j.record?`<span>${esc(j.record)}</span>`:`<span>부분 결과는 <code>${esc(j.run_id)}</code>에 남고 목록에는 실패로 보입니다.</span>`}</div>`:'')+(j.pollError?`<div class="err">상태를 읽지 못했습니다: ${esc(j.pollError)}</div>`:'');
  // 로그는 바뀌었을 때만, 그리고 사용자가 로그를 선택(복사)하는 중이 아닐 때만 바꾼다
  const log=$('jobLog'),text=j.log.length?j.log.join('\n'):'(아직 출력 없음)',sel=getSelection(),selecting=sel&&!sel.isCollapsed&&log.contains(sel.anchorNode);
  if(text!==log.textContent&&!selecting){const atEnd=log.scrollHeight-log.scrollTop-log.clientHeight<4;log.textContent=text;if(atEnd)log.scrollTop=log.scrollHeight}}

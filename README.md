@@ -80,6 +80,9 @@ PNG의 집계는 전체 seed 기준이며 기본 첫 seed의 궤적을 표시합
 탐색기를 열어 두면 목록에 3초 안에 나타납니다. `--once`는 한 번만 실행하고 완료 여부를
 종료 코드로 돌려줍니다. 플래너 파일의 코드는 이 컴퓨터에서 그대로 실행되니 신뢰하는 파일만 쓰세요.
 
+Python 없이 쓰려면 Windows용 `RacePlan.exe` 배포판(zip)을 씁니다. 설치·실행·빌드는
+[Windows exe 안내](docs/WINDOWS_EXE.md)를 참고하세요.
+
 ## 여러 시나리오 일괄 실행
 
 YAML의 공통 설정으로 case별 workflow를 순차 실행하고 episodes/planning/paired 및

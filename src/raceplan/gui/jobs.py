@@ -16,6 +16,7 @@ import hashlib
 import json
 import os
 from pathlib import Path
+import re
 import secrets
 import signal
 import subprocess
@@ -25,6 +26,8 @@ import time
 
 from raceplan import experiment, workflow
 from raceplan.common import load_scenario
+from raceplan.gui.frozen import workflow_command, worker_folder
+from raceplan.gui.workflow_runner import START_SIGNAL
 
 OUTPUT_FOLDER = 'gui-runs'
 LOG_LINES = 400
@@ -69,8 +72,12 @@ def _taskkill():
     return os.path.join(buffer.value, 'taskkill.exe')
 
 
-def _kill_tree(process):
-    """Stop the workflow and anything a user planner started from it."""
+def _kill_tree(job):
+    """Stop the workflow and everything a user planner started from it. On Windows the job object holds them all,
+    even descendants whose parent already exited; elsewhere the process group does."""
+    if job.winjob is not None and job.winjob.terminate():
+        return
+    process = job.process  # No job object (POSIX), or it could not be used: stop the tree another way.
     if process.poll() is not None:
         return
     try:
@@ -83,6 +90,9 @@ def _kill_tree(process):
         pass
     if process.poll() is None:
         process.kill()
+
+
+MISSING_MODULE = re.compile(r"No module named '([^']+)'")
 
 
 def list_scenarios(folder):
@@ -127,7 +137,7 @@ class Job:
         self.elapsed_s = None
         self.log = deque(maxlen=LOG_LINES)
         self.cancel_requested, self.stop_note = False, None
-        self.process = self.reader = self.waiter = None
+        self.process = self.reader = self.waiter = self.winjob = None
 
     def snapshot(self, lock):
         with lock:
@@ -143,10 +153,13 @@ class Job:
                               'error': {'type': error.get('type'), 'message': error.get('message')} if error else None}
         except (OSError, ValueError, AttributeError):
             workflow_state = None  # Not written yet, mid-write or damaged; the next poll reads it again.
+        # Only a failed run's last import error is its cause; a planner may log optional imports that failed earlier.
+        missing = None if status in ('running', 'complete') else next(
+            (found[1] for line in reversed(log) if (found := MISSING_MODULE.search(line))), None)
         return {'id': self.id, 'status': status, 'exit_code': exit_code, 'created_at': self.created_at,
                 'finished_at': finished_at, 'elapsed_s': round(elapsed, 2), 'timeout_s': self.timeout_s,
                 'run_id': self.run_id, 'trigger': self.trigger, 'watch_run': self.watch_run, **self.spec,
-                'workflow': workflow_state, 'record': self.record, 'log': log}
+                'workflow': workflow_state, 'record': self.record, 'missing_module': missing, 'log': log}
 
 
 def _fingerprint(paths, cache):
@@ -244,7 +257,14 @@ class Jobs:
 
     def _output(self, scenario):
         folder = self.root / OUTPUT_FOLDER
-        folder.mkdir(exist_ok=True)
+        try:
+            folder.mkdir(exist_ok=True)
+            probe = folder / f'.write-check-{secrets.token_hex(4)}'
+            probe.mkdir()
+            probe.rmdir()
+        except OSError as exc:
+            raise OSError(f'cannot write new runs under {folder} ({exc.strerror or exc}); open the explorer on another '
+                          'results folder (RacePlan.exe FOLDER, raceplan-gui FOLDER) or give watch --output-root FOLDER') from exc
         # Seconds plus a random tag: raceplan-watch and the explorer may start runs in the same folder in the same second.
         stem = f'{datetime.now():%Y%m%d-%H%M%S}-{Path(scenario).stem}-{secrets.token_hex(2)}'
         for index in range(1, 1000):
@@ -267,20 +287,20 @@ class Jobs:
             if self.current is not None and self.current.status == 'running':
                 raise Busy('another comparison is still running')
             output = self._output(spec['scenario'])
-            # -P keeps the server's working folder off sys.path, so a stray yaml.py or numpy.py there is never imported.
-            command = [sys.executable, '-P', '-m', 'raceplan.gui.workflow_runner', str(self.scenarios / spec['scenario']),
-                       '--output-dir', str(output), '--planners', *spec['planners'],
-                       *(f'--custom-planner={item}' for item in spec['custom_planners']),
-                       '--simulation-seeds', *map(str, spec['seeds'])]
+            args = [str(self.scenarios / spec['scenario']), '--output-dir', str(output), '--planners', *spec['planners'],
+                    *(f'--custom-planner={item}' for item in spec['custom_planners']),
+                    '--simulation-seeds', *map(str, spec['seeds'])]
             if spec['baseline']:
-                command += ['--baseline', spec['baseline']]
+                args += ['--baseline', spec['baseline']]
+            command = workflow_command([*args, START_SIGNAL])
             if watch is not None:
                 watch.runs += 1
             job = Job(secrets.token_hex(8), spec, output, output.relative_to(self.root).as_posix(), command, self.timeout_s,
                       trigger, watch.runs if watch is not None else None)
             job.owner = watch
-            flags = subprocess.CREATE_NEW_PROCESS_GROUP if os.name == 'nt' else 0
-            job.process = subprocess.Popen(command, cwd=self.cwd, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
+            # No console of its own (output is piped), and Ctrl+C in the explorer's window is not delivered to it.
+            flags = subprocess.CREATE_NEW_PROCESS_GROUP | subprocess.CREATE_NO_WINDOW if os.name == 'nt' else 0
+            job.process = subprocess.Popen(command, cwd=worker_folder(self.cwd), stdin=subprocess.PIPE, stdout=subprocess.PIPE,
                                            stderr=subprocess.STDOUT, creationflags=flags, start_new_session=os.name != 'nt',
                                            env={**os.environ, 'PYTHONIOENCODING': 'utf-8', 'PYTHONUNBUFFERED': '1'})
             self.jobs[job.id], self.current = job, job
@@ -292,6 +312,8 @@ class Jobs:
             # Started under the lock: shutdown() then always finds a published job with threads it can join.
             job.reader.start()
             job.waiter.start()
+            # Last: only a registered job, which shutdown() will find and stop, is allowed to load a planner.
+            self._contain_and_start(job)
         return job.snapshot(self.lock)
 
     def watch(self, body, on_event=None):
@@ -387,9 +409,11 @@ class Jobs:
             job.process.wait(timeout=job.timeout_s)
         except subprocess.TimeoutExpired:
             timed_out = True
-            _kill_tree(job.process)
+            _kill_tree(job)
             job.process.wait()
         code = job.process.returncode
+        if job.winjob is not None:
+            job.winjob.close()  # Stops anything the planner left running, which would also keep the log pipe open.
         # A workflow that finished on its own is complete even if a cancel arrived at the same moment.
         status = 'complete' if code == 0 else 'cancelled' if job.cancel_requested else 'timeout' if timed_out else 'failed'
         try:
@@ -452,20 +476,52 @@ class Jobs:
             if stop:
                 job.cancel_requested, job.stop_note = True, note
         if stop:
-            _kill_tree(job.process)
+            _kill_tree(job)
         return job.snapshot(self.lock)
 
-    def shutdown(self):
+    @staticmethod
+    def _contain_and_start(job):
+        """On Windows put the worker in its own kill-on-close job object, then let it start (see workflow_runner).
+        If containment fails nothing is loaded: the worker is stopped and the job ends as failed with the reason."""
+        try:
+            if os.name == 'nt':
+                from raceplan.gui.winjob import KillOnCloseJob
+                job.winjob = KillOnCloseJob()
+                job.winjob.assign(job.process)
+        except OSError as exc:
+            job.record = f'not started: could not contain the comparison in a Windows job object ({exc})'
+            job.process.kill()
+            if job.winjob is not None:
+                job.winjob.close()
+                job.winjob = None
+            return
+        try:
+            job.process.stdin.write(b'start\n')
+            job.process.stdin.close()
+        except OSError:
+            pass  # The worker already ended; its exit code and log say why.
+
+    def shutdown(self, deadline_s=None):
         """Stop watching and stop running jobs, waiting until their stop is recorded, so closing the explorer leaves
-        no 'running' run behind. Nothing new starts once this begins."""
+        no 'running' run behind. Nothing new starts once this begins. Workers are stopped before anything is waited
+        for, and deadline_s bounds the whole wait (a closing console window gives only a few seconds); without it
+        each job gets FINISH_WAIT_S."""
+        end = None if deadline_s is None else time.monotonic() + deadline_s
+
+        def left():
+            return FINISH_WAIT_S if end is None else max(0.0, end - time.monotonic())
         with self.lock:
             self.closed = True
-        self.stop_watch()
-        with self.lock:
+            watch = self.watcher
+            if watch is not None and watch.active:
+                watch.active = False
+                watch.stop_event.set()
             running = [job for job in self.jobs.values() if job.status == 'running']
             for job in running:
                 job.cancel_requested, job.stop_note = True, 'stopped because the explorer or raceplan-watch was closed'
         for job in running:
-            _kill_tree(job.process)
+            _kill_tree(job)
         for job in running:
-            job.waiter.join(timeout=FINISH_WAIT_S)
+            job.waiter.join(timeout=left())
+        if watch is not None and watch.thread is not None and watch.thread is not threading.current_thread():
+            watch.thread.join(timeout=left())

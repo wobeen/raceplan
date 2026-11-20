@@ -1,5 +1,17 @@
 # 작업 인계 — 2026-11-20
 
+## GUI 4단계: Windows exe 배포 (브랜치 feature/gui-exe, main 566fadc 기반)
+
+`RacePlan.exe`(PyInstaller onedir, zip 27.2 MiB/풀면 62.8 MiB). 사용·검증은 `docs/WINDOWS_EXE.md`, 계약은 `docs/GUI_PLAN.md` 4단계.
+새 모듈 `raceplan/gui/{app,frozen,winjob,console}.py`, `packaging/windows/{RacePlan.spec,entry.py,build.py}`, `exe` extra.
+설계 GPT sol(채택 + Job Object·시작 신호를 개발 설치에도 적용, 결과 폴더 LOCALAPPDATA 근거에 OneDrive 잠금 추가).
+검증 GPT sol: P1 없음, P2 5(콘솔 닫기 마감 전에 watch 대기, 시작 신호가 작업 등록보다 먼저, 쓰기 불가 결과 폴더 안내 없음,
+라이선스 고지 불완전, 빌드 대상 미검사)·P3 5(Job 핸들 경합, 핸들러 해제, 누락 모듈 오판, 테스트 헬퍼, frozen 안내 표시) 반영.
+실측: 빌드 약 1분, 소스 54개 바이트 동일, 개발 설치와 exe의 source_sha256 54/54·2/2와 수치 동일, PATH=System32 흉내 환경에서
+watch --once 0/1+안내, 공백·한글 경로, exe GUI 실행·watch, 콘솔 창 닫기 0.1초 정리·Cancelled. 테스트 **157 passed**.
+함정: spec 옵션 `X utf8_mode=1`은 무시됨(`X utf8`이 맞음), BOM 없는 .ps1을 PowerShell 5.1이 CP949로 읽음.
+미확인: Windows Sandbox·새 VM, SmartScreen, Windows Terminal 탭 닫기, 읽기 전용 설치 폴더 실제 실행. 결정 필요: RacePlan `LICENSE` 파일.
+
 ## GUI 3단계 (2): watch (브랜치 feature/gui-run) — 3단계 완료
 
 플래너 파일을 저장할 때마다 같은 비교를 다시 실행한다. 대화상자의 watch 선택, `raceplan-watch` CLI(새 콘솔 스크립트, `raceplan/gui/watch.py`),

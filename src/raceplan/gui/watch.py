@@ -17,6 +17,8 @@ import time
 
 from raceplan import experiment
 from raceplan.common import load_scenario
+from raceplan.gui.console import CLOSE_DEADLINE_S, on_console_close
+from raceplan.gui.frozen import default_results, is_frozen
 from raceplan.gui.jobs import Busy, JobError, Jobs
 
 
@@ -50,19 +52,29 @@ def _reporter(root):
             if error:
                 line += f'\n  {error.get("type")}: {error.get("message")}'
             line += ''.join(f'\n  | {text}' for text in job['log'][-8:])
+            if job.get('missing_module'):
+                line += f'\n  {missing_module_hint(job["missing_module"])}'
         print(line, flush=True)
     return report
 
 
+def missing_module_hint(name):
+    if is_frozen():
+        return (f'module {name!r} is not part of this RacePlan.exe (it ships RacePlan, NumPy, Pillow, PyYAML and the '
+                'Python standard library); run your planner with a Python install of RacePlan that has it installed')
+    return f'module {name!r} is not installed in this Python environment; install it there and run again'
+
+
 def _parser():
-    parser = argparse.ArgumentParser(description=__doc__, allow_abbrev=False)
+    parser = argparse.ArgumentParser(prog='RacePlan.exe watch' if is_frozen() else None, description=__doc__, allow_abbrev=False)
     parser.add_argument('custom_planners', nargs='+', metavar='FILE.py:CLASS', help='your planner(s); their files are watched')
     parser.add_argument('--scenario', type=Path, required=True, help='scenario YAML to run')
     parser.add_argument('--planners', nargs='+', choices=tuple(experiment.PLANNER_FACTORIES), default=['astar'],
                         help='built-in planners to compare against (default: astar)')
     parser.add_argument('--seeds', nargs='+', type=int, help='simulation seeds (default: the scenario seed)')
     parser.add_argument('--baseline', help='analysis baseline among the built-in planners (default: astar or the first)')
-    parser.add_argument('--output-root', type=Path, default=Path('results/raw'), help='runs go to OUTPUT_ROOT/gui-runs')
+    parser.add_argument('--output-root', type=Path, default=default_results(),
+                        help='runs go to OUTPUT_ROOT/gui-runs (default: %(default)s)')
     parser.add_argument('--interval', type=float, default=1.0, help='seconds between file checks')
     parser.add_argument('--timeout', type=float, default=900.0, help='seconds before one run is stopped')
     parser.add_argument('--once', action='store_true', help='run once and exit (exit code 0 only if it completes)')
@@ -86,7 +98,10 @@ def main(argv=None):
         seeds = args.seeds if args.seeds is not None else [load_scenario(scenario).simulation_seed]
     except (OSError, ValueError) as exc:
         parser.error(str(exc))
-    args.output_root.mkdir(parents=True, exist_ok=True)
+    try:
+        args.output_root.mkdir(parents=True, exist_ok=True)
+    except OSError as exc:
+        parser.error(f'cannot use {args.output_root} for results: {exc}; choose another folder with --output-root')
     root = args.output_root.resolve()
     report = _reporter(root)
     jobs = Jobs(root, scenario.parent, args.timeout, watch_interval_s=args.interval, on_finish=report)
@@ -96,6 +111,7 @@ def main(argv=None):
     for name in ('SIGTERM', 'SIGHUP', 'SIGBREAK'):
         if hasattr(signal, name):
             signal.signal(getattr(signal, name), _stop_on_signal)
+    remove_close_handler = on_console_close(lambda: jobs.shutdown(deadline_s=CLOSE_DEADLINE_S))
     try:
         if args.once:
             job = jobs.jobs[jobs.start(body)['id']]
@@ -119,11 +135,15 @@ def main(argv=None):
         return 1
     except (JobError, Busy) as exc:
         parser.error(str(exc))
+    except OSError as exc:  # e.g. the results folder is read-only; the message says which folder and what to do.
+        print(f'raceplan-watch: {exc}', file=sys.stderr, flush=True)
+        return 1
     except KeyboardInterrupt:
         print('stopping...', file=sys.stderr, flush=True)
         return 130 if args.once else 0  # An interrupted --once run did not complete.
     finally:
         jobs.shutdown()
+        remove_close_handler()
     return 0
 
 

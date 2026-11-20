@@ -951,3 +951,171 @@ def test_watch_command_runs_once_and_reports_the_saved_outcome(tmp_path, capsys)
     assert main(args) == 1
     out = capsys.readouterr().out
     assert 'run: failed' in out and 'broken planner' in out, out
+
+
+def test_exe_commands_reach_their_programs_and_hide_the_worker(monkeypatch, capsys):
+    from raceplan.gui import app, server, watch, workflow_runner
+    calls = []
+    monkeypatch.setattr(server, 'main', lambda argv: calls.append(('gui', argv)) or 0)
+    monkeypatch.setattr(watch, 'main', lambda argv: calls.append(('watch', argv)) or 0)
+    monkeypatch.setattr(workflow_runner, 'main', lambda argv: calls.append(('worker', argv)) or 7)
+    worker_args = ['C:/시나리오 폴더/demo.yaml', '--output-dir', 'D:\\out put\\run']
+    assert app.main([]) == 0 and app.main(['gui', '--port', '0']) == 0 and app.main(['watch', 'p.py:P']) == 0
+    assert app.main(['--workflow-worker', *worker_args]) == 7  # The worker's exit code is the process exit code.
+    assert calls == [('gui', []), ('gui', ['--port', '0']), ('watch', ['p.py:P']), ('worker', worker_args)]
+    assert app.main(['--help']) == 0
+    usage = capsys.readouterr().out
+    assert 'watch' in usage and 'gui' in usage and 'workflow-worker' not in usage  # Internal, not part of the interface.
+
+
+def test_packaged_exe_uses_its_own_folder_and_a_fixed_results_folder(monkeypatch, tmp_path):
+    import sys
+    from raceplan.gui import frozen
+    exe = tmp_path / 'Program Files' / 'RacePlan' / 'RacePlan.exe'
+    args = ['C:/시나리오 폴더/demo.yaml', '--output-dir', 'D:\\out put']
+    monkeypatch.setattr(sys, 'frozen', False, raising=False)
+    assert frozen.workflow_command(args)[1:4] == ['-P', '-m', 'raceplan.gui.workflow_runner']
+    assert frozen.default_results() == Path('results/raw') and frozen.default_scenarios() == Path('scenarios')
+    monkeypatch.setattr(sys, 'frozen', True)
+    monkeypatch.setattr(sys, 'executable', str(exe))
+    monkeypatch.setattr(sys, '_MEIPASS', str(exe.parent / '_internal'), raising=False)
+    monkeypatch.setenv('LOCALAPPDATA', str(tmp_path / 'Local'))
+    assert frozen.workflow_command(args) == [str(exe), '--workflow-worker', *args]  # Arguments pass through unchanged.
+    assert frozen.worker_folder(Path('caller folder')) == exe.parent / '_internal'
+    assert frozen.default_scenarios() == exe.parent.resolve() / 'scenarios'  # Shipped next to the exe.
+    assert frozen.default_results() == tmp_path / 'Local' / 'RacePlan' / 'results' / 'raw'  # Never the exe folder.
+
+
+def test_runner_loads_nothing_unless_its_parent_signals_start(tmp_path):
+    import subprocess
+    import sys
+    output = tmp_path / 'out'
+    command = [sys.executable, '-P', '-m', 'raceplan.gui.workflow_runner', str(ROOT / 'scenarios/demo.yaml'),
+               '--output-dir', str(output), '--planners', 'astar', '--simulation-seeds', '0', '--after-start-signal']
+    done = subprocess.run(command, input=b'', capture_output=True, timeout=60, cwd=tmp_path)  # Parent gone: stdin closed.
+    assert done.returncode == 3 and b'not started' in done.stderr and not output.exists()
+
+
+SPAWNER_PLANNER = '''
+import subprocess
+import sys
+from pathlib import Path
+from raceplan.planners import AStarPlanner
+from raceplan.planners.base import Planner
+
+
+class Spawner(Planner):
+    name = 'spawner'
+
+    def plan(self, grid, start, goal, *, timeout_s=None):
+        # Leaves a process behind, then finishes normally.
+        child = subprocess.Popen([sys.executable, '-c', 'import time; time.sleep(120)'],
+                                 creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0))
+        Path({pid_file!r}).write_text(str(child.pid), encoding='utf-8')
+        return AStarPlanner().plan(grid, start, goal, timeout_s=timeout_s)
+'''
+
+
+def _alive(pid):
+    """True while the process runs; errors other than "no such process" fail the test instead of reading as ended."""
+    import ctypes
+    kernel32 = ctypes.WinDLL('kernel32', use_last_error=True)
+    handle = kernel32.OpenProcess(0x1000, False, pid)  # PROCESS_QUERY_LIMITED_INFORMATION
+    if not handle:
+        error = ctypes.get_last_error()
+        assert error == 87, f'cannot query process {pid}: Windows error {error}'  # ERROR_INVALID_PARAMETER: it is gone.
+        return False
+    code = ctypes.c_ulong()
+    try:
+        assert kernel32.GetExitCodeProcess(handle, ctypes.byref(code)), f'cannot read the state of process {pid}'
+        return code.value == 259  # STILL_ACTIVE
+    finally:
+        kernel32.CloseHandle(handle)
+
+
+@pytest.mark.skipif(__import__('os').name != 'nt', reason='Windows job objects')
+def test_processes_a_planner_leaves_behind_end_with_its_run(runner, tmp_path):
+    import time
+    pid_file = tmp_path / 'child.pid'
+    planner_file = tmp_path / 'spawner.py'
+    planner_file.write_text(SPAWNER_PLANNER.format(pid_file=str(pid_file)), encoding='utf-8')
+    server = runner()
+    status, job = server.post('/api/jobs', {'scenario': 'demo.yaml', 'planners': ['astar'], 'seeds': [0],
+                                            'custom_planners': [f'{planner_file}:Spawner'], 'trust_user_code': True})
+    assert status == 202
+    done = server.wait(job['id'], limit=60)
+    assert done['status'] == 'complete', done['log'][-20:]
+    pid = int(pid_file.read_text(encoding='utf-8'))
+    deadline = time.monotonic() + 5
+    while _alive(pid) and time.monotonic() < deadline:
+        time.sleep(0.1)
+    assert not _alive(pid)  # Nothing the planner started outlives the comparison.
+
+
+@pytest.mark.skipif(__import__('os').name != 'nt', reason='Windows job objects')
+def test_a_worker_that_cannot_be_contained_never_loads_a_planner(runner, tmp_path, monkeypatch):
+    from raceplan.gui import winjob
+
+    class Refused:
+        def __init__(self):
+            raise OSError('AssignProcessToJobObject failed')
+    monkeypatch.setattr(winjob, 'KillOnCloseJob', Refused)
+    marker = tmp_path / 'loaded.txt'
+    planner_file = tmp_path / 'tunable.py'
+    planner_file.write_text(TUNABLE_PLANNER.format(delay=0, mark=str(marker)), encoding='utf-8')
+    server = runner()
+    status, job = server.post('/api/jobs', {'scenario': 'demo.yaml', 'planners': ['astar'], 'seeds': [0],
+                                            'custom_planners': [f'{planner_file}:Tunable'], 'trust_user_code': True})
+    assert status == 202
+    done = server.wait(job['id'], limit=30)
+    assert done['status'] == 'failed' and done['record'].startswith('not started')  # Said why, on the job itself.
+    assert not marker.exists()  # The planner never ran outside a job object.
+
+
+def test_shutdown_stops_workers_first_and_keeps_its_deadline(tmp_path, monkeypatch):
+    import threading
+    import time
+    from types import SimpleNamespace
+    from raceplan.gui import jobs as jobs_module
+    jobs = jobs_module.Jobs(tmp_path, ROOT / 'scenarios')
+    stuck = threading.Event()
+    started = time.monotonic()
+    killed = []
+    monkeypatch.setattr(jobs_module, '_kill_tree', lambda job: killed.append(time.monotonic() - started))
+    watch = jobs_module.Watch({}, [], 0)
+    watch.thread = threading.Thread(target=stuck.wait, daemon=True)  # A watch busy reading a slow file.
+    watch.thread.start()
+    worker = SimpleNamespace(id='w', status='running', cancel_requested=False, stop_note=None,
+                             waiter=threading.Thread(target=stuck.wait, daemon=True))
+    worker.waiter.start()
+    jobs.watcher, jobs.jobs = watch, {'w': worker}
+    try:
+        jobs.shutdown(deadline_s=0.5)
+        took = time.monotonic() - started
+    finally:
+        stuck.set()
+    assert killed and killed[0] < 0.2  # Workers are stopped before anything is waited for...
+    assert took < 1.5 and jobs.closed and watch.active is False  # ...and the whole wait fits the closing window.
+
+
+def test_job_names_a_missing_module_only_as_the_cause_of_a_failure(tmp_path):
+    import threading
+    from raceplan.gui.jobs import Job
+    job = Job('j', {}, tmp_path, 'run', [], 60)
+    job.log.extend(["optional: No module named 'numba' (falling back)", 'planning...',
+                    "ValueError: cannot load custom planner p.py:P: No module named 'scipy'"])
+    lock = threading.Lock()
+    assert job.snapshot(lock)['missing_module'] is None  # Still running: nothing to explain yet.
+    job.status = 'failed'
+    assert job.snapshot(lock)['missing_module'] == 'scipy'  # The last import error, not an earlier optional one.
+    job.status = 'complete'
+    assert job.snapshot(lock)['missing_module'] is None
+
+
+def test_unwritable_results_folder_says_where_and_what_to_do(tmp_path, monkeypatch):
+    from raceplan.gui.jobs import Jobs
+    jobs = Jobs(tmp_path, ROOT / 'scenarios')
+    monkeypatch.setattr(Path, 'mkdir', lambda self, *a, **k: (_ for _ in ()).throw(PermissionError(13, 'Access is denied')))
+    with pytest.raises(OSError) as error:
+        jobs._output('demo.yaml')
+    assert str(tmp_path / 'gui-runs') in str(error.value) and '--output-root' in str(error.value)

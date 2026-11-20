@@ -153,3 +153,17 @@ CLI가 만든 결과도 나타난다. CLI `raceplan-watch FILE.py:CLASS... --sce
 [--interval ≥0.2] [--timeout] [--once]`는 같은 Jobs를 쓰고(명령줄에 파일을 적는 것이 신뢰 확인), 실행마다 planner별 도달 수 또는 실패 이유와
 로그 끝을 출력한다. `--once`는 완료면 0, 실패 1, 중단 130. 결과 폴더 이름에 무작위 4자리를 붙여 탐색기와 CLI가 같은 초에 만들어도 겹치지 않는다.
 저장마다 폴더가 쌓이며 자동 정리는 하지 않는다(대화상자 안내).
+
+## 4단계 진행 기록 (브랜치 feature/gui-exe)
+
+exe 배포(완료, 사용 안내·검증표는 `docs/WINDOWS_EXE.md`): PyInstaller onedir로 `RacePlan.exe` 하나를 만든다(인자 없음·`gui` =
+탐색기, `watch` = raceplan-watch, 숨은 `--workflow-worker` = 비교 실행 프로세스). 배포는 `RacePlan-<버전>-windows-x64.zip`
+(+sha256), 빌드는 `packaging/windows/build.py`(CPython 3.13 x64만, `exe` extra의 PyInstaller 6.22.3). RacePlan 모듈은 원본
+`.py`로 넣어(`module_collection_mode py`) provenance의 소스 해시가 개발 설치와 같고, 빌드가 바이트 동일성을 검사한다.
+exe에서 기본 시나리오는 exe 옆 `scenarios/`, 결과는 `%LOCALAPPDATA%\RacePlan\results\raw`(쓰기 불가·OneDrive 동기화 폴더 회피),
+명시 경로는 그대로. 런타임 옵션 `X utf8`·`u`(frozen은 PYTHON* 환경 변수를 무시).
+모든 실행(개발 설치 포함)은 Windows에서 KILL_ON_JOB_CLOSE Job Object에 넣은 뒤 stdin 시작 신호로 플래너를 로드한다:
+취소·시간 초과·종료와 정상 종료 뒤에 남은 손자 프로세스까지 멈추고, 부모가 사라지면 아무것도 로드하지 않는다(3단계의
+"손자 프로세스 잔류" 한계 해소). 콘솔 창 닫기(CTRL_CLOSE_EVENT)는 4초 마감 안에 워커를 먼저 멈추고 Cancelled를 기록한다.
+누락 모듈은 실패한 실행의 마지막 import 오류로 안내하고, Inspector에 "Python 설치판용 명령" 표시. `--window`(pywebview)는 하지 않았다.
+설계 GPT sol, 검증 GPT sol(P1 없음, P2 5·P3 5 반영). 남은 결정: RacePlan `LICENSE` 파일(없어서 exe에 자체 고지 없음).

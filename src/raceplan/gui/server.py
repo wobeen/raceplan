@@ -29,7 +29,9 @@ from urllib.parse import parse_qs, quote, urlsplit
 import webbrowser
 
 from raceplan.gui.analysis import BadQuery
+from raceplan.gui.console import CLOSE_DEADLINE_S, on_console_close
 from raceplan.gui.data import Explorer, UnknownItem, _formula_risk, find_runs
+from raceplan.gui.frozen import default_results, default_scenarios, is_frozen
 from raceplan.gui.jobs import Busy, JobError, Jobs
 
 HOST = '127.0.0.1'
@@ -96,9 +98,11 @@ class Handler(BaseHTTPRequestHandler):
     def _run_options(self):
         jobs = self.server.jobs
         if jobs is None:
-            return {'enabled': False, 'reason': self.server.run_disabled, 'scenarios': [], 'planners': [],
-                    'timeout_s': None, 'output_folder': None, 'current_job': None}
-        return jobs.options()
+            options = {'enabled': False, 'reason': self.server.run_disabled, 'scenarios': [], 'planners': [],
+                       'timeout_s': None, 'output_folder': None, 'current_job': None}
+        else:
+            options = jobs.options()
+        return {**options, 'frozen': is_frozen()}  # The packaged exe has no raceplan-run or pip for the page to suggest.
 
     @staticmethod
     def _single(multi, key, default=None):
@@ -332,17 +336,19 @@ def _stop_on_signal(*_):
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__, allow_abbrev=False)
     parser.add_argument('path', type=Path, nargs='?',
-                        help='folder holding saved runs, or one saved workflow/suite folder (default: results/raw, created if missing)')
+                        help=f'folder holding saved runs, or one saved workflow/suite folder '
+                             f'(default: {default_results()}, created if missing)')
     parser.add_argument('--port', type=int, default=0, help='local port; defaults to any free port')
     parser.add_argument('--no-browser', action='store_true', help='print the address without opening a browser')
-    parser.add_argument('--scenarios', type=Path, default=Path('scenarios'),
-                        help='scenario folder offered for new comparisons; running is off when it does not exist')
+    parser.add_argument('--scenarios', type=Path, default=default_scenarios(),
+                        help='scenario folder offered for new comparisons; running is off when it does not exist '
+                             '(default: %(default)s)')
     parser.add_argument('--no-run', action='store_true', help='only read saved results; never start comparisons')
     parser.add_argument('--run-timeout', type=float, default=900.0, help='seconds before a started comparison is stopped')
     args = parser.parse_args(argv)
     if args.path is None:
         # The default folder is where new runs go, so a first start with no results yet still opens the explorer.
-        args.path = Path('results/raw')
+        args.path = default_results()
         if not args.path.exists():
             try:
                 args.path.mkdir(parents=True)
@@ -364,10 +370,12 @@ def main(argv=None):
         parser.error(f'{exc}{hint}')
     url = explorer_url(server, path.name if is_run else None)
     print(f'explorer={url}', flush=True)
+    print(f'results={server.explorer.root}', flush=True)
     print(f'run={"on, scenarios=" + str(server.jobs.scenarios) if server.jobs else "off: " + server.run_disabled}', flush=True)
     for name in ('SIGTERM', 'SIGHUP', 'SIGBREAK'):
         if hasattr(signal, name):
             signal.signal(getattr(signal, name), _stop_on_signal)
+    remove_close_handler = on_console_close(lambda: server.jobs.shutdown(deadline_s=CLOSE_DEADLINE_S)) if server.jobs else None
     launcher = None if args.no_browser else open_browser(url)
     try:
         server.serve_forever()
@@ -376,6 +384,8 @@ def main(argv=None):
     finally:
         if server.jobs:
             server.jobs.shutdown()
+        if remove_close_handler:
+            remove_close_handler()
         server.server_close()
         if launcher:
             Path(launcher).unlink(missing_ok=True)
