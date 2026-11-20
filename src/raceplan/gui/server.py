@@ -10,15 +10,21 @@ from __future__ import annotations
 import argparse
 import csv
 import hmac
+import html
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from io import StringIO
 import json
 from math import isfinite
+import os
 from pathlib import Path
 import re
 import secrets
 import signal
+import socket
+import tempfile
+import threading
+import time
 from urllib.parse import parse_qs, quote, urlsplit
 import webbrowser
 
@@ -32,6 +38,7 @@ TOKEN_FRAGMENT = 'token'
 LOAD_ERRORS = (OSError, ValueError, KeyError, TypeError, AttributeError, csv.Error)
 MAX_BODY = 16 * 1024
 DRAIN_LIMIT = 1024 * 1024  # Larger refused bodies are not read; the connection is just closed.
+BODY_DEADLINE_S = 5.0  # For the whole body, not per read: a slow sender cannot hold a server thread.
 JOB_PATH = re.compile(r'/api/jobs/([0-9a-f]{16})')
 JOB_POST = re.compile(r'/api/(?:jobs(?:/([0-9a-f]{16})/cancel)?|(watch)(/stop)?)')
 
@@ -170,6 +177,25 @@ class Handler(BaseHTTPRequestHandler):
         except LOAD_ERRORS as exc:
             self._json(HTTPStatus.UNPROCESSABLE_ENTITY, {'error': str(exc)})
 
+    def _read_body(self, length):
+        """Exactly length bytes, or None when the sender is too slow or the connection breaks."""
+        deadline = time.monotonic() + BODY_DEADLINE_S
+        chunks, remaining = [], length
+        try:
+            while remaining > 0:
+                left = deadline - time.monotonic()
+                if left <= 0:
+                    return None
+                self.connection.settimeout(left)
+                chunk = self.rfile.read1(min(remaining, 64 * 1024))
+                if not chunk:
+                    return None
+                chunks.append(chunk)
+                remaining -= len(chunk)
+        except OSError:
+            return None
+        return b''.join(chunks)
+
     def _refuse(self, status, message):
         """Answer a refused POST after reading its (bounded) body: closing a socket with unread bytes makes Windows
         reset the connection, and the client may then lose this answer before reading it."""
@@ -178,11 +204,7 @@ class Handler(BaseHTTPRequestHandler):
         except ValueError:
             length = 0
         if 0 < length <= DRAIN_LIMIT:
-            try:
-                self.connection.settimeout(5)
-                self.rfile.read(length)
-            except OSError:
-                pass  # A client that stops sending gets the answer anyway, or a closed connection.
+            self._read_body(length)  # A client that stops sending still gets the answer, or a closed connection.
         self.close_connection = True
         self._json(status, {'error': message})
 
@@ -211,8 +233,13 @@ class Handler(BaseHTTPRequestHandler):
         if jobs is None:
             self._refuse(HTTPStatus.FORBIDDEN, self.server.run_disabled)
             return
+        raw = self._read_body(length) if length else b''
+        if raw is None:
+            self.close_connection = True
+            self._json(HTTPStatus.REQUEST_TIMEOUT, {'error': f'the body did not arrive within {BODY_DEADLINE_S:g} s'})
+            return
         try:
-            body = json.loads(self.rfile.read(length).decode('utf-8')) if length else {}
+            body = json.loads(raw.decode('utf-8')) if raw else {}
             if route[1]:
                 self._json(HTTPStatus.OK, jobs.cancel(route[1]))
             elif route[2] and route[3]:
@@ -231,9 +258,20 @@ class Handler(BaseHTTPRequestHandler):
             self._json(HTTPStatus.INTERNAL_SERVER_ERROR, {'error': f'could not start the comparison: {exc}'})
 
 
+class ExplorerServer(ThreadingHTTPServer):
+    """On Windows SO_REUSEADDR (http.server's default) lets another socket bind this same address and port and receive
+    this page's requests, token included; exclusive use refuses that. On POSIX it only allows a quick restart."""
+    allow_reuse_address = os.name != 'nt'
+
+    def server_bind(self):
+        if os.name == 'nt':
+            self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_EXCLUSIVEADDRUSE, 1)
+        super().server_bind()
+
+
 def make_server(root, port=0, scenarios=None, run_timeout=900.0, run_off_reason='running comparisons is off'):
     """Without a scenarios folder the server only reads saved results."""
-    server = ThreadingHTTPServer((HOST, port), Handler)
+    server = ExplorerServer((HOST, port), Handler)
     server.explorer = Explorer(root)
     server.token = secrets.token_urlsafe(32)
     server.jobs, server.run_disabled = None, run_off_reason
@@ -252,6 +290,23 @@ def explorer_url(server, run_name=None):
     if run_name:
         url += '?run=' + quote(run_name)
     return url + f'#{TOKEN_FRAGMENT}=' + server.token
+
+
+def open_browser(url):
+    """Open the explorer. On Linux and macOS the browser launcher (xdg-open, open) gets the address as a command-line
+    argument other accounts can read, so it gets a private (0600) local file that forwards to the address instead;
+    the file is removed after a minute. Windows does not show other accounts' command lines, so it opens the address."""
+    if os.name == 'nt':
+        webbrowser.open(url)
+        return
+    descriptor, name = tempfile.mkstemp(prefix='raceplan-open-', suffix='.html')
+    with os.fdopen(descriptor, 'w', encoding='utf-8') as stream:
+        stream.write(f'<!doctype html><meta charset="utf-8"><title>RacePlan Explorer</title>'
+                     f'<script>location.replace({json.dumps(url)})</script><a href="{html.escape(url)}">RacePlan Explorer</a>')
+    webbrowser.open(Path(name).as_uri())
+    remover = threading.Timer(60, lambda: Path(name).unlink(missing_ok=True))
+    remover.daemon = True
+    remover.start()
 
 
 def _stop_on_signal(*_):
@@ -296,7 +351,7 @@ def main(argv=None):
         if hasattr(signal, name):
             signal.signal(getattr(signal, name), _stop_on_signal)
     if not args.no_browser:
-        webbrowser.open(url)
+        open_browser(url)
     try:
         server.serve_forever()
     except KeyboardInterrupt:

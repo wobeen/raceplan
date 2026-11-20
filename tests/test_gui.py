@@ -739,25 +739,38 @@ def started_driving(server, job_id, limit=30.0):
 
 TUNABLE_PLANNER = '''
 import time
+from pathlib import Path
 from raceplan.planners import AStarPlanner
 from raceplan.planners.base import Planner
 
 DELAY = {delay}
+MARK = {mark!r}
 
 
 class Tunable(Planner):
     name = 'tunable'
 
     def plan(self, grid, start, goal, *, timeout_s=None):
+        if MARK:
+            Path(MARK).write_text('planning', encoding='utf-8')  # Tells the test this code is the one running.
         time.sleep(DELAY)
         return AStarPlanner().plan(grid, start, goal, timeout_s=timeout_s)
 '''
 
 
+def wait_for_file(path, limit=60.0):
+    import time
+    deadline = time.monotonic() + limit
+    while not path.exists():
+        assert time.monotonic() < deadline, f'{path.name} never appeared'
+        time.sleep(0.1)
+
+
 def test_watch_reruns_on_save_replacing_a_stale_run_until_stopped(runner, tmp_path):
     import time
     planner_file = tmp_path / 'tunable.py'
-    planner_file.write_text(TUNABLE_PLANNER.format(delay=120), encoding='utf-8')
+    mark = tmp_path / 'planning.txt'
+    planner_file.write_text(TUNABLE_PLANNER.format(delay=120, mark=str(mark)), encoding='utf-8')
     body = {'scenario': 'demo.yaml', 'planners': ['astar'], 'custom_planners': [f'{planner_file}:Tunable'], 'seeds': [0],
             'trust_user_code': True}
     server = runner()
@@ -767,9 +780,9 @@ def test_watch_reruns_on_save_replacing_a_stale_run_until_stopped(runner, tmp_pa
     assert status == 202 and started['watch']['active'] and started['job']['watch_run'] == 1
     first = started['job']
     assert server.post('/api/jobs', body)[0] == 409 and server.post('/api/watch', body)[0] == 409  # The watch owns the runner.
-    started_driving(server, first['id'])
+    wait_for_file(mark)  # The first run is inside the slow planner, so it really runs the old code.
 
-    planner_file.write_text(TUNABLE_PLANNER.format(delay=0), encoding='utf-8')  # Saving the fixed planner...
+    planner_file.write_text(TUNABLE_PLANNER.format(delay=0, mark=''), encoding='utf-8')  # Saving the fixed planner...
     deadline = time.monotonic() + 30
     while (current := server.request('GET', '/api/run-options')[1]['current_job'])['id'] == first['id']:
         assert time.monotonic() < deadline, 'saving the planner did not start a new run'
@@ -785,7 +798,7 @@ def test_watch_reruns_on_save_replacing_a_stale_run_until_stopped(runner, tmp_pa
 
     status, stopped = server.post('/api/watch/stop', {})
     assert status == 200 and stopped['watch']['active'] is False and stopped['watch']['runs'] == 2
-    planner_file.write_text(TUNABLE_PLANNER.format(delay=1), encoding='utf-8')
+    planner_file.write_text(TUNABLE_PLANNER.format(delay=1, mark=''), encoding='utf-8')
     time.sleep(1.5)
     options = server.request('GET', '/api/run-options')[1]
     assert options['current_job']['id'] == done['id'] and options['watch']['runs'] == 2  # Stopped means no more runs.
@@ -818,23 +831,86 @@ def test_watch_reruns_once_per_settled_new_content_and_reports_a_dead_watch(tmp_
         jobs_module.Jobs(tmp_path, ROOT / 'scenarios')._launch({}, 'change', stopped)
 
 
-def test_watch_refuses_oversized_planner_files(tmp_path, monkeypatch):
+def test_watch_refuses_an_oversized_planner_file_before_running_it(runner, tmp_path, monkeypatch):
     from raceplan.gui import jobs as jobs_module
-    planner_file = tmp_path / 'p.py'
-    planner_file.write_text('x = 1\n', encoding='utf-8')
-    cache = {}
-    marks, problem = jobs_module._fingerprint([planner_file], cache)
-    assert marks[0] and problem is None
-    monkeypatch.setattr(jobs_module, 'MAX_WATCH_BYTES', 4)
-    marks, problem = jobs_module._fingerprint([planner_file], cache)
-    assert marks == (None,) and 'larger than' in problem
+    planner_file = tmp_path / 'tunable.py'
+    planner_file.write_text(TUNABLE_PLANNER.format(delay=0, mark=''), encoding='utf-8')
+    monkeypatch.setattr(jobs_module, 'MAX_WATCH_BYTES', 64)
+    server = runner()
+    status, reply = server.post('/api/watch', {'scenario': 'demo.yaml', 'planners': ['astar'], 'seeds': [0],
+                                               'custom_planners': [f'{planner_file}:Tunable'], 'trust_user_code': True})
+    assert status == 400 and 'larger than' in reply['error']  # Refused on the first run too, not only on reruns.
+    assert not (server.server.explorer.root / 'gui-runs').exists()
+    assert server.request('GET', '/api/run-options')[1]['watch']['active'] is False
+
+
+def test_watch_replaces_only_its_own_run(tmp_path, monkeypatch):
+    from types import SimpleNamespace
+    from raceplan.gui import jobs as jobs_module
+
+    def changed_once(owner):
+        jobs = jobs_module.Jobs(tmp_path, ROOT / 'scenarios')
+        cancelled = []
+        monkeypatch.setattr(jobs, 'cancel', lambda job_id, note=None: cancelled.append(job_id))
+        monkeypatch.setattr(jobs, '_launch', lambda spec, trigger, watch: {})
+        watch = jobs_module.Watch({}, [tmp_path / 'p.py'], 0)
+        jobs.current = SimpleNamespace(id='running', status='running', owner=owner(watch),
+                                       waiter=SimpleNamespace(join=lambda timeout=None: None))
+        polls = iter(['b', 'b'])
+
+        def poll(paths, cache):
+            mark = next(polls, None)
+            if mark is None:
+                watch.stop_event.set()
+            return ('b',), None
+        monkeypatch.setattr(jobs_module, '_fingerprint', poll)
+        jobs._watch_loop(watch, ('a',), None)
+        return cancelled
+
+    assert changed_once(lambda watch: watch) == ['running']
+    assert changed_once(lambda watch: None) == []  # A single run started in another tab after "watch 끄기" is left alone.
+
+
+def test_nothing_starts_once_the_runner_is_shutting_down(tmp_path):
+    from raceplan.gui.jobs import Busy, Jobs
+    jobs = Jobs(tmp_path, ROOT / 'scenarios')
+    jobs.shutdown()
+    with pytest.raises(Busy):
+        jobs.start({'scenario': 'demo.yaml', 'planners': ['astar'], 'seeds': [0]})
+    assert not (tmp_path / 'gui-runs').exists()  # No child the shutdown would never stop.
+
+
+def test_explorer_port_and_threads_cannot_be_taken_over(runner, monkeypatch):
+    import os
+    import socket
+    import time
+    from raceplan.gui import jobs as jobs_module, server as server_module
+    server = runner()
+    if os.name == 'nt':
+        intruder = socket.socket()
+        intruder.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        with pytest.raises(OSError):  # Another socket cannot share the port and receive the page's token.
+            intruder.bind(('127.0.0.1', server.port))
+        intruder.close()
+        taskkill = jobs_module._taskkill()
+        assert os.path.isabs(taskkill) and Path(taskkill).is_file()  # Never a taskkill.exe from the current folder.
+    monkeypatch.setattr(server_module, 'BODY_DEADLINE_S', 0.5)
+    connection = socket.create_connection(('127.0.0.1', server.port), timeout=10)
+    origin = f'127.0.0.1:{server.port}'
+    connection.sendall((f'POST /api/jobs HTTP/1.1\r\nHost: {origin}\r\nOrigin: http://{origin}\r\n'
+                        f'X-RacePlan-Token: {server.server.token}\r\nContent-Type: application/json\r\n'
+                        'Content-Length: 100\r\n\r\n{"scen').encode())
+    started = time.monotonic()
+    reply = connection.recv(4096)
+    connection.close()
+    assert b' 408 ' in reply.split(b'\r\n')[0] and time.monotonic() - started < 5  # A body that never ends is cut off.
 
 
 def test_watch_command_runs_once_and_reports_the_saved_outcome(tmp_path, capsys):
     from raceplan.gui.data import Explorer
     from raceplan.gui.watch import main
     planner_file = tmp_path / 'tunable.py'
-    planner_file.write_text(TUNABLE_PLANNER.format(delay=0), encoding='utf-8')
+    planner_file.write_text(TUNABLE_PLANNER.format(delay=0, mark=''), encoding='utf-8')
     root = tmp_path / 'results'
     args = [f'{planner_file}:Tunable', '--scenario', str(ROOT / 'scenarios/demo.yaml'), '--output-root', str(root), '--once']
     root.mkdir()

@@ -59,13 +59,22 @@ def _warn(message):
         pass
 
 
+def _taskkill():
+    """taskkill from the system folder by full path: a bare name is searched in the current folder first."""
+    import ctypes
+    buffer = ctypes.create_unicode_buffer(260)
+    if not ctypes.windll.kernel32.GetSystemDirectoryW(buffer, len(buffer)):
+        raise OSError('system folder not found')
+    return os.path.join(buffer.value, 'taskkill.exe')
+
+
 def _kill_tree(process):
     """Stop the workflow and anything a user planner started from it."""
     if process.poll() is not None:
         return
     try:
         if os.name == 'nt':
-            subprocess.run(['taskkill', '/F', '/T', '/PID', str(process.pid)], stdout=subprocess.DEVNULL,
+            subprocess.run([_taskkill(), '/F', '/T', '/PID', str(process.pid)], stdout=subprocess.DEVNULL,
                            stderr=subprocess.DEVNULL, timeout=10, check=False)
         else:
             os.killpg(process.pid, signal.SIGKILL)  # start_new_session made the workflow its group leader.
@@ -109,6 +118,7 @@ class Job:
     def __init__(self, job_id, spec, output, run_id, command, timeout_s, trigger='start', watch_run=None):
         self.id, self.spec, self.output, self.run_id, self.command = job_id, spec, output, run_id, command
         self.timeout_s, self.trigger, self.watch_run = timeout_s, trigger, watch_run
+        self.owner, self.record = None, None  # The watch that started it; why a stop could not be saved, if so.
         self.status = 'running'
         self.exit_code = None
         self.created_at, self.finished_at = _now(), None
@@ -135,7 +145,7 @@ class Job:
         return {'id': self.id, 'status': status, 'exit_code': exit_code, 'created_at': self.created_at,
                 'finished_at': finished_at, 'elapsed_s': round(elapsed, 2), 'timeout_s': self.timeout_s,
                 'run_id': self.run_id, 'trigger': self.trigger, 'watch_run': self.watch_run, **self.spec,
-                'workflow': workflow_state, 'log': log}
+                'workflow': workflow_state, 'record': self.record, 'log': log}
 
 
 def _fingerprint(paths, cache):
@@ -190,7 +200,7 @@ class Jobs:
         self.timeout_s, self.cwd = float(timeout_s), Path(cwd or Path.cwd()).resolve()
         self.watch_interval_s, self.on_finish = float(watch_interval_s), on_finish
         self.lock = threading.Lock()
-        self.jobs, self.current, self.watcher = {}, None, None
+        self.jobs, self.current, self.watcher, self.closed = {}, None, None, False
 
     def options(self):
         current = self.current.snapshot(self.lock) if self.current else None
@@ -243,14 +253,14 @@ class Jobs:
         raise JobError('no free output folder name')
 
     def start(self, body):
-        spec = self.validate(body)
-        with self.lock:
-            if self.watcher is not None and self.watcher.active:
-                raise Busy('a watch is running; stop it to start a single comparison')
-        return self._launch(spec)
+        return self._launch(self.validate(body))
 
     def _launch(self, spec, trigger='start', watch=None):
         with self.lock:
+            if self.closed:
+                raise Busy('the explorer is closing')
+            if watch is None and self.watcher is not None and self.watcher.active:
+                raise Busy('a watch is running; stop it to start a single comparison')
             if watch is not None and not watch.active:
                 raise Busy('the watch was stopped')  # "watch 끄기" pressed between the change and this launch.
             if self.current is not None and self.current.status == 'running':
@@ -267,6 +277,7 @@ class Jobs:
                 watch.runs += 1
             job = Job(secrets.token_hex(8), spec, output, output.relative_to(self.root).as_posix(), command, self.timeout_s,
                       trigger, watch.runs if watch is not None else None)
+            job.owner = watch
             flags = subprocess.CREATE_NEW_PROCESS_GROUP if os.name == 'nt' else 0
             job.process = subprocess.Popen(command, cwd=self.cwd, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
                                            stderr=subprocess.STDOUT, creationflags=flags, start_new_session=os.name != 'nt',
@@ -277,8 +288,9 @@ class Jobs:
                 del self.jobs[key]
             job.reader = threading.Thread(target=self._read, args=(job,), daemon=True)
             job.waiter = threading.Thread(target=self._wait, args=(job,), daemon=True)
-        job.reader.start()
-        job.waiter.start()
+            # Started under the lock: shutdown() then always finds a published job with threads it can join.
+            job.reader.start()
+            job.waiter.start()
         return job.snapshot(self.lock)
 
     def watch(self, body, on_event=None):
@@ -293,7 +305,11 @@ class Jobs:
             if self.current is not None and self.current.status == 'running':
                 raise Busy('another comparison is still running')
             watch = self.watcher = Watch(spec, files, self.watch_interval_s)
-        baseline = _fingerprint(files, watch.cache)[0]  # Before the first run, so a save during it still triggers a rerun.
+        baseline, refused = _fingerprint(files, watch.cache)  # Before the first run, so a save during it still reruns.
+        if refused or None in baseline:
+            with self.lock:
+                watch.active = False
+            raise JobError(refused or 'a watched planner file is missing or unreadable')
         try:
             job = self._launch(spec, 'start', watch)
         except Exception:
@@ -324,7 +340,11 @@ class Jobs:
                 continue
             last, pending = now, None
             watch.last_change = _now()
-            running = self.current if self.current is not None and self.current.status == 'running' else None
+            with self.lock:  # Only this watch's own run is replaced, and only while this watch is still on.
+                if not watch.active:
+                    break
+                current = self.current
+                running = current if current is not None and current.status == 'running' and current.owner is watch else None
             if running is not None:
                 # The old code's result is no longer what the user is looking at.
                 self.cancel(running.id, 'stopped by watch: the planner file changed')
@@ -407,9 +427,13 @@ class Jobs:
                 workflow._save_state(path, state)
                 return
             except FileNotFoundError:
-                return  # Stopped before the workflow wrote its state; there is nothing to correct.
-            except (OSError, ValueError):
+                # Stopped before the workflow saved anything: there is no saved run to correct or to list.
+                job.record = 'stopped before the workflow saved its state; nothing was saved for this run'
+                return
+            except (OSError, ValueError) as exc:
+                error = exc
                 time.sleep(0.1 * (attempt + 1))  # A reader may briefly hold the file on Windows; try again.
+        job.record = f'could not record the stop in workflow.json ({error}); the saved run may still say running'
 
     def get(self, job_id):
         job = self.jobs.get(job_id)
@@ -431,7 +455,9 @@ class Jobs:
 
     def shutdown(self):
         """Stop watching and stop running jobs, waiting until their stop is recorded, so closing the explorer leaves
-        no 'running' run behind."""
+        no 'running' run behind. Nothing new starts once this begins."""
+        with self.lock:
+            self.closed = True
         self.stop_watch()
         with self.lock:
             running = [job for job in self.jobs.values() if job.status == 'running']
