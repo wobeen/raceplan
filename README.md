@@ -69,16 +69,21 @@ PNG의 집계는 전체 seed 기준이며 기본 첫 seed의 궤적을 표시합
 
 명령이 열거나 출력한 주소(`#token=…` 포함)로 열면 `+ 새 실행`으로 새 비교를 별도
 프로세스에서 실행할 수 있습니다(시간 제한·취소, 결과는 `gui-runs/` 아래 새 폴더).
-사용자 플래너 파일을 고르고 watch를 켜면 파일을 저장할 때마다 다시 실행합니다.
+시나리오를 여러 개 고르거나 노이즈를 0보다 크게 주면 아래 "여러 시나리오 일괄 실행"과 같은
+suite로 실행하고, 결과는 모든 case 합계 보기로 열립니다. 사용자 플래너 파일 경로를 넣고
+"클래스 찾기"를 누르면 파일 안의 Planner 클래스를 체크박스로 고를 수 있습니다(파일을 읽기만
+하고 실행하지 않음). watch를 켜면 파일을 저장할 때마다 같은 조건으로 다시 실행합니다.
 `--no-run`은 실행 기능을 끕니다. 같은 일을 터미널에서 하려면:
 
 ```powershell
 .\.venv\Scripts\raceplan-watch.exe examples/my_planner.py:MyPlanner --scenario scenarios/demo.yaml
+.\.venv\Scripts\raceplan-watch.exe examples/my_planner.py:MyPlanner --scenario a.yaml --scenario b.yaml --seeds 11 12 13 --steering-std-rad 0.01
 ```
 
-저장할 때마다 `results/raw/gui-runs/`에 새 결과를 만들고 planner별 도달 수를 출력합니다.
-탐색기를 열어 두면 목록에 3초 안에 나타납니다. `--once`는 한 번만 실행하고 완료 여부를
-종료 코드로 돌려줍니다. 플래너 파일의 코드는 이 컴퓨터에서 그대로 실행되니 신뢰하는 파일만 쓰세요.
+저장할 때마다 `results/raw/gui-runs/`에 새 결과를 만들고 planner별 도달 수를 출력합니다
+(suite면 완료된 case 합계와 실패 case). 탐색기를 열어 두면 목록에 3초 안에 나타납니다. `--once`는
+한 번만 실행하고 완료 여부를 종료 코드로 돌려줍니다. 노이즈 옵션은 `--help`에 있습니다. 플래너 파일의
+코드는 이 컴퓨터에서 그대로 실행되니 신뢰하는 파일만 쓰세요.
 
 Python 없이 쓰려면 Windows용 `RacePlan.exe` 배포판(zip)을 씁니다. 설치·실행·빌드는
 [Windows exe 안내](docs/WINDOWS_EXE.md)를 참고하세요.

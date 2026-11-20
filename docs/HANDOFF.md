@@ -1,5 +1,15 @@
 # 작업 인계 — 2026-11-21
 
+## 보완 2-2: 연구 조건 실행 (브랜치 feature/gui-suite-all)
+
+새 실행에서 시나리오 여러 개·노이즈 5필드·seed를 주면 `raceplan-suite`와 같은 suite로 실행한다(시나리오 1개·노이즈 0은 예전 workflow).
+사용자 플래너는 파일 경로 → "클래스 찾기"(ast, 실행 없음) → 체크박스. watch·`raceplan-watch`도 같은 조건(`--scenario` 반복, 노이즈 옵션).
+계약은 `docs/GUI_PLAN.md` "보완 2-2". 새 모듈 `gui/planner_scan.py`, 새 경로 `POST /api/planner-classes`, 워커 `--suite` 모드.
+실측: GUI로 holdout 4 case × 3 seed × 5 planner(연구 노이즈) 3 s, 같은 입력의 CLI suite와 summary·case_summary 수치 동일.
+실사용 점검 때 CLI 결과와 sharp_turn_astar가 달랐던 것(0/12 → 3/12)은 플래너 파일이 그 사이 수정됐기 때문(해시 b5fa925 → f45bde0).
+실행 중 저장으로 case가 suite 기록과 다른 버전을 실행하면 작업 창·Inspector·CLI가 경고한다. 검증 GPT sol 1차·재검증 FAIL 지적 반영.
+테스트 **181 passed**. 다음: 2-3 실행 간 비교.
+
 ## 보완 2-1: suite 전체 보기 (브랜치 feature/gui-suite-all, main 7eca23d 기반)
 
 실사용 점검(DEV_PLAN 1단계) 결과의 첫 보완. suite를 열면 "전체 N case": 합계 리더보드, planner × case 도달 행렬, case 열이 있는

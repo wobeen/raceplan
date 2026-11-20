@@ -190,3 +190,34 @@ case id: 화면의 case 목록보다 새로우면 전체 보기를 다시 읽는
 한 번만 시도하고 실패하면 알림). 전환 중 비교 조작은 inert로 막는다. 3차 확인: 지적 4건 해결, 남은 P2 2건(재시도 반복, 필터 확장)도 반영.
 유지: 양쪽 도달 쌍의 수치 손상은 `report.py`의 쌍 검증이 case 없이 거절한다(출처 해시 대상이라 고치지 않음, 단일 case와 같은 동작).
 보류: 큰 suite 행렬의 페이지 나눔(카드 안 스크롤로 전부 볼 수 있음), 미완료 열의 Inspector 상세(배너로 상태·오류 표시).
+
+## 보완 2-2: 연구 조건 실행 (브랜치 feature/gui-suite-all)
+
+실사용 점검에서 GUI 새 실행·watch가 시나리오 1개·노이즈 0만 되어 연구 결과와 다르게 나오던 문제를 고쳤다.
+- 새 실행 대화상자(두 열, 1280×720 한 화면): 시나리오 여러 개 체크(최대 16, 8개 넘으면 거르기), seed(모든 시나리오에 같은 seed),
+  노이즈 5필드(`NoiseConfig`, "연구 값" = `results/turn_aware_holdout.py`의 4종), 실행량 미리보기(시나리오×seed×planner,
+  한도: 시나리오×seed ≤ 200, 에피소드 ≤ 1000), 노이즈가 모두 0이고 seed가 여러 개면 "seed마다 결과가 같다" 안내.
+- 시나리오 1개·노이즈 0은 예전처럼 workflow, 그 밖에는 suite로 실행한다(`raceplan-suite`와 같은 형식·출력, 결과는 2-1 전체 보기로).
+  서버가 suite 설정을 `gui-runs/.suite-inputs/<실행 이름>.yaml`에 절대 경로로 쓰고 `suite.load_config`로 미리 검사(사용자 코드 실행 없음)한
+  뒤, 같은 워커(`workflow_runner --suite`, exe는 `--workflow-worker --suite`)가 시작 신호 뒤 `suite.main`을 부른다. 시작 신호·Job Object·
+  시간 제한(실행 전체에 한 번)·취소는 단일 실행과 같다. 멈추면 `suite.json`을 interrupted로(진행 중 case는 failed, 그 case의
+  workflow.json도 failed, 시작 못 한 case는 not_run, coverage 재계산, 합계 CSV는 만들지 않음). case id = 시나리오 경로 슬러그
+  (suite 규칙: 안전 문자, 대소문자 무시 중복·Windows 예약어 회피). 실행 폴더 이름 = 첫 시나리오 이름 + `-plusN`.
+- 작업 창: case 진행(i/N, 완료·실패·미실행 수, 실패 case와 이유), 일부 case가 끝난 suite는 "끝난 case 열기".
+- 사용자 플래너 클래스 고르기: 파일 경로 → `POST /api/planner-classes`가 `ast`로 최상위 클래스 중 `Planner`(또는 내장 planner 클래스)를
+  import 별칭·모듈 이름·같은 파일의 다른 planner 클래스를 거쳐 상속한 것을 찾는다(파일을 import·실행하지 않음, 1 MiB 이하, 로컬 파일만).
+  다른 모듈을 거친 상속·이름 재정의는 추측하지 않고 "그 밖의 클래스"로 보여 준다. 체크 = 아래 `FILE.py:CLASS` 목록 한 줄(직접 입력 유지).
+- watch CLI: `--scenario` 반복, 노이즈 옵션(`--steering-std-rad` 등). 준 파일만 허용(공통 상위 폴더를 뒤지지 않음), seed 생략은
+  시나리오 seed가 모두 같을 때만. suite 결과는 완료 case 합계와 실패 case를 출력한다.
+실측: GUI로 holdout 4 case × seed 11 12 13 × 5 planner(연구 노이즈) 3 s → 전체 보기, 저장 집계 일치. 같은 입력의 CLI `raceplan-suite`와
+summary.csv·case_summary.csv 수치 동일(시간 열 제외). 실사용 점검 때의 CLI 결과(sharp_turn_astar 0/12)와 다른 것은 플래너 파일이 그 뒤
+수정됐기 때문(provenance 해시 b5fa925… → f45bde0…) — 2-3(실행 간 비교)이 다룰 상황.
+설계 GPT sol(채택; 변경: 생성 설정만 `.suite-inputs`에 두고 실행 폴더 구조는 그대로, 플래너 폴더 탐색 API 없음, 부모 강제 종료 후 복구는
+기존 단일 실행처럼 미구현).
+검증 GPT sol 1차 FAIL — P1: suite의 사전 해시 직후 플래너 파일이 저장되면 case는 새 버전을 실행하는데 suite 기록은 이전 버전(suite.py가
+잡지 않음, suite.py는 수정 불가) → `suite_view.planner_versions`(provenance input_sha256 ↔ case manifest의 실제 로드 sha)로 작업 결과·
+전체 보기 Inspector·CLI에 경고(수치는 숨기거나 고치지 않음; watch는 저장 시 실행을 취소·재실행). P2 반영: 첫 저장 전 중단도 interrupted로
+기록(전 case not_run, 예상 분모), 저장 상태가 complete면 작업도 complete, 사전 검사는 잠금 밖, CLI 합계는 suite.json의 complete case만,
+매 실행 시나리오 경로(폴더 안·별칭 중복) 재검사, 스캔은 정의 순서대로(전방 참조 불인정·재바인딩·마지막 정의)·제한 읽기·해석 후 UNC 거부,
+partial 자동 열기·늦은 완료가 새 결과를 덮지 않음, 단일 실행 응답의 `scenario` 유지. 유지: 집계 중 중단 때 남는 부분 CSV(suite.py 동작;
+전체 보기는 phase complete 전에는 대조하지 않고 "합계 없이 끝남"으로 표시). 보류: CLI에서 서로 다른 드라이브의 시나리오(오류로 안내).

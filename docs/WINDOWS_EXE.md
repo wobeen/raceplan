@@ -38,14 +38,16 @@ Python에 설치한 RacePlan(`raceplan-*` 명령)과 결과·CSV 형식이 같�
   ```powershell
   & 'C:\경로\RacePlan\RacePlan.exe' watch C:\내폴더\my_planner.py:MyPlanner --scenario 'C:\경로\RacePlan\scenarios\demo.yaml'
   ```
-  플래너 파일을 저장할 때마다 다시 실행하고 planner별 도달 수를 출력한다. `--once`는 한 번만 실행하고 완료면 0,
+  플래너 파일을 저장할 때마다 다시 실행하고 planner별 도달 수를 출력한다. `--scenario`를 여러 번 주거나 노이즈 옵션
+  (`--steering-std-rad 0.01` 등, `watch --help`)을 주면 suite로 실행한다. `--once`는 한 번만 실행하고 완료면 0,
   실패면 1, 중단(Ctrl+C)이면 130을 돌려준다.
 - 옵션 목록: `RacePlan.exe --help`, `RacePlan.exe gui --help`, `RacePlan.exe watch --help`.
 
 ## 사용자 플래너
 
-`examples\my_planner.py`를 내 폴더(공백·한글 경로 가능)에 복사해 `plan()`을 고친 뒤, 탐색기의 `+ 새 실행`에 절대 경로로
-`C:\...\my_planner.py:MyPlanner`를 적고 "신뢰" 확인을 체크한다. 플래너 파일의 코드는 이 PC에서 내 권한으로 그대로 실행된다.
+`examples\my_planner.py`를 내 폴더(공백·한글 경로 가능)에 복사해 `plan()`을 고친 뒤, 탐색기의 `+ 새 실행`에서 파일 경로를
+넣고 "클래스 찾기"로 클래스를 고르거나(파일을 읽기만 하고 실행하지 않는다) `C:\...\my_planner.py:MyPlanner`를 직접 적은 뒤
+"신뢰" 확인을 체크한다. 플래너 파일의 코드는 실행할 때 이 PC에서 내 권한으로 그대로 실행된다.
 신뢰하는 파일만 쓴다(별도 프로세스·시간 제한은 있지만 파일·네트워크 접근을 막는 샌드박스는 아니다).
 
 플래너가 import할 수 있는 것은 **exe에 실제로 들어 있는 것뿐**이다: RacePlan, NumPy, Pillow, PyYAML, 그리고 RacePlan이 쓰거나

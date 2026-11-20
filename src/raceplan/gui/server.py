@@ -33,6 +33,7 @@ from raceplan.gui.console import CLOSE_DEADLINE_S, on_console_close
 from raceplan.gui.data import Explorer, UnknownItem, _formula_risk, find_runs
 from raceplan.gui.frozen import default_results, default_scenarios, is_frozen
 from raceplan.gui.jobs import Busy, JobError, Jobs
+from raceplan.gui.planner_scan import ScanError, classes as planner_classes
 
 HOST = '127.0.0.1'
 PAGE = Path(__file__).parent / 'static/index.html'
@@ -43,7 +44,7 @@ DRAIN_LIMIT = 1024 * 1024  # Larger refused bodies are not read; the connection 
 BODY_DEADLINE_S = 5.0  # For the whole body, not per read: a slow sender cannot hold a server thread.
 WRITE_TIMEOUT_S = 10.0
 JOB_PATH = re.compile(r'/api/jobs/([0-9a-f]{16})')
-JOB_POST = re.compile(r'/api/(?:jobs(?:/([0-9a-f]{16})/cancel)?|(watch)(/stop)?)')
+JOB_POST = re.compile(r'/api/(?:jobs(?:/([0-9a-f]{16})/cancel)?|(watch)(/stop)?|(planner-classes))')
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -270,14 +271,20 @@ class Handler(BaseHTTPRequestHandler):
             body = json.loads(raw.decode('utf-8')) if raw else {}
             if route[1]:
                 self._json(HTTPStatus.OK, jobs.cancel(route[1]))
+            elif route[4]:
+                # Parses the file (ast) and lists its planner classes; it is not imported or run.
+                if not isinstance(body, dict) or set(body) != {'file'}:
+                    raise JobError('give {"file": PATH}')
+                self._json(HTTPStatus.OK, planner_classes(body['file']))
             elif route[2] and route[3]:
                 self._json(HTTPStatus.OK, {'watch': jobs.stop_watch()})
             elif route[2]:
                 self._json(HTTPStatus.ACCEPTED, jobs.watch(body))
             else:
                 self._json(HTTPStatus.ACCEPTED, jobs.start(body))
-        except (ValueError, UnicodeDecodeError, TypeError) as exc:  # JobError, malformed JSON, odd JSON types
-            self._json(HTTPStatus.BAD_REQUEST, {'error': str(exc) if isinstance(exc, JobError) else 'body must be valid JSON'})
+        except (ValueError, UnicodeDecodeError, TypeError) as exc:  # JobError, ScanError, malformed JSON, odd JSON types
+            self._json(HTTPStatus.BAD_REQUEST,
+                       {'error': str(exc) if isinstance(exc, (JobError, ScanError)) else 'body must be valid JSON'})
         except Busy as exc:
             self._json(HTTPStatus.CONFLICT, {'error': str(exc)})
         except KeyError:

@@ -1103,7 +1103,7 @@ def test_shutdown_stops_workers_first_and_keeps_its_deadline(tmp_path, monkeypat
 def test_job_names_a_missing_module_only_as_the_cause_of_a_failure(tmp_path):
     import threading
     from raceplan.gui.jobs import Job
-    job = Job('j', {}, tmp_path, 'run', [], 60)
+    job = Job('j', {'kind': 'workflow'}, tmp_path, 'run', [], 60)
     job.log.extend(["optional: No module named 'numba' (falling back)", 'planning...',
                     "ValueError: cannot load custom planner p.py:P: No module named 'scipy'"])
     lock = threading.Lock()
@@ -1348,3 +1348,288 @@ def test_a_reached_episode_without_a_finite_value_is_an_error_not_a_dropped_samp
            'completion_time_s': '5', 'collision': 'False', 'simulation_status': 'finished', 'planning_status': 'success'}
     with pytest.raises(ValueError, match="case a: p seed 3 .*tracking_rmse_m is 'nan'"):
         totals([{'id': 'a', 'planners': ['p'], 'rows': [row]}])
+
+
+SECOND_CASE_SLOW = '''
+import time
+from pathlib import Path
+from raceplan.planners import AStarPlanner
+
+MARK = Path(__file__).with_name('first-case.done')
+
+
+class SecondCaseSlow(AStarPlanner):
+    name = 'second_slow'
+
+    def plan(self, grid, start, goal, *, timeout_s=None):
+        if MARK.exists():  # Every case after the first one hangs until stopped.
+            time.sleep(120)
+        MARK.write_text('done', encoding='utf-8')
+        return super().plan(grid, start, goal, timeout_s=timeout_s)
+'''
+
+
+def test_research_conditions_run_as_a_suite_and_open_as_all_cases(runner):
+    server = runner()
+    body = {'scenarios': ['demo.yaml', 'validation_open.yaml'], 'planners': ['astar'], 'seeds': [0, 1],
+            'noise': {'steering_std_rad': 0.02, 'initial_position_std_m': 0.02}}
+    status, job = server.post('/api/jobs', body)
+    assert status == 202 and job['kind'] == 'suite' and '-plus1-' in job['run_id']
+    assert server.server.jobs.current.command[4] == '--suite'
+    done = server.wait(job['id'])
+    assert done['status'] == 'complete', done['log'][-20:]
+    assert done['suite']['counts'] == {'complete': 2} and done['suite']['coverage']['included_episode_count'] == 4
+    folder = server.server.explorer.root / done['run_id']
+    resolved = json.loads((folder / 'resolved_config.json').read_text(encoding='utf-8'))
+    assert resolved['settings']['noise']['steering_std_rad'] == 0.02 and resolved['settings']['baseline'] == 'astar'
+    assert [case['id'] for case in resolved['cases']] == ['demo', 'validation_open']
+    status, overview = server.request('GET', '/api/suite/overview?run=' + quote(done['run_id'], safe=''))
+    assert status == 200 and overview['summary_check']['status'] == 'match'
+    assert [(row['planner'], row['episodes_recorded']) for row in overview['leaderboard']] == [('astar', 4)]
+    # One scenario without noise still runs the single comparison it always did.
+    status, single = server.post('/api/jobs', {'scenarios': ['demo.yaml'], 'planners': ['astar'], 'seeds': [0]})
+    assert status == 202 and single['kind'] == 'workflow' and single['scenario'] == 'demo.yaml'  # Old consumers keep it.
+    assert server.wait(single['id'])['status'] == 'complete'
+    assert (server.server.explorer.root / single['run_id'] / 'workflow.json').is_file()
+
+
+def test_research_run_requests_are_checked_before_anything_starts(runner, tmp_path):
+    from raceplan.gui.jobs import JobError, Jobs
+    server = runner()
+    good = {'scenarios': ['demo.yaml', 'validation_open.yaml'], 'planners': ['astar'], 'seeds': [0]}
+    for change in ({'scenario': 'demo.yaml'}, {'scenarios': []}, {'scenarios': ['demo.yaml', 'demo.yaml']},
+                   {'scenarios': ['demo.yaml', 'missing.yaml']}, {'scenarios': 'demo.yaml'},
+                   {'noise': {'wind': 1}}, {'noise': {'steering_std_rad': -0.1}}, {'noise': {'steering_std_rad': True}},
+                   {'noise': {'steering_std_rad': '0.1'}}, {'noise': [0.1]}):
+        status, reply = server.post('/api/jobs', {**good, **change})
+        assert status == 400 and reply['error'], change
+    assert server.post('/api/jobs', {key: value for key, value in good.items() if key != 'scenarios'})[0] == 400
+    assert not (server.server.explorer.root / 'gui-runs').exists()
+    jobs = Jobs(tmp_path, ROOT / 'scenarios', allowed=[f's{index}.yaml' for index in range(17)])
+    with pytest.raises(JobError, match='1-16'):
+        jobs.validate({**good, 'scenarios': [f's{index}.yaml' for index in range(17)]})
+    with pytest.raises(JobError, match='too large'):  # 16 scenarios x 13 seeds = 208 runs per planner.
+        jobs.validate({**good, 'scenarios': [f's{index}.yaml' for index in range(16)], 'seeds': list(range(13))})
+    for value in (float('inf'), float('nan'), 10**400):
+        with pytest.raises(JobError, match='noise'):
+            jobs.validate({**good, 'scenarios': ['s0.yaml'], 'noise': {'steering_std_rad': value}})
+    real = Jobs(tmp_path, ROOT / 'scenarios')
+    noisy = real.validate({**good, 'scenarios': ['demo.yaml'], 'noise': {'steering_std_rad': 0.01}})
+    assert noisy['kind'] == 'suite' and noisy['noise']['initial_speed_std_mps'] == 0.0  # Noise alone makes a suite.
+    aliases = Jobs(tmp_path, ROOT / 'scenarios', allowed=['demo.yaml', 'corridor_width/../demo.yaml'])
+    with pytest.raises(JobError, match='different files'):  # One file under two names is one case, not two.
+        aliases.validate({**good, 'scenarios': ['demo.yaml', 'corridor_width/../demo.yaml']})
+
+
+def test_suite_case_ids_are_what_the_suite_accepts():
+    from raceplan.gui.jobs import case_ids
+    names = ['a/q0.yaml', 'b/q0.yaml', 'A/q0.yaml', 'con.yaml', '한글.yaml', '지도.yaml']
+    assert case_ids(names) == ['a-q0', 'b-q0', 'A-q0-2', 'con-case', 'case', 'case-2']
+
+
+def test_a_stopped_suite_keeps_its_finished_cases_and_says_what_did_not_run(runner, tmp_path):
+    planner_file = tmp_path / 'second.py'
+    planner_file.write_text(SECOND_CASE_SLOW, encoding='utf-8')
+    server = runner()
+    status, job = server.post('/api/jobs', {'scenarios': ['validation_open.yaml', 'demo.yaml', 'corridor_width/gate_03.yaml'],
+                                            'planners': ['astar'], 'custom_planners': [f'{planner_file}:SecondCaseSlow'],
+                                            'seeds': [0], 'trust_user_code': True})
+    assert status == 202, job
+    import time
+    deadline = time.monotonic() + 60
+    while time.monotonic() < deadline:
+        current = server.request('GET', f'/api/jobs/{job["id"]}')[1]
+        if (current['suite'] or {}).get('current') == 'demo' and (current['workflow'] or {}).get('current_phase') == 'experiment':
+            break
+        time.sleep(0.2)
+    else:
+        raise AssertionError('the suite never reached its second case')
+    assert server.post(f'/api/jobs/{job["id"]}/cancel', {})[0] == 200
+    done = server.wait(job['id'], limit=30)
+    assert done['status'] == 'cancelled'
+    folder = server.server.explorer.root / done['run_id']
+    state = json.loads((folder / 'suite.json').read_text(encoding='utf-8'))
+    statuses = {case_id: record['status'] for case_id, record in state['cases'].items()}
+    assert state['status'] == 'interrupted' and state['error']['type'] == 'Cancelled'
+    assert statuses == {'validation_open': 'complete', 'demo': 'failed', 'corridor_width-gate_03': 'not_run'}
+    assert state['coverage']['completed_cases'] == 1 and state['coverage']['not_run_cases'] == 1
+    case_state = json.loads((folder / 'cases/demo/workflow.json').read_text(encoding='utf-8'))
+    assert case_state['status'] == 'failed' and case_state['error']['type'] == 'Cancelled'
+    assert not (folder / 'summary.csv').exists()  # No totals are made up for a suite that did not finish.
+    status, overview = server.request('GET', '/api/suite/overview?run=' + quote(done['run_id'], safe=''))
+    assert status == 200 and [case['id'] for case in overview['run']['cases']] == ['validation_open']
+    assert overview['summary_check']['status'] == 'missing'
+
+
+PLANNER_CLASSES = '''
+from pathlib import Path
+Path(__file__).with_name('ran.txt').write_text('executed')  # Must never happen while scanning.
+import raceplan.planners as rp
+from raceplan.planners import AStarPlanner as Fast
+from raceplan.planners.base import Planner
+from helpers import Base
+
+
+class Direct(Planner):
+    pass
+
+
+class ViaAlias(Fast):
+    pass
+
+
+class ViaModule(rp.DijkstraPlanner):
+    pass
+
+
+class Later(Child):
+    pass
+
+
+class Child(Direct):
+    pass
+
+
+class Elsewhere(Base):
+    pass
+
+
+class Twice(Planner):
+    pass
+
+
+class Twice(Planner):
+    pass
+
+
+class Config:
+    pass
+'''
+
+
+def test_planner_classes_are_found_without_running_the_file(tmp_path, runner):
+    from raceplan.gui.planner_scan import ScanError, classes
+    source = tmp_path / '내 플래너.py'
+    source.write_text(PLANNER_CLASSES, encoding='utf-8')
+    found = classes(str(source))
+    assert [(item['name'], item['base']) for item in found['planners']] == [
+        ('Direct', 'Planner'), ('ViaAlias', 'AStarPlanner'), ('ViaModule', 'DijkstraPlanner'), ('Child', 'Direct'),
+        ('Twice', 'Planner')]  # The last definition of a name is the one a run loads.
+    # Later derives from Child before Child exists (that file would not even load); Elsewhere's base is another module's.
+    assert {item['name'] for item in found['other']} == {'Later', 'Elsewhere', 'Config'}
+    (tmp_path / 'rebound.py').write_text('from raceplan.planners import Planner\n\n\nclass A(Planner):\n    pass\n\n\n'
+                                          'A = None\nPlanner = object\n\n\nclass B(Planner):\n    pass\n', encoding='utf-8')
+    rebound = classes(str(tmp_path / 'rebound.py'))
+    assert rebound['planners'] == [] and {item['name'] for item in rebound['other']} == {'A', 'B'}
+    assert not (tmp_path / 'ran.txt').exists()
+    (tmp_path / 'broken.py').write_text('class A(:\n', encoding='utf-8')
+    for bad in (str(tmp_path / 'broken.py'), str(tmp_path / 'missing.py'), str(tmp_path), '\\\\host\\share\\p.py', ''):
+        with pytest.raises(ScanError):
+            classes(bad)
+    server = runner()
+    status, reply = server.post('/api/planner-classes', {'file': str(source)})
+    assert status == 200 and reply['file'] == str(source.resolve()) and len(reply['planners']) == 5
+    assert server.post('/api/planner-classes', {'file': str(tmp_path / 'broken.py')})[0] == 400
+    assert server.post('/api/planner-classes', {'path': str(source)})[0] == 400
+    assert server.post('/api/planner-classes', {'file': str(source)}, **{'X-RacePlan-Token': None})[0] == 403
+
+
+def test_watch_command_runs_several_scenarios_with_noise(tmp_path, capsys):
+    from raceplan.gui import watch
+    planner_file = tmp_path / 'p.py'
+    planner_file.write_text('from raceplan.planners import AStarPlanner\n\n\nclass Mine(AStarPlanner):\n    name = "mine"\n',
+                            encoding='utf-8')
+    code = watch.main([f'{planner_file}:Mine', '--scenario', str(ROOT / 'scenarios/demo.yaml'),
+                       '--scenario', str(ROOT / 'scenarios/validation_open.yaml'), '--steering-std-rad', '0.01',
+                       '--output-root', str(tmp_path / 'out'), '--once'])
+    printed = capsys.readouterr().out
+    assert code == 0 and '2/2 case(s) complete' in printed and 'mine' in printed, printed
+    [run] = (tmp_path / 'out/gui-runs').glob('2*')
+    assert json.loads((run / 'suite.json').read_text(encoding='utf-8'))['status'] == 'complete'
+    for name, seed in (('a', 1), ('b', 2)):  # Different own seeds: which ones to use must be said.
+        (tmp_path / name).mkdir()
+        (tmp_path / name / 'q0.yaml').write_text(SCENARIO.read_text(encoding='utf-8').replace('simulation_seed: 0', f'simulation_seed: {seed}')
+                                                .replace('../maps/', str(ROOT / 'maps').replace('\\', '/') + '/'), encoding='utf-8')
+    with pytest.raises(SystemExit):
+        watch.main([f'{planner_file}:Mine', '--scenario', str(tmp_path / 'a/q0.yaml'), '--scenario', str(tmp_path / 'b/q0.yaml'),
+                    '--output-root', str(tmp_path / 'out'), '--once'])
+    assert 'give --seeds' in capsys.readouterr().err
+
+
+def test_a_suite_stopped_before_its_first_save_is_recorded_as_nothing_run(tmp_path):
+    from types import SimpleNamespace
+    from raceplan.gui.jobs import Jobs
+    output = tmp_path / 'run'
+    output.mkdir()  # The suite made its folder (and config files) but had not saved suite.json yet.
+    job = SimpleNamespace(output=output, timeout_s=60.0, stop_note=None, record=None,
+                          process=SimpleNamespace(returncode=1),
+                          spec={'kind': 'suite', 'scenarios': ['demo.yaml', 'validation_open.yaml'], 'planners': ['astar'],
+                                'custom_planners': [], 'seeds': [0, 1]})
+    Jobs._record_stop(job, 'cancelled')
+    state = json.loads((output / 'suite.json').read_text(encoding='utf-8'))
+    assert state['status'] == 'interrupted' and state['error']['type'] == 'Cancelled'
+    assert {record['status'] for record in state['cases'].values()} == {'not_run'}
+    assert state['coverage']['expected_episode_count'] == 4 and state['coverage']['included_episode_count'] == 0
+    assert 'recorded as interrupted' in job.record
+    status, overview = 200, Explorer(tmp_path).overview('run')  # It opens, with nothing included and why.
+    assert overview['run']['cases'] == [] and [row['status'] for row in overview['coverage']] == ['not_run', 'not_run']
+
+
+def test_a_planner_file_saved_during_a_suite_is_reported(tmp_path):
+    from raceplan.gui.suite_view import planner_versions
+    provenance = {'input_sha256': {'C:/p.py': 'a' * 64, 'C:/scenario.yaml': 'b' * 64}}
+    same = {'custom_planner_sources': {'mine': {'path': 'C:/p.py', 'sha256': 'a' * 64, 'class': 'Mine'}}}
+    later = {'custom_planner_sources': {'mine': {'path': 'C:/p.py', 'sha256': 'c' * 64, 'class': 'Mine'}}}
+    assert planner_versions(provenance, [('one', same), ('two', same)]) == {'checked': 2, 'mismatches': []}
+    found = planner_versions(provenance, [('one', same), ('two', later)])
+    assert found['mismatches'] == [{'case': 'two', 'planner': 'mine', 'path': 'C:/p.py', 'recorded': 'a' * 12, 'ran': 'c' * 12}]
+    assert planner_versions(provenance, [('one', {})]) == {'checked': 0, 'mismatches': []}  # Built-in planners only.
+
+
+def test_watch_counts_only_the_cases_the_suite_completed(tmp_path):
+    from raceplan.gui.watch import _outcomes
+    run = tmp_path / 'gui-runs/s'
+    for case_id, rows in (('done', ['reached', 'driving_collision']), ('failed_later', ['reached', 'reached'])):
+        (run / 'cases' / case_id / 'analysis').mkdir(parents=True)
+        (run / 'cases' / case_id / 'analysis/episodes.csv').write_text(
+            'planner,failure_class\n' + ''.join(f'astar,{row}\n' for row in rows), encoding='utf-8')
+    (run / 'suite.json').write_text(json.dumps({'cases': {'done': {'status': 'complete'},
+                                                          'failed_later': {'status': 'failed'}}}), encoding='utf-8')
+    assert _outcomes(tmp_path, 'gui-runs/s') == '1/2 case(s) complete: astar 1/2 reached'
+
+
+def test_odd_planner_version_records_are_reported_not_fatal():
+    from raceplan.gui.suite_view import planner_versions
+    source = {'custom_planner_sources': {'mine': {'path': 'C:/p.py', 'sha256': 'a' * 64}}}
+    for provenance in ({'input_sha256': None}, {'input_sha256': []}, None, []):
+        assert planner_versions(provenance, [('one', source)])['mismatches'][0]['recorded'] == ''
+    assert planner_versions({}, [('one', {'custom_planner_sources': None}), ('two', None)]) == {'checked': 0, 'mismatches': []}
+
+
+def test_an_annotation_does_not_hide_the_planner_base(tmp_path):
+    from raceplan.gui.planner_scan import classes
+    (tmp_path / 'a.py').write_text('from raceplan.planners import Planner\nPlanner: type\n\n\nclass Mine(Planner):\n    pass\n',
+                                   encoding='utf-8')
+    assert [item['name'] for item in classes(str(tmp_path / 'a.py'))['planners']] == ['Mine']
+
+
+def test_one_start_is_prepared_at_a_time(tmp_path, monkeypatch):
+    import threading
+    from raceplan.gui.jobs import Busy, Jobs
+    jobs = Jobs(tmp_path, ROOT / 'scenarios')
+    spec = jobs.validate({'scenarios': ['demo.yaml', 'validation_open.yaml'], 'planners': ['astar'], 'seeds': [0]})
+    entered, release = threading.Event(), threading.Event()
+
+    def slow_config(spec):  # Stands in for reading maps and hashing inputs.
+        entered.set()
+        release.wait(10)
+        raise Busy('stopped for the test')
+    monkeypatch.setattr(jobs, '_suite_config', slow_config)
+    first = threading.Thread(target=lambda: pytest.raises(Busy, jobs._launch, spec))
+    first.start()
+    assert entered.wait(10)
+    with pytest.raises(Busy, match='being prepared'):
+        jobs._launch(spec)
+    release.set()
+    first.join(10)
+    assert jobs.preparing is False

@@ -132,6 +132,11 @@ select.fl{appearance:none;-webkit-appearance:none;font:inherit;font-size:.92em;c
 .dlg .warnbox{background:rgba(255,59,48,.07);border:1px solid rgba(255,59,48,.3);color:#b4231a;border-radius:.8em;padding:.5em .7em;font-size:.9em;line-height:1.5;display:flex;flex-direction:column;gap:.35em}.dlg .warnbox[hidden]{display:none}
 .dlg .err{color:var(--red);font-size:.9em;white-space:pre-wrap}.dlg .err:empty{display:none}.dlg .meta{color:var(--mut);font-size:.9em;word-break:break-all}
 .dlg .btns{display:flex;gap:.6em;align-items:center}.dlg .btns .sp{flex:1;font-size:.82em;color:var(--mut);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dlg.wide{width:min(68em,95%)}.dlg .cols{display:grid;grid-template-columns:1fr 1fr;gap:.6em 1.2em}.dlg .col{display:flex;flex-direction:column;gap:.5em;min-width:0}
+.dlg .scl{max-height:8.6em;overflow:auto;border:1px solid rgba(60,60,67,.15);border-radius:.6em;padding:.2em .45em;display:flex;flex-direction:column;background:#fff}.dlg .scl.small{max-height:5.4em}
+.dlg .scl .ck{margin:0;padding:.08em 0}.dlg .scl .ck[hidden]{display:none}.dlg .scl small{color:var(--mut);margin-left:.3em}.dlg .scl:empty{display:none}
+.dlg .ngrid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:.25em .6em}.dlg .ngrid label{display:flex;flex-direction:column;font-size:.9em;min-width:0}.dlg .ngrid input{width:100%;box-sizing:border-box}
+.dlg .frow{display:flex;gap:.4em}.dlg .frow input{flex:1;min-width:0}.dlg .plan{font-size:.9em;color:var(--ink);line-height:1.45}.dlg .plan .hint{color:#a95d06}.dlg .plan .over{color:var(--red)}
 .btn{font:inherit;border:0;border-radius:2em;padding:.35em 1.1em;cursor:pointer;font-weight:600;background:rgba(118,118,128,.14);color:var(--ink);white-space:nowrap}.btn.pri{background:var(--acc);color:#fff}.btn:disabled{opacity:.45;cursor:default}.btn:focus-visible{outline:.18em solid rgba(0,122,255,.45);outline-offset:.1em}
 .joblog{font-family:"SF Mono",Consolas,monospace;font-size:.8em;background:#1c1c1e;color:#e5e5ea;border-radius:.7em;padding:.6em .8em;height:13em;overflow:auto;white-space:pre-wrap;word-break:break-all;margin:0;flex:none}
 .phases{display:flex;gap:.5em;flex-wrap:wrap}.ph{font-size:.85em;border-radius:2em;padding:.1em .75em;background:rgba(118,118,128,.12);color:var(--mut)}.ph.running{background:rgba(0,122,255,.14);color:var(--acc)}.ph.complete{background:rgba(52,199,89,.16);color:var(--teal)}.ph.failed{background:rgba(255,59,48,.13);color:var(--red)}
@@ -421,10 +426,12 @@ function renderAllInspector(){const ov=S.ov,chk=ov.summary_check,l=ov.leaderboar
  const check=chk.status==='match'?'<div class="ichk ok">✔ 저장 집계(summary.csv·case_summary.csv)와 일치</div>':
   chk.status==='mismatch'?`<div class="ichk bad">✕ 저장 집계와 ${chk.count}곳 다름 — 화면은 검증된 case 기록 기준입니다<br>${chk.differences.slice(0,4).map(d=>esc(`${d.file} ${d.row}${d.field?' · '+d.field+': 저장 '+d.saved+' / 계산 '+d.computed:' · 행 '+(d.saved===null?'없음(저장)':'없음(계산)')}`)).join('<br>')}</div>`:
   chk.status==='missing'?`<div class="ichk bad">저장 집계 파일을 읽지 못했습니다 — ${esc(chk.message)}</div>`:`<div class="ichk">suite 상태가 ${esc(chk.suite_status)}라 저장 집계와 대조하지 않았습니다</div>`;
+ /* suite가 시작 전에 기록한 사용자 플래너 파일 해시와 case가 실제로 실행한 해시: 다르면 실행 중에 파일이 저장된 것 */
+ const pv=ov.planner_versions,ver=!pv||!pv.checked?'':pv.mismatches.length?`<div class="ichk bad">✕ 플래너 파일 버전이 다른 case ${new Set(pv.mismatches.map(m=>m.case)).size}개 — 실행 중에 파일이 저장됐습니다. 이 수치는 suite 기록(${esc(pv.mismatches[0].recorded)})이 아닌 버전(${esc(pv.mismatches[0].ran)})의 결과가 섞여 있습니다<br>${pv.mismatches.slice(0,4).map(m=>esc(`${m.case} · ${m.planner}`)).join('<br>')}</div>`:'<div class="ichk ok">✔ 모든 case가 suite가 기록한 플래너 파일 버전으로 실행</div>';
  const cov=`<div class="icov">${ov.coverage.map(c=>`<span title="${esc(c.case_id)}">${esc(c.case_id)}</span><span class="${c.status==='complete'?'':'bad'}" title="${esc(c.error||'')}">${c.status==='complete'?`${c.included}/${c.expected??'?'}`:esc(c.status)}</span>`).join('')}</div>`;
  const mine=l?`<div style="display:flex;align-items:center;gap:.6em;flex:none"><div class="num" style="background-color:${color(l.planner)}">${badge(l.planner)}</div><div style="min-width:0;flex:1"><b style="font-size:1.1em;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(l.planner)}</b><small style="color:var(--mut)">전체 ${ov.coverage.filter(c=>c.status==='complete').length} case 합계</small></div><span class="tag t-ok">${l.reached}/${l.episodes_recorded} 도달</span></div>
   <div class="mt"><span></span><span class="h">값</span><span class="h"></span>${[['충돌',l.collisions],['시간 초과',l.timeouts],['계획 실패',l.planning_failures+(l.planning_errors?` (오류 ${l.planning_errors})`:'')],['성공 RMSE 중앙값',fmt(l.success_median_tracking_rmse_m)+' m'],['성공 완료시간 중앙값',fmt(l.success_median_completion_time_s,2)+' s']].map(([k,v])=>`<span class="k">${k}</span><span class="v">${v}</span><span class="d"></span>`).join('')}</div>`:'';
- $('insp').innerHTML=`${mine}<div class="il"><span>case 포함 범위</span><span>${ov.coverage.filter(c=>c.status==='complete').length}/${ov.coverage.length}</span></div>${cov}<div class="il"><span>집계 검증</span><span></span></div>${check}<div class="nodrive">궤적·시계열은 case를 고른 뒤 보입니다</div>`}
+ $('insp').innerHTML=`${mine}<div class="il"><span>case 포함 범위</span><span>${ov.coverage.filter(c=>c.status==='complete').length}/${ov.coverage.length}</span></div>${cov}<div class="il"><span>집계 검증</span><span></span></div>${check}${ver}<div class="nodrive">궤적·시계열은 case를 고른 뒤 보입니다</div>`}
 function renderInspector(){if(S.all){renderAllInspector();return}if(!S.case){$('insp').innerHTML='';return}const e=ep(S.sel,S.seed);if(!e){$('insp').innerHTML='<div class="empty">이 조합의 에피소드가 없습니다</div>';return}
  const g=group(e.failure_class),o=OUT[g],tr=trace(e),base=S.case.baseline,pair=S.case.pairs.find(x=>x.planner===S.sel&&x.simulation_seed===S.seed),isBase=S.sel===base;
  const row=(k,v,d)=>`<span class="k">${k}</span><span class="v">${v}</span>${d}`,dash='<span class="d">—</span>',cell=(f,b,n)=>pair?deltaCell(pair[f],b,n):dash;
@@ -722,7 +729,7 @@ function renderJobPill(){const j=S.job,p=$('jobPill');p.hidden=!j;if(!j)return;c
  const w=S.watch&&S.watch.active?`watch ${S.watch.runs}회 · `:'';
  p.textContent=w+(j.status==='running'?`실행 중 · ${PHASE_LABEL[ph]||'준비'} · ${Math.round(j.elapsed_s)} s`:`실행 ${JOB_LABEL[j.status]||j.status}`)}
 function openDialog(mode){if(!$('dlgbg').hidden&&$('dlg').dataset.mode===mode)return;S.dlgFrom=S.dlgFrom||document.activeElement;$('dlgbg').hidden=false;if(mode==='form')renderForm();else{S.jobShown=null;renderJob(true)}}
-function closeDialog(){$('dlgbg').hidden=true;$('dlg').innerHTML='';$('dlg').dataset.mode='';S.jobShown=null;const f=S.dlgFrom;S.dlgFrom=null;if(f&&f.isConnected&&f.focus)f.focus()}
+function closeDialog(){$('dlgbg').hidden=true;$('dlg').innerHTML='';$('dlg').dataset.mode='';$('dlg').classList.remove('wide');S.jobShown=null;const f=S.dlgFrom;S.dlgFrom=null;if(f&&f.isConnected&&f.focus)f.focus()}
 $('newRun').onclick=()=>openDialog(S.job&&S.job.status==='running'?'job':'form');
 $('jobPill').onclick=()=>openDialog('job');
 $('dlgbg').onclick=e=>{if(e.target===$('dlgbg'))closeDialog()};
@@ -730,46 +737,94 @@ $('dlgbg').onclick=e=>{if(e.target===$('dlgbg'))closeDialog()};
 document.addEventListener('keydown',e=>{if($('dlgbg').hidden)return;if(e.key==='Escape'){e.preventDefault();closeDialog();return}if(e.key!=='Tab')return;
  const f=[...$('dlg').querySelectorAll('button,select,input,textarea,[tabindex="0"]')].filter(x=>!x.disabled&&x.offsetParent!==null);if(!f.length)return;const i=f.indexOf(document.activeElement);
  if(e.shiftKey&&i<=0){e.preventDefault();f[f.length-1].focus()}else if(!e.shiftKey&&(i<0||i===f.length-1)){e.preventDefault();f[0].focus()}});
-function renderForm(){const ro=S.ro,sc=ro.scenarios||[],d=$('dlg');d.dataset.mode='form';
+/* 새 실행: 시나리오 여러 개·노이즈를 고르면 suite(raceplan-suite와 같은 형식)로, 시나리오 하나·노이즈 0이면 예전처럼 단일 비교로 실행한다 */
+const NOISE_LABEL={initial_position_std_m:'초기 위치 σ m',initial_yaw_std_rad:'초기 방향 σ rad',initial_speed_std_mps:'초기 속도 σ m/s',steering_std_rad:'조향 σ rad',speed_measurement_std_mps:'속도 측정 σ m/s'};
+const RESEARCH_NOISE={initial_position_std_m:.02,initial_yaw_std_rad:.02,steering_std_rad:.01,speed_measurement_std_mps:.02};  // results/turn_aware_holdout.py NOISE
+function formValues(){const scen=[...document.querySelectorAll('.rdS:checked')].map(c=>c.value),planners=[...document.querySelectorAll('.rdP:checked')].map(c=>c.value),
+  custom=$('rdCustom').value.split('\n').map(s=>s.trim()).filter(Boolean),raw=$('rdSeeds').value.trim(),seeds=raw?raw.split(/[\s,]+/).filter(Boolean).map(Number):[],
+  noise=Object.fromEntries([...document.querySelectorAll('.rdN')].map(i=>[i.dataset.n,i.value.trim()===''?0:Number(i.value)]));
+ return {scen,planners,custom,seeds,noise,base:$('rdBase').value}}
+function renderPlan(){const v=formValues(),lim=S.ro.limits||{},noisy=Object.values(v.noise).some(x=>x>0),badN=Object.values(v.noise).some(x=>!Number.isFinite(x)||x<0),
+  suite=v.scen.length>1||noisy,np=v.planners.length+v.custom.length,pairs=v.scen.length*v.seeds.length,eps=pairs*np,over=pairs>lim.scenario_seeds||eps>lim.episodes||v.scen.length>lim.scenarios;
+ $('rdScnN').textContent=v.scen.length;$('rdWarn').hidden=!v.custom.length;
+ $('rdPlan').innerHTML=`<b>${suite?'suite로 실행':'단일 비교로 실행'}</b> — 시나리오 ${v.scen.length} × seed ${v.seeds.length} × planner ${np} = 에피소드 <b>${eps}</b>${suite?' · 결과는 "전체 N case" 보기로 열립니다':''}`+
+  (over?`<br><span class="over">너무 큽니다: 시나리오 ≤ ${esc(lim.scenarios)}, 시나리오×seed ≤ ${esc(lim.scenario_seeds)}, 에피소드 ≤ ${esc(lim.episodes)}</span>`:'')+
+  (badN?'<br><span class="over">노이즈는 0 이상의 숫자여야 합니다</span>':'')+
+  (!noisy&&v.seeds.length>1?'<br><span class="hint">노이즈가 모두 0이면 같은 시나리오·planner의 주행 결과는 seed마다 같습니다(seed 행은 그대로 저장됩니다)</span>':'')}
+function renderForm(){const ro=S.ro,sc=ro.scenarios||[],lim=ro.limits||{},d=$('dlg');d.dataset.mode='form';d.classList.add('wide');
  d.innerHTML=`<h3 id="dlgT">새 비교 실행</h3>${sc.length?'':'<div class="err">scenarios 폴더에 실행할 시나리오가 없습니다.</div>'}
- <label class="f">시나리오<select id="rdScn">${sc.map(s=>`<option value="${esc(s.id)}">${esc(s.name)} — ${esc(s.id)}</option>`).join('')}</select></label>
- <div class="f">내장 planner (1개 이상)<div>${ro.planners.map(p=>`<label class="ck"><input type="checkbox" class="rdP" value="${esc(p)}" ${p==='astar'?'checked':''}>${esc(p)}</label>`).join('')}</div></div>
- <label class="f">사용자 플래너 — 한 줄에 하나, <span><code>FILE.py:CLASS</code> (상대 경로는 GUI 서버를 시작한 폴더 기준)</span><textarea id="rdCustom" rows="2" placeholder="examples/my_planner.py:MyPlanner" spellcheck="false"></textarea></label>
- <div class="warnbox" id="rdWarn" hidden><b>사용자 플래너 파일의 파이썬 코드가 이 컴퓨터에서 그대로 실행됩니다.</b><span>GUI 서버와 다른 프로세스에서 시간 제한을 두고 돌지만, 파일·네트워크 접근은 막지 않습니다. 신뢰하는 파일만 실행하세요.</span><label class="ck"><input type="checkbox" id="rdTrust">이 파일들을 신뢰합니다</label>
- <label class="ck"><input type="checkbox" id="rdWatch">파일을 저장할 때마다 자동으로 다시 실행 (watch) — 결과가 저장마다 새 폴더로 쌓이고, 실행 중에 저장하면 그 실행은 취소됩니다</label></div>
- <div class="row"><label class="f">seed (공백·쉼표로 구분)<input type="text" id="rdSeeds" value="${esc(sc[0]?sc[0].simulation_seed:0)}"></label>
- <label class="f">기준 planner<select id="rdBase"><option value="">자동 (astar, 없으면 첫 내장 planner)</option>${ro.planners.map(p=>`<option value="${esc(p)}">${esc(p)}</option>`).join('')}</select></label></div>
+ <div class="cols"><div class="col">
+  <div class="f"><span>시나리오 <b id="rdScnN">1</b>개 선택 (최대 ${esc(lim.scenarios)}, 2개 이상이면 suite)</span>${sc.length>8?'<input type="text" id="rdScnQ" placeholder="이름·경로로 거르기" aria-label="시나리오 거르기">':''}
+   <div class="scl" id="rdScl">${sc.map((s,i)=>`<label class="ck" title="${esc(s.id)}"><input type="checkbox" class="rdS" value="${esc(s.id)}" data-seed="${esc(s.simulation_seed)}" ${i?'':'checked'}><span>${esc(s.name)}<small>${esc(s.id)}</small></span></label>`).join('')}</div></div>
+  <label class="f">seed (공백·쉼표로 구분, 모든 시나리오에 같은 seed)<input type="text" id="rdSeeds" value="${esc(sc[0]?sc[0].simulation_seed:0)}"></label>
+  <div class="f"><span>노이즈 (0 = 없음, 0보다 크면 suite) · <button class="lnk" id="rdNoiseR" type="button">연구 값</button> · <button class="lnk" id="rdNoise0" type="button">모두 0</button></span>
+   <div class="ngrid">${(ro.noise_fields||[]).map(n=>`<label title="${esc(n)}">${esc(NOISE_LABEL[n]||n)}<input type="text" inputmode="decimal" class="rdN" data-n="${esc(n)}" value="0"></label>`).join('')}</div></div>
+  <div class="plan" id="rdPlan" aria-live="polite"></div>
+ </div><div class="col">
+  <div class="f">내장 planner (1개 이상)<div>${ro.planners.map(p=>`<label class="ck"><input type="checkbox" class="rdP" value="${esc(p)}" ${p==='astar'?'checked':''}>${esc(p)}</label>`).join('')}</div></div>
+  <label class="f">기준 planner<select id="rdBase"><option value="">자동 (astar, 없으면 첫 내장 planner)</option>${ro.planners.map(p=>`<option value="${esc(p)}">${esc(p)}</option>`).join('')}</select></label>
+  <div class="f"><span>사용자 플래너 파일 — 경로를 넣고 클래스를 고르세요 (파일을 읽기만 하고 실행하지 않습니다)</span>
+   <div class="frow"><input type="text" id="rdFile" placeholder="C:\\…\\my_planner.py" spellcheck="false" aria-label="사용자 플래너 파일 경로"><button class="btn" id="rdFind" type="button">클래스 찾기</button></div>
+   <div class="scl small" id="rdCls"></div><div class="meta" id="rdClsNote"></div></div>
+  <label class="f"><span>실행할 사용자 플래너 — 한 줄에 하나 <code>FILE.py:CLASS</code> (직접 적어도 됩니다)</span><textarea id="rdCustom" rows="2" placeholder="examples/my_planner.py:MyPlanner" spellcheck="false"></textarea></label>
+  <div class="warnbox" id="rdWarn" hidden><b>사용자 플래너 파일의 파이썬 코드가 이 컴퓨터에서 그대로 실행됩니다.</b><span>GUI 서버와 다른 프로세스에서 시간 제한을 두고 돌지만, 파일·네트워크 접근은 막지 않습니다. 신뢰하는 파일만 실행하세요.</span><label class="ck"><input type="checkbox" id="rdTrust">이 파일들을 신뢰합니다</label>
+  <label class="ck"><input type="checkbox" id="rdWatch">파일을 저장할 때마다 같은 조건으로 다시 실행 (watch) — 결과가 저장마다 새 폴더로 쌓이고, 실행 중에 저장하면 그 실행은 취소됩니다</label></div>
+ </div></div>
  <div class="err" id="rdErr" role="alert"></div>
- <div class="btns"><span class="sp">별도 프로세스 · 시간 제한 ${esc(ro.timeout_s)} s · 결과는 ${esc(ro.output_folder)}/ 아래 새 폴더</span><button class="btn" id="rdClose">닫기</button><button class="btn pri" id="rdGo" ${sc.length?'':'disabled'}>실행</button></div>`;
- $('rdScn').onchange=()=>{const s=sc.find(x=>x.id===$('rdScn').value);if(s&&!$('rdSeeds').dataset.touched)$('rdSeeds').value=s.simulation_seed};
- $('rdSeeds').oninput=()=>{$('rdSeeds').dataset.touched='1'};
- $('rdCustom').oninput=()=>{$('rdWarn').hidden=!$('rdCustom').value.trim()};
- $('rdClose').onclick=closeDialog;$('rdGo').onclick=startJob;($('rdScn')||$('rdClose')).focus()}
-async function startJob(){const err=$('rdErr'),planners=[...document.querySelectorAll('.rdP:checked')].map(c=>c.value),custom=$('rdCustom').value.split('\n').map(s=>s.trim()).filter(Boolean),raw=$('rdSeeds').value.trim(),base=$('rdBase').value;
- const seeds=raw?raw.split(/[\s,]+/).filter(Boolean).map(Number):[];
- if(!planners.length){err.textContent='내장 planner를 하나 이상 고르세요. 분석 기준이 내장 planner여야 합니다.';return}
- if(!seeds.length||seeds.some(s=>!Number.isSafeInteger(s)||s<0)){err.textContent='seed는 0 이상의 정수를 공백이나 쉼표로 구분해 적으세요.';return}
- if(custom.length&&!$('rdTrust').checked){err.textContent='사용자 플래너를 실행하려면 "이 파일들을 신뢰합니다"를 체크하세요.';$('rdTrust').focus();return}
- if(base&&!planners.includes(base)){err.textContent='기준 planner는 고른 내장 planner 중 하나여야 합니다.';return}
+ <div class="btns"><span class="sp">별도 프로세스 · 시간 제한 ${esc(ro.timeout_s)} s(실행 전체) · 결과는 ${esc(ro.output_folder)}/ 아래 새 폴더</span><button class="btn" id="rdClose">닫기</button><button class="btn pri" id="rdGo" ${sc.length?'':'disabled'}>실행</button></div>`;
+ const seedOf=()=>{const first=document.querySelector('.rdS:checked');if(first&&!$('rdSeeds').dataset.touched)$('rdSeeds').value=first.dataset.seed};
+ $('rdScl').onchange=()=>{seedOf();renderPlan()};
+ if($('rdScnQ'))$('rdScnQ').oninput=e=>{const q=e.target.value.trim().toLowerCase();$('rdScl').querySelectorAll('label').forEach(l=>{l.hidden=!!q&&!l.textContent.toLowerCase().includes(q)})};
+ $('rdSeeds').oninput=()=>{$('rdSeeds').dataset.touched='1';renderPlan()};
+ d.querySelectorAll('.rdN,.rdP').forEach(i=>{i.addEventListener('input',renderPlan);i.addEventListener('change',renderPlan)});
+ $('rdNoiseR').onclick=()=>{d.querySelectorAll('.rdN').forEach(i=>{i.value=RESEARCH_NOISE[i.dataset.n]??0});renderPlan()};
+ $('rdNoise0').onclick=()=>{d.querySelectorAll('.rdN').forEach(i=>{i.value=0});renderPlan()};
+ $('rdCustom').oninput=()=>{syncClassChecks();renderPlan()};
+ $('rdFind').onclick=findClasses;$('rdFile').onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();findClasses()}};
+ $('rdCls').onchange=e=>{const c=e.target;if(!c.classList.contains('rdC'))return;const lines=$('rdCustom').value.split('\n').map(s=>s.trim()).filter(Boolean),spec=c.value;
+  $('rdCustom').value=(c.checked?[...lines.filter(l=>l!==spec),spec]:lines.filter(l=>l!==spec)).join('\n');renderPlan()};
+ $('rdClose').onclick=closeDialog;$('rdGo').onclick=startJob;renderPlan();(d.querySelector('.rdS')||$('rdClose')).focus()}
+/* 파일의 Planner 하위 클래스를 서버가 ast로 찾는다(가져오기·실행 없음). 체크 = 아래 목록에 FILE.py:CLASS 한 줄 */
+async function findClasses(){const note=$('rdClsNote'),box=$('rdCls'),file=$('rdFile').value.trim(),gen=S.clsGen=(S.clsGen||0)+1;if(!file){note.textContent='파일 경로를 넣으세요';return}
+ note.textContent='찾는 중…';box.innerHTML='';
+ try{const r=await post('/api/planner-classes',{file});if(gen!==S.clsGen||!$('rdCls'))return;  // 늦게 온 이전 경로의 답은 버린다
+  box.innerHTML=r.planners.map(c=>`<label class="ck"><input type="checkbox" class="rdC" value="${esc(r.file+':'+c.name)}"><span>${esc(c.name)}<small>${esc(c.base)} · ${esc(c.line)}행</small></span></label>`).join('');
+  note.textContent=(r.planners.length?`Planner 클래스 ${r.planners.length}개`:'Planner 하위 클래스를 찾지 못했습니다')+(r.other.length?` · 그 밖의 클래스 ${r.other.length}개(${r.other.map(c=>c.name).join(', ')}) — 다른 모듈을 거쳐 상속하면 직접 적으세요`:'');syncClassChecks()}
+ catch(e){if(gen===S.clsGen&&$('rdClsNote'))note.textContent='클래스를 찾지 못했습니다: '+tokenHint(e.message)}}
+function syncClassChecks(){const lines=new Set($('rdCustom').value.split('\n').map(s=>s.trim()));document.querySelectorAll('.rdC').forEach(c=>{c.checked=lines.has(c.value)})}
+async function startJob(){const err=$('rdErr'),v=formValues();
+ if(!v.scen.length){err.textContent='시나리오를 하나 이상 고르세요.';return}
+ if(!v.planners.length){err.textContent='내장 planner를 하나 이상 고르세요. 분석 기준이 내장 planner여야 합니다.';return}
+ if(!v.seeds.length||v.seeds.some(s=>!Number.isSafeInteger(s)||s<0)){err.textContent='seed는 0 이상의 정수를 공백이나 쉼표로 구분해 적으세요.';$('rdSeeds').focus();return}
+ if(Object.values(v.noise).some(x=>!Number.isFinite(x)||x<0)){err.textContent='노이즈는 0 이상의 숫자여야 합니다.';return}
+ if(v.custom.length&&!$('rdTrust').checked){err.textContent='사용자 플래너를 실행하려면 "이 파일들을 신뢰합니다"를 체크하세요.';$('rdTrust').focus();return}
+ if(v.base&&!v.planners.includes(v.base)){err.textContent='기준 planner는 고른 내장 planner 중 하나여야 합니다.';return}
  const go=$('rdGo');go.disabled=true;err.textContent='';  // 요청 중 대화상자가 닫혀도 이 요소들만 만진다(분리된 요소는 화면에 영향 없음)
- const body={scenario:$('rdScn').value,planners,custom_planners:custom,seeds,baseline:base||null,...(custom.length?{trust_user_code:true}:{})},watching=custom.length>0&&$('rdWatch').checked;
+ const body={scenarios:v.scen,planners:v.planners,custom_planners:v.custom,seeds:v.seeds,baseline:v.base||null,noise:v.noise,...(v.custom.length?{trust_user_code:true}:{})},watching=v.custom.length>0&&$('rdWatch').checked;
  try{if(watching){const r=await post('/api/watch',body);S.watchGen++;S.watch=r.watch;S.job=r.job;pollWatch()}else S.job=await post('/api/jobs',body);
   renderJobPill();S.jobShown=null;renderJob(true);pollJob()}
  catch(e){err.textContent='실행을 시작하지 못했습니다: '+tokenHint(e.message);go.disabled=false}}
 /* 작업 화면: 틀은 상태가 바뀔 때만 다시 만들고(버튼 포커스 유지), 진행·로그는 제자리에서 바꾼다 */
 function renderJob(force){const j=S.job,d=$('dlg');if($('dlgbg').hidden||(!force&&d.dataset.mode!=='job'))return;if(!j){closeDialog();return}
- if(S.jobShown!==j.id+'|'+j.status){S.jobShown=j.id+'|'+j.status;d.dataset.mode='job';const tag=j.status==='complete'?'t-ok':j.status==='running'?'t-drv':'t-col';
+ if(S.jobShown!==j.id+'|'+j.status){S.jobShown=j.id+'|'+j.status;d.dataset.mode='job';d.classList.remove('wide');const tag=j.status==='complete'?'t-ok':j.status==='running'?'t-drv':'t-col';
+  const partial=j.kind==='suite'&&j.status!=='running'&&j.status!=='complete'&&j.suite&&(j.suite.counts.complete||0)>0;  // 일부 case가 끝난 suite도 열어 볼 수 있다
   d.innerHTML=`<h3 id="dlgT">비교 실행 <span class="tag ${tag}">${esc(JOB_LABEL[j.status]||j.status)}</span>${j.watch_run?`<small style="color:var(--mut);font-weight:400">watch ${esc(j.watch_run)}번째 · ${j.trigger==='change'?'파일 변경':'시작'}</small>`:''}</h3><div id="jbWatch"></div><div class="meta" id="jbMeta"></div><div class="phases" id="jbPh"></div><div id="jbErr"></div>
   <pre class="joblog" id="jobLog" tabindex="0" aria-label="실행 로그 (마지막 400줄)"></pre>
-  <div class="btns"><span class="sp">결과 폴더 ${esc(j.run_id)}</span>${j.status==='running'?'<button class="btn" id="jbCancel">실행 취소</button>':'<button class="btn" id="jbNew">새 실행</button>'}${j.status==='complete'?'<button class="btn pri" id="jbOpen">결과 열기</button>':''}<button class="btn" id="jbClose">닫기</button></div>`;
+  <div class="btns"><span class="sp">결과 폴더 ${esc(j.run_id)}</span>${j.status==='running'?'<button class="btn" id="jbCancel">실행 취소</button>':'<button class="btn" id="jbNew">새 실행</button>'}${j.status==='complete'||partial?`<button class="btn pri" id="jbOpen">${partial?'끝난 case 열기':'결과 열기'}</button>`:''}<button class="btn" id="jbClose">닫기</button></div>`;
   if($('jbCancel')){const b=$('jbCancel'),box=$('jbErr');b.onclick=async()=>{b.disabled=true;try{await post(`/api/jobs/${j.id}/cancel`,{});pollJob()}catch(e){box.textContent='취소하지 못했습니다: '+tokenHint(e.message);b.disabled=false}}}  // 최종 상태는 polling이 가져온다
   if($('jbNew'))$('jbNew').onclick=()=>{S.jobShown=null;renderForm()};
-  if($('jbOpen'))$('jbOpen').onclick=()=>{closeDialog();openRun(j.run_id)};
+  if($('jbOpen'))$('jbOpen').onclick=async()=>{closeDialog();await refreshRuns(true);openRun(j.run_id)};
   $('jbClose').onclick=closeDialog;($('jbCancel')||$('jbOpen')||$('jbClose')).focus();S.watchShown=null}  // 틀을 새로 만들었으니 watch 줄도 새로
  renderWatchBar();
- const wf=j.workflow,names=custom=>custom.map(c=>c.split(/[\\/]/).pop());
- $('jbMeta').textContent=`${j.scenario} · ${[...j.planners,...names(j.custom_planners)].join(', ')} · seed ${j.seeds.join(' ')} · ${Math.round(j.elapsed_s)} / ${j.timeout_s} s`;
- $('jbPh').innerHTML=['experiment','analysis','report'].map(n=>{const st=(wf&&wf.phases&&wf.phases[n])||'pending';return `<span class="ph ${esc(st)}">${PHASE_LABEL[n]} · ${esc(PHASE_STATE[st]||st)}</span>`}).join('');
+ const wf=j.workflow,su=j.suite,names=custom=>custom.map(c=>c.split(/[\\/]/).pop()),sc=j.scenarios||[],noisy=Object.entries(j.noise||{}).filter(([,x])=>x>0);
+ $('jbMeta').textContent=`${j.kind==='suite'?`suite · 시나리오 ${sc.length}개`:sc[0]} · ${[...j.planners,...names(j.custom_planners)].join(', ')} · seed ${j.seeds.join(' ')}${noisy.length?' · 노이즈 '+noisy.map(([k,x])=>(NOISE_LABEL[k]||k)+' '+x).join(', '):''} · ${Math.round(j.elapsed_s)} / ${j.timeout_s} s`;
+ const phases=['experiment','analysis','report'].map(n=>{const st=(wf&&wf.phases&&wf.phases[n])||'pending';return `<span class="ph ${esc(st)}">${PHASE_LABEL[n]} · ${esc(PHASE_STATE[st]||st)}</span>`}).join('');
+ const pv=j.planner_versions,aggregating=j.status==='running'&&su&&su.phase==='aggregation',
+  expected=su?(su.coverage?su.coverage.expected_episode_count:(j.planners.length+j.custom_planners.length)*j.seeds.length*su.total):0;  // 첫 case 전에도 분모를 보인다
+ $('jbPh').innerHTML=j.kind!=='suite'?phases:!su?'<span class="ph">suite 준비 중</span>':
+  `<span class="ph ${su.current||aggregating?'running':''}">${aggregating?'합계 쓰는 중':`case ${su.current?`${esc(su.current_index)}/${esc(su.total)} ${esc(su.current)}`:`${esc(su.total)}개`}`}</span><span class="ph">완료 ${esc(su.counts.complete||0)} · 실패 ${esc(su.counts.failed||0)} · 미실행 ${esc((su.counts.pending||0)+(su.counts.not_run||0))} · 에피소드 ${esc(su.coverage?su.coverage.included_episode_count:0)}/${esc(expected)}</span>${su.current?phases:''}`+
+  (su.failed.length?`<div class="meta" style="flex-basis:100%">${su.failed.map(f=>`<div>✗ ${esc(f.case_id)} — ${esc(f.failed_phase||'')} ${esc(f.message||'')}</div>`).join('')}${(su.counts.failed||0)>su.failed.length?`<div>… 실패 case ${esc(su.counts.failed)}개 중 ${su.failed.length}개만 표시 — 전체는 coverage CSV</div>`:''}</div>`:'')+
+  (pv&&pv.mismatches.length?`<div class="meta" style="flex-basis:100%;color:var(--red)">✕ ${pv.mismatches.length}곳에서 실행 중에 플래너 파일이 저장돼 suite 기록과 다른 버전으로 실행됐습니다: ${pv.mismatches.slice(0,3).map(m=>esc(`${m.case} · ${m.planner}`)).join(', ')}</div>`:'');
  const bad=j.status!=='running'&&j.status!=='complete';
  $('jbErr').innerHTML=(bad?`<div class="warnbox"><b>${esc(JOB_LABEL[j.status]||j.status)}${j.status==='timeout'?` — 시간 제한 ${esc(j.timeout_s)} s를 넘어 프로세스를 멈췄습니다`:j.status==='cancelled'?' — 사용자가 멈췄습니다':` — 종료 코드 ${esc(j.exit_code)}`}</b>${wf&&wf.error?`<span>${esc(wf.failed_phase||'')}: ${esc(wf.error.type||'')} ${esc(wf.error.message||'')}</span>`:''}${j.missing_module?`<span>모듈 <code>${esc(j.missing_module)}</code>이(가) ${S.ro&&S.ro.frozen?'RacePlan.exe에 들어 있지 않습니다. exe에는 RacePlan·NumPy·Pillow·PyYAML과 Python 표준 라이브러리만 있습니다. 이 모듈이 필요하면 Python에 RacePlan을 설치해 실행하세요.':'이 Python 환경에 설치돼 있지 않습니다. 설치한 뒤 다시 실행하세요.'}</span>`:''}${j.record?`<span>${esc(j.record)}</span>`:`<span>부분 결과는 <code>${esc(j.run_id)}</code>에 남고 목록에는 실패로 보입니다.</span>`}</div>`:'')+(j.pollError?`<div class="err">상태를 읽지 못했습니다: ${esc(j.pollError)}</div>`:'');
  // 로그는 바뀌었을 때만, 그리고 사용자가 로그를 선택(복사)하는 중이 아닐 때만 바꾼다
@@ -780,8 +835,11 @@ function pollJob(){clearTimeout(S.jobTimer);const id=S.job&&S.job.id;if(!id)retu
   if(!S.job||S.job.id!==id)return;S.job=j;renderJobPill();renderJob();
   if(j.status==='running'){pollJob();return}jobFinished(j)},700)}  // 시작 응답이 이미 끝난 상태여도 처리(작업마다 한 번)
 /* 끝난 작업은 작업마다 한 번만 처리한다(작업 폴링과 watch 폴링 어느 쪽이 먼저 보든) */
-async function jobFinished(j){if(S.finished.has(j.id))return;S.finished.add(j.id);await refreshRuns(true);  // 목록 반영을 기다린 뒤 연다
- if(j.status==='complete'&&S.runs.some(r=>r.id===j.run_id)){if(!$('dlgbg').hidden&&!(S.watch&&S.watch.active))closeDialog();await openRun(j.run_id)}}
+async function jobFinished(j){if(S.finished.has(j.id))return;S.finished.add(j.id);const gen=S.watchGen;await refreshRuns(true);  // 목록 반영을 기다린 뒤 연다
+ /* 끝난 suite 일부(partial)도 연다. 기다리는 사이 다른 작업(watch의 다음 실행 등)으로 바뀌었거나 watch가 바뀌었으면 이전 결과는 열지 않는다 */
+ const partial=j.kind==='suite'&&j.suite&&j.suite.status==='partial';
+ if((S.job&&S.job.id!==j.id)||gen!==S.watchGen)return;
+ if((j.status==='complete'||partial)&&S.runs.some(r=>r.id===j.run_id)){if(!$('dlgbg').hidden&&!(S.watch&&S.watch.active))closeDialog();await openRun(j.run_id)}}
 /* watch: 서버가 파일 변경마다 새 작업을 시작한다. 1.5초마다 상태를 읽어 새 작업이 생기면 그 작업을 따라가고, 끝나면 새 결과를 연다 */
 function pollWatch(){clearTimeout(S.watchTimer);if(!S.watch||!S.watch.active)return;
  S.watchTimer=setTimeout(async()=>{const gen=S.watchGen;let ro;try{ro=await api('/api/run-options')}catch(err){pollWatch();return}

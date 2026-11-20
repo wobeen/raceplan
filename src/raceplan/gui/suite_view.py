@@ -180,3 +180,24 @@ def pooled_scatter(cases, x='reported', planners=None, seeds=None, outcomes=None
         result['points'] += [{**point, 'case': case['id']} for point in part['points']]
         result['excluded'] += [{**item, 'case': case['id']} for item in part['excluded']]
     return result
+
+
+def planner_versions(provenance, manifests):
+    """Did every case run the user planner files the suite recorded before it started? raceplan.suite hashes each file
+    once (provenance.json input_sha256) and each case's workflow records the bytes it really loaded
+    (comparison_manifest.json custom_planner_sources). A file saved in between makes them differ; the case's numbers
+    then belong to another version than the suite's record. manifests: [(case_id, manifest)] of included cases."""
+    recorded = provenance.get('input_sha256') if isinstance(provenance, dict) else None
+    recorded = recorded if isinstance(recorded, dict) else {}  # An unusual record is checked as "nothing recorded".
+    mismatches, checked = [], 0
+    for case_id, manifest in manifests:
+        sources = manifest.get('custom_planner_sources') if isinstance(manifest, dict) else None
+        for name, source in (sources.items() if isinstance(sources, dict) else ()):
+            if not isinstance(source, dict):
+                continue
+            expected = recorded.get(source.get('path'))
+            checked += 1
+            if expected is None or expected != source.get('sha256'):
+                mismatches.append({'case': case_id, 'planner': name, 'path': source.get('path'),
+                                   'recorded': str(expected or '')[:12], 'ran': str(source.get('sha256', ''))[:12]})
+    return {'checked': checked, 'mismatches': mismatches}

@@ -325,6 +325,12 @@ class Explorer:
                 differences = suite_view.check_saved(leaderboard, matrix, *saved)
                 check = {'status': 'mismatch' if differences else 'match', 'count': len(differences),
                          'differences': differences[:50]}
+        try:
+            provenance = Reader().json(entry['folder'] / 'provenance.json')
+        except (OSError, ValueError):
+            provenance = None
+        versions = (suite_view.planner_versions(provenance, [(case['id'], case['manifest']) for case in entry['cases'].values()])
+                    if provenance is not None else None)
         return {'id': run_id, 'name': run['name'], 'kind': 'suite', 'status': status,
                 'planners': suite_view.planner_order(included),
                 'seeds': sorted({seed for case in run['cases'] for seed in case['seeds']}),
@@ -332,7 +338,8 @@ class Explorer:
                           for case in run['cases']],
                 'coverage': run['coverage'], 'leaderboard': leaderboard, 'matrix': matrix,
                 'episodes': [{**episode, 'case': case['id']} for case in run['cases'] for episode in case['episodes']],
-                'summary_check': check, 'run': run}  # The page takes its case list and coverage from this same snapshot.
+                'summary_check': check, 'planner_versions': versions,
+                'run': run}  # The page takes its case list and coverage from this same snapshot.
 
     def case(self, run_id, case_id):
         entry = self._loaded(run_id)
