@@ -10,6 +10,7 @@ import yaml
 
 from raceplan import experiment, suite, workflow
 from raceplan.gui.data import Explorer, UnknownItem, find_runs
+from raceplan.gui.analysis import BadQuery
 from raceplan.gui.server import make_server
 from raceplan.planners import AStarPlanner
 
@@ -604,6 +605,7 @@ def test_write_requests_need_this_pages_origin_token_and_json(runner, saved):
     status, page = server.request('GET', '/')
     assert status == 200 and server.server.token.encode() not in page  # Fetching the page never hands out the token.
     assert explorer_url(server.server, 'my run') == f'http://127.0.0.1:{server.port}/?run=my%20run#token={server.server.token}'
+    assert explorer_url(server.server, 's', True) == f'http://127.0.0.1:{server.port}/?run=s&scope=all#token={server.server.token}'
     status, options = server.request('GET', '/api/run-options')
     assert options['enabled'] and server.server.token not in json.dumps(options)
     ids = [item['id'] for item in options['scenarios']]
@@ -1119,3 +1121,230 @@ def test_unwritable_results_folder_says_where_and_what_to_do(tmp_path, monkeypat
     with pytest.raises(OSError) as error:
         jobs._output('demo.yaml')
     assert str(tmp_path / 'gui-runs') in str(error.value) and '--output-root' in str(error.value)
+
+
+@pytest.fixture(scope='module')
+def two_case_suite(tmp_path_factory):
+    """A finished suite with two cases, two planners and two noisy seeds, written by raceplan.suite itself."""
+    root = tmp_path_factory.mktemp('suite_all')
+    config = {'version': 1, 'planners': ['astar', 'dijkstra'], 'simulation_seeds': [0, 1], 'baseline': 'astar',
+              'noise': {'steering_std_rad': 0.02, 'initial_position_std_m': 0.02},
+              'cases': [{'id': 'demo', 'scenario': str(SCENARIO)},
+                        {'id': 'open', 'scenario': str(ROOT / 'scenarios/validation_open.yaml')}]}
+    (root / 'suite.yaml').write_text(yaml.safe_dump(config), encoding='utf-8')
+    assert suite.main([str(root / 'suite.yaml'), '--output-dir', str(root / 'results/two')]) == 0
+    return root / 'results'
+
+
+def test_all_cases_totals_are_the_suites_own_saved_totals(two_case_suite, tmp_path):
+    import shutil
+    from raceplan.gui.suite_view import CHECKED_FIELDS
+    overview = Explorer(two_case_suite).overview('two')
+    assert overview['summary_check'] == {'status': 'match', 'count': 0, 'differences': []}
+    saved = {row['planner']: row for row in read_csv(two_case_suite / 'two/summary.csv')}
+    by_case = {(row['case_id'], row['planner']): row for row in read_csv(two_case_suite / 'two/case_summary.csv')}
+    for entry in overview['leaderboard']:  # The page shows the suite's own numbers, field by field.
+        for field in CHECKED_FIELDS:
+            stored = saved[entry['planner']][field]
+            assert (entry[field] is None and stored == '') or float(stored) == pytest.approx(entry[field], rel=1e-12), field
+    assert {(case, planner) for case, planners in overview['matrix'].items() for planner in planners} == set(by_case)
+    assert [row['case_id'] for row in overview['coverage']] == ['demo', 'open']
+    assert len(overview['episodes']) == 8 and {episode['case'] for episode in overview['episodes']} == {'demo', 'open'}
+
+    copy = tmp_path / 'copy'
+    shutil.copytree(two_case_suite / 'two', copy / 'two')
+    text = (copy / 'two/summary.csv').read_text(encoding='utf-8-sig')
+    lines = text.splitlines()
+    header, astar = lines[0].split(','), next(i for i, line in enumerate(lines) if line.startswith('astar,'))
+    cells = lines[astar].split(',')
+    cells[header.index('reached')] = str(int(cells[header.index('reached')]) + 1)  # A stale or edited saved total.
+    lines[astar] = ','.join(cells)
+    (copy / 'two/summary.csv').write_text('\n'.join(lines) + '\n', encoding='utf-8')
+    check = Explorer(copy).overview('two')['summary_check']
+    assert check['status'] == 'mismatch' and {'file': 'summary.csv', 'row': 'astar', 'field': 'reached'} in [
+        {key: item[key] for key in ('file', 'row', 'field')} for item in check['differences']]
+
+
+def test_totals_pool_every_success_instead_of_taking_a_median_of_medians():
+    from raceplan.gui.suite_view import totals
+
+    def row(planner, outcome, rmse='', time='', collision='False', simulation='finished', planning='success'):
+        return {'planner': planner, 'failure_class': outcome, 'tracking_rmse_m': rmse, 'completion_time_s': time,
+                'collision': collision, 'simulation_status': simulation, 'planning_status': planning}
+    cases = [{'id': 'a', 'planners': ['p'], 'rows': [row('p', 'reached', '1', '10'), row('p', 'reached', '2', '20'),
+                                                     row('p', 'reached', '3', '30')]},
+             {'id': 'b', 'planners': ['p'], 'rows': [row('p', 'reached', '10', '100'),
+                                                     row('p', 'driving_collision', collision='True'),
+                                                     row('p', 'timeout', simulation='timeout'),
+                                                     row('p', 'planning_error', planning='planning_error')]}]
+    [entry], matrix = totals(cases)
+    assert entry['success_median_tracking_rmse_m'] == 2.5  # Median of medians would say 6.0.
+    assert (entry['reached'], entry['episodes_recorded'], entry['collisions'], entry['timeouts'],
+            entry['planning_failures'], entry['planning_errors']) == (4, 7, 1, 1, 1, 1)
+    assert matrix['b']['p']['reached'] == 1 and matrix['a']['p']['success_median_completion_time_s'] == 20.0
+
+
+def test_pooled_comparisons_keep_each_case_apart():
+    from raceplan.gui.suite_view import pooled_delta, pooled_scatter
+
+    def case(case_id, baseline, delta):
+        episodes = [{'planner': name, 'simulation_seed': 0, 'failure_class': 'reached', 'episode_id': f'{name}:0',
+                     'plan_id': name, 'planning_time_ms': 1.0, 'runner_planning_time_ms': 1.0, 'tracking_rmse_m': 0.1}
+                    for name in ('base', 'other', 'p')]
+        return {'id': case_id, 'planners': ['base', 'other', 'p'], 'seeds': [0], 'baseline': baseline, 'episodes': episodes,
+                'pairs': [{'planner': name, 'simulation_seed': 0, 'both_reached': True, 'both_driven': True,
+                           'delta_tracking_rmse_m': delta, 'delta_completion_time_s': 0.0,
+                           'delta_driving_min_sampled_clearance_m': 0.0}
+                          for name in ('base', 'other', 'p') if name != baseline]}
+    same = pooled_delta([case('a', 'base', -0.1), case('b', 'base', -0.3)], planners=['p'])
+    [lane] = same['lanes']
+    assert same['baseline'] == 'base' and lane['median'] == pytest.approx(-0.2)
+    assert sorted((point['case'], point['seed']) for point in lane['points']) == [('a', 0), ('b', 0)]  # Same seed, own case.
+    assert {pair['case'] for pair in same['excluded_pairs'] if pair['reason'] == 'filtered_planner'} == {'a', 'b'}
+    mixed = pooled_delta([case('a', 'base', -0.1), case('b', 'other', -0.3)], planners=['p'])
+    assert mixed['baseline'] is None and mixed['baselines'] == ['base', 'other']
+    assert sorted((lane['planner'], lane['baseline']) for lane in mixed['lanes']) == [('p', 'base'), ('p', 'other')]
+    scatter = pooled_scatter([case('a', 'base', 0), case('b', 'base', 0)])
+    assert scatter['plotted'] == 6 and {point['case'] for point in scatter['points']} == {'a', 'b'}
+    with pytest.raises(BadQuery):
+        pooled_delta([], metric='nope')
+
+
+def test_all_cases_endpoints_and_export(two_case_suite):
+    server = make_server(two_case_suite)
+    Thread(target=server.serve_forever, daemon=True).start()
+    port = server.server_address[1]
+
+    def get(path):
+        connection = http.client.HTTPConnection('127.0.0.1', port, timeout=30)
+        connection.request('GET', path, headers={'Host': f'127.0.0.1:{port}'})
+        response = connection.getresponse()
+        body = response.read()
+        connection.close()
+        return response.status, body
+    try:
+        status, body = get('/api/run?id=two')
+        run = json.loads(body)
+        assert status == 200 and run['kind'] == 'suite' and run['cases'][0]['map_label'] == 'maps/demo'
+        assert get('/api/suite/overview?run=two')[0] == 200 and get('/api/suite/overview?run=two&case=demo')[0] == 400
+        status, body = get('/api/compare/delta?run=two&scope=all&metric=rmse')
+        delta = json.loads(body)
+        assert status == 200 and delta['candidate'] == 4 and all('case' in pair for pair in delta['excluded_pairs'])
+        assert (delta['case_ids'], delta['cases_listed']) == (['demo', 'open'], 2)
+        for bad in ('/api/compare/delta?run=two&scope=all&case=demo', '/api/compare/scatter?run=two&scope=some',
+                    '/api/export/suite-episodes.csv?run=two&case=demo'):
+            assert get(bad)[0] == 400, bad
+        status, body = get('/api/export/suite-episodes.csv?run=two&filter=all')
+        rows = _csv_rows(body.decode('utf-8-sig'))
+        demo = read_csv(two_case_suite / 'two/cases/demo/analysis/episodes.csv')
+        assert status == 200 and rows[0][0] == 'case_id' and len(rows) == 1 + 8
+        assert rows[1][0] == 'demo' and rows[1][1:] == list(demo[0].values())  # Saved cell text, case order then file order.
+    finally:
+        server.shutdown()
+        server.server_close()
+
+
+def test_all_cases_view_is_only_for_suites(saved):
+    explorer = Explorer(saved)
+    assert explorer.run('nested/batch')['kind'] == 'batch'
+    for call in (lambda: explorer.overview('nested/batch'), lambda: explorer.compare_all('nested/batch', 'delta'),
+                 lambda: explorer.export_suite_episodes('nested/batch')):
+        with pytest.raises(BadQuery):
+            call()
+
+
+def test_new_run_folders_say_which_scenario_they_ran(tmp_path):
+    from raceplan.gui.jobs import run_slug
+    for family in ('offset_islands', 'staggered_windows'):
+        (tmp_path / family).mkdir()
+        (tmp_path / family / 'q0.yaml').write_text((SCENARIO.read_text(encoding='utf-8')
+                                                    .replace('name: demo-gap', 'name: q0')
+                                                    .replace('../maps/', str(ROOT / 'maps').replace('\\', '/') + '/')),
+                                                   encoding='utf-8')
+    # Same file name in two folders and a name that only repeats it: the folder keeps them apart.
+    assert run_slug(tmp_path, 'offset_islands/q0.yaml') == 'offset_islands-q0'
+    assert run_slug(tmp_path, 'staggered_windows/q0.yaml') == 'staggered_windows-q0'
+    assert run_slug(ROOT / 'scenarios', 'demo.yaml') == 'demo-gap'  # The scenario's own name when it says more.
+    # raceplan-gui watch passes the scenario's own folder and its bare file name.
+    assert run_slug(tmp_path / 'offset_islands', 'q0.yaml') == 'offset_islands-q0'
+    assert run_slug(tmp_path / 'staggered_windows', 'q0.yaml') == 'staggered_windows-q0'
+
+
+def test_one_overview_answer_is_one_loaded_snapshot(two_case_suite, monkeypatch):
+    explorer = Explorer(two_case_suite)
+    calls = []
+    real = Explorer._loaded
+    monkeypatch.setattr(Explorer, '_loaded', lambda self, run_id: calls.append(run_id) or real(self, run_id))
+    overview = explorer.overview('two')
+    assert calls == ['two']  # Totals, rows, case list and coverage cannot come from two different loads.
+    assert [case['id'] for case in overview['run']['cases']] == list(overview['matrix']) == ['demo', 'open']
+    assert overview['run']['coverage'] == overview['coverage']
+
+
+def test_saved_totals_are_checked_once_the_suite_has_written_them(two_case_suite, tmp_path):
+    import shutil
+    for status, phase, finished, expected in (('partial', 'complete', True, 'match'), ('interrupted', 'complete', True, 'match'),
+                                              ('running', 'cases', False, 'not_final'), ('failed', 'cases', True, 'missing')):
+        copy = tmp_path / status / 'two'
+        shutil.copytree(two_case_suite / 'two', copy)
+        state = json.loads((copy / 'suite.json').read_text(encoding='utf-8'))
+        state.update(status=status, phase=phase)
+        if not finished:
+            state.pop('finished_at_utc')
+        (copy / 'suite.json').write_text(json.dumps(state), encoding='utf-8')
+        assert Explorer(copy.parent).overview('two')['summary_check']['status'] == expected, status
+
+
+def test_saved_totals_that_a_dict_reader_would_mend_are_unreadable(two_case_suite, tmp_path):
+    import shutil
+    for name, mend in (('repeated', lambda lines: [lines[0] + ',reached', *[line + ',0' for line in lines[1:]]]),
+                       ('short', lambda lines: [lines[0], lines[1].rsplit(',', 1)[0], *lines[2:]]),
+                       ('quote', lambda lines: [*lines[:-1], '{},"{}'.format(*lines[-1].rsplit(',', 1))])):
+        copy = tmp_path / name / 'two'
+        shutil.copytree(two_case_suite / 'two', copy)
+        lines = (copy / 'summary.csv').read_text(encoding='utf-8-sig').splitlines()
+        (copy / 'summary.csv').write_text('\n'.join(mend(lines)) + '\n', encoding='utf-8')
+        check = Explorer(copy.parent).overview('two')['summary_check']
+        assert check['status'] == 'missing' and 'summary.csv' in check['message'], name
+
+
+def test_a_state_that_changes_while_loading_is_read_again(two_case_suite, tmp_path, monkeypatch):
+    import shutil
+    from raceplan.gui import data
+    shutil.copytree(two_case_suite / 'two', tmp_path / 'two')
+    path, real, calls = tmp_path / 'two/suite.json', data._load, []
+
+    def load(reader, folder):
+        result = real(reader, folder)
+        calls.append(1)
+        if len(calls) == 1:  # The suite writes its state again between our two reads.
+            state = json.loads(path.read_text(encoding='utf-8'))
+            path.write_text(json.dumps({**state, 'note': 'rewritten'}), encoding='utf-8')
+        return result
+    monkeypatch.setattr(data, '_load', load)
+    overview = Explorer(tmp_path).overview('two')
+    assert len(calls) == 2 and overview['summary_check']['status'] == 'match'
+
+
+def test_saved_totals_check_flags_repeated_extra_and_missing_columns(two_case_suite):
+    from raceplan.gui.suite_view import check_saved, totals
+    explorer = Explorer(two_case_suite)
+    entry = explorer._loaded('two')
+    leaderboard, matrix = totals([{'id': case['id'], 'planners': list(case['manifest']['planners']), 'rows': case['episodes']}
+                                  for case in entry['cases'].values()])
+    summary = read_csv(two_case_suite / 'two/summary.csv')
+    by_case = read_csv(two_case_suite / 'two/case_summary.csv')
+    assert check_saved(leaderboard, matrix, summary, by_case) == []
+    found = check_saved(leaderboard, matrix, summary + [dict(summary[0])],
+                        by_case + [{**by_case[0], 'case_id': 'never_ran'}])
+    assert {(item['file'], item['saved']) for item in found} == {('summary.csv', 'repeated row'), ('case_summary.csv', 'row')}
+    no_column = [{key: value for key, value in row.items() if key != 'success_median_tracking_rmse_m'} for row in summary]
+    assert {item['field'] for item in check_saved(leaderboard, matrix, no_column, by_case)} == {'success_median_tracking_rmse_m'}
+
+
+def test_a_reached_episode_without_a_finite_value_is_an_error_not_a_dropped_sample():
+    from raceplan.gui.suite_view import totals
+    row = {'planner': 'p', 'simulation_seed': '3', 'failure_class': 'reached', 'tracking_rmse_m': 'nan',
+           'completion_time_s': '5', 'collision': 'False', 'simulation_status': 'finished', 'planning_status': 'success'}
+    with pytest.raises(ValueError, match="case a: p seed 3 .*tracking_rmse_m is 'nan'"):
+        totals([{'id': 'a', 'planners': ['p'], 'rows': [row]}])

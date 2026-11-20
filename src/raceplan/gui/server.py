@@ -146,8 +146,18 @@ class Handler(BaseHTTPRequestHandler):
             elif url.path == '/api/case':
                 self._json(HTTPStatus.OK, explorer.case(query.get('run', ''), query.get('id', '')))
             elif url.path in ('/api/compare/delta', '/api/compare/scatter'):
-                self._json(HTTPStatus.OK, explorer.compare(query.get('run', ''), query.get('case', ''),
-                                                           url.path.rsplit('/', 1)[1], **self._options(url.path, query, multi)))
+                kind, options = url.path.rsplit('/', 1)[1], self._options(url.path, query, multi)
+                if 'scope' in multi:
+                    # All cases of a suite at once; scope and case are alternatives, never combined.
+                    if 'case' in multi or self._single(multi, 'scope') != 'all':
+                        raise BadQuery('scope must be all, and scope and case cannot be combined')
+                    self._json(HTTPStatus.OK, explorer.compare_all(self._single(multi, 'run'), kind, **options))
+                else:
+                    self._json(HTTPStatus.OK, explorer.compare(query.get('run', ''), query.get('case', ''), kind, **options))
+            elif url.path == '/api/suite/overview':
+                if 'case' in multi:
+                    raise BadQuery('the overview covers every case; case is not accepted')
+                self._json(HTTPStatus.OK, explorer.overview(self._single(multi, 'run')))
             elif url.path == '/api/compare/replay':
                 try:
                     seed = int(query.get('seed', ''))
@@ -158,6 +168,11 @@ class Handler(BaseHTTPRequestHandler):
             elif url.path == '/api/export/episodes.csv':
                 self._csv(*explorer.export_episodes(self._single(multi, 'run'), self._single(multi, 'case'),
                                                     self._single(multi, 'filter', 'all')), 'episodes.csv')
+            elif url.path == '/api/export/suite-episodes.csv':
+                if 'case' in multi:
+                    raise BadQuery('this export covers every completed case; case is not accepted')
+                self._csv(*explorer.export_suite_episodes(self._single(multi, 'run'), self._single(multi, 'filter', 'all')),
+                          'episodes.csv')
             elif url.path == '/api/export/coverage.csv':
                 if 'case' in multi or 'filter' in multi:
                     raise BadQuery('coverage export covers the whole run; case and filter are not accepted')
@@ -297,11 +312,12 @@ def make_server(root, port=0, scenarios=None, run_timeout=900.0, run_off_reason=
     return server
 
 
-def explorer_url(server, run_name=None):
-    """The address to open: run selection in the query, the session token only in the fragment."""
+def explorer_url(server, run_name=None, all_cases=False):
+    """The address to open: run selection in the query, the session token only in the fragment. A suite opens on
+    all of its cases together, as when it is picked from the list."""
     url = f'http://{HOST}:{server.server_address[1]}/'
     if run_name:
-        url += '?run=' + quote(run_name)
+        url += '?run=' + quote(run_name) + ('&scope=all' if all_cases else '')
     return url + f'#{TOKEN_FRAGMENT}=' + server.token
 
 
@@ -368,7 +384,7 @@ def main(argv=None):
         hint = ('; a previous explorer may still hold this port for a moment: wait, or leave out --port to use any free port'
                 if args.port else '')
         parser.error(f'{exc}{hint}')
-    url = explorer_url(server, path.name if is_run else None)
+    url = explorer_url(server, path.name if is_run else None, is_run and (path / 'suite.json').is_file())
     print(f'explorer={url}', flush=True)
     print(f'results={server.explorer.root}', flush=True)
     print(f'run={"on, scenarios=" + str(server.jobs.scenarios) if server.jobs else "off: " + server.run_disabled}', flush=True)

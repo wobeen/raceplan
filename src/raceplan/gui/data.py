@@ -13,7 +13,7 @@ from threading import Lock
 
 import numpy as np
 
-from raceplan.gui import analysis
+from raceplan.gui import analysis, suite_view
 from raceplan.report import Reader, _load
 
 STATE_FILES = ('suite.json', 'workflow.json', 'comparison_manifest.json')
@@ -75,6 +75,24 @@ def _download_name(ids, suffix):
 
 def _read_json(path):
     return json.loads(path.read_text(encoding='utf-8-sig'))
+
+
+def _strict_csv(path):
+    """Saved CSV rows as dicts, refusing what DictReader would hide: repeated column names, rows of another width and
+    malformed quoting (strict parsing)."""
+    try:
+        rows = list(csv.reader(StringIO(Reader().data(path).decode('utf-8-sig'), newline=''), strict=True))
+    except csv.Error as exc:
+        raise ValueError(f'{path.name} is not well-formed CSV: {exc}') from None
+    if not rows:
+        raise ValueError(f'{path.name} is empty')
+    header = rows[0]
+    if len(set(header)) != len(header):
+        raise ValueError(f'{path.name} repeats a column name')
+    for number, row in enumerate(rows[1:], 2):
+        if len(row) != len(header):
+            raise ValueError(f'{path.name} line {number} has {len(row)} cells for {len(header)} columns')
+    return [dict(zip(header, row)) for row in rows[1:]]
 
 
 def _state_file(folder):
@@ -221,9 +239,18 @@ class Explorer:
             entry = self._cache.get(run_id)
             if entry and entry['signature'] == signature:
                 return entry
-            reader = Reader()
-            cases, coverage = _load(reader, folder)
-            entry = {'signature': signature, 'folder': folder, 'reader': reader, 'coverage': coverage,
+            state_path = _state_file(folder)
+            key = str(state_path.resolve())
+            for _ in range(3):
+                reader = Reader()
+                cases, coverage = _load(reader, folder)
+                probe = Reader()
+                state = probe.json(state_path)  # Kept for status and phase; must be the bytes _load itself validated.
+                if reader.hashes.get(key) in (None, probe.hashes[key]):
+                    break
+            else:
+                raise ValueError('the run kept changing while it was read; try again in a moment')
+            entry = {'signature': signature, 'folder': folder, 'reader': reader, 'coverage': coverage, 'state': state,
                      'cases': {case['id']: case for case in cases}, 'details': {}}
             # Pin each case's validated episodes.csv to its own path and hash; a redirected (symlinked) path is never exported.
             entry['episode_files'] = {}
@@ -240,21 +267,72 @@ class Explorer:
         return entry['folder'] / 'cases' / case_id if (entry['folder'] / 'suite.json').is_file() else entry['folder']
 
     def run(self, run_id):
-        entry = self._loaded(run_id)
+        return self._run_from(self._loaded(run_id), run_id)
+
+    def _run_from(self, entry, run_id):
+        """The run as one loaded snapshot describes it; callers that need more than this pass the same entry on."""
         cases = []
         for case in entry['cases'].values():
             manifest = case['manifest']
+            map_path = Path(manifest['scenario']['map_path'])
             cases.append({'id': case['id'], 'scenario': manifest['scenario'].get('name', ''),
-                          'map': Path(manifest['scenario']['map_path']).stem,
+                          'map': map_path.stem, 'map_label': f'{map_path.parent.name}/{map_path.stem}',
                           'planners': list(manifest['planners']), 'seeds': list(manifest['simulation_seeds']),
                           'baseline': case.get('baseline'),
                           'episodes': [_episode(row) for row in case['episodes']],
                           'pairs': [_pair(row) for row in case['pairs']],
                           'reproduce': _reproduce(self._case_folder(entry, case['id']))})
-        return {'id': run_id, 'name': entry['folder'].name, 'cases': cases, 'coverage': [
+        return {'id': run_id, 'name': entry['folder'].name, 'kind': 'suite' if self._is_suite(entry) else 'batch',
+                'cases': cases, 'coverage': [
             {'case_id': row['case_id'], 'status': row['status'], 'expected': _count(row.get('expected_episode_count')),
              'included': _count(row.get('included_episode_count', 0)) or 0, 'failed_phase': row.get('failed_phase'),
              'error': (row.get('error') or {}).get('message', '')} for row in entry['coverage']]}
+
+    @staticmethod
+    def _is_suite(entry):
+        return (entry['folder'] / 'suite.json').is_file()
+
+    def _suite_cases(self, run_id):
+        """One loaded snapshot of a suite and the run built from it, so totals, rows, coverage and export pins agree."""
+        if not (self._folder(run_id) / 'suite.json').is_file():
+            raise analysis.BadQuery('all cases together is for suite runs; open the case of this run instead')
+        entry = self._loaded(run_id)
+        return entry, self._run_from(entry, run_id)
+
+    def overview(self, run_id):
+        """Totals over every validated case of a suite, the planner x case matrix, all episodes with their case, and
+        a check of the totals against the suite's own summary.csv / case_summary.csv. Coverage lists every case.
+        The saved totals are checked once the suite has finished writing them (phase complete: complete, partial,
+        interrupted and failed alike); while it runs they are not final and are not compared."""
+        entry, run = self._suite_cases(run_id)
+        included = [{'id': case['id'], 'planners': list(case['manifest']['planners']), 'rows': case['episodes']}
+                    for case in entry['cases'].values()]
+        leaderboard, matrix = suite_view.totals(included)
+        status = entry['state'].get('status')
+        if entry['state'].get('phase') != 'complete':
+            if entry['state'].get('finished_at_utc'):  # Ended before writing its totals (failed while aggregating).
+                error = entry['state'].get('error') or {}
+                check = {'status': 'missing', 'message': f'the suite ended ({status}) without writing its totals'
+                                                         + (f': {error.get("message")}' if error.get('message') else '')}
+            else:
+                check = {'status': 'not_final', 'suite_status': status}
+        else:
+            try:
+                saved = [_strict_csv(entry['folder'] / name) for name in ('summary.csv', 'case_summary.csv')]
+            except (OSError, ValueError, csv.Error) as exc:
+                check = {'status': 'missing', 'message': str(exc)}
+            else:
+                differences = suite_view.check_saved(leaderboard, matrix, *saved)
+                check = {'status': 'mismatch' if differences else 'match', 'count': len(differences),
+                         'differences': differences[:50]}
+        return {'id': run_id, 'name': run['name'], 'kind': 'suite', 'status': status,
+                'planners': suite_view.planner_order(included),
+                'seeds': sorted({seed for case in run['cases'] for seed in case['seeds']}),
+                'cases': [{key: case[key] for key in ('id', 'scenario', 'map_label', 'planners', 'seeds', 'baseline')}
+                          for case in run['cases']],
+                'coverage': run['coverage'], 'leaderboard': leaderboard, 'matrix': matrix,
+                'episodes': [{**episode, 'case': case['id']} for case in run['cases'] for episode in case['episodes']],
+                'summary_check': check, 'run': run}  # The page takes its case list and coverage from this same snapshot.
 
     def case(self, run_id, case_id):
         entry = self._loaded(run_id)
@@ -275,18 +353,21 @@ class Explorer:
             return analysis.paired_delta(case, **options)
         return analysis.scatter(case, **options)
 
+    def compare_all(self, run_id, kind, **options):
+        """The same comparison over every validated case of a suite, pooled after the single-case rules. The included
+        case ids and the listed case count come from the same snapshot as the points, so the page can tell when its
+        own case list is older and read the overview again."""
+        _, run = self._suite_cases(run_id)
+        pooled = (suite_view.pooled_delta if kind == 'delta' else suite_view.pooled_scatter)(run['cases'], **options)
+        return {**pooled, 'case_ids': [case['id'] for case in run['cases']], 'cases_listed': len(run['coverage'])}
+
     def replay(self, run_id, case_id, a, b, seed):
         detail = self.case(run_id, case_id)
         case = next(item for item in self.run(run_id)['cases'] if item['id'] == case_id)
         return analysis.replay(case, detail['traces'], a, b, seed)
 
-    def export_episodes(self, run_id, case_id, filter='all'):
-        """Rows of the saved analysis/episodes.csv as stored (header, cell text, order), limited to the table filter."""
-        if filter not in EXPORT_FILTERS:
-            raise analysis.BadQuery(f'unknown filter: {filter}')
-        entry = self._loaded(run_id)
-        if case_id not in entry['cases']:
-            raise UnknownItem(f'unknown or incomplete case: {case_id}')
+    def _saved_episode_rows(self, entry, case_id):
+        """The validated analysis/episodes.csv of one case as stored (header and cell text), or ValueError."""
         path, digest = entry['episode_files'][case_id]
         if digest is None or path.resolve() != path:
             raise ValueError('saved episodes.csv is redirected outside its case folder; reopen the run')
@@ -297,9 +378,42 @@ class Explorer:
         rows = [row for row in csv.reader(StringIO(data.decode('utf-8-sig'), newline='')) if row]  # Blank records, as DictReader.
         if not rows or len(set(rows[0])) != len(rows[0]):
             raise ValueError('saved episodes.csv needs one header with unique column names')
+        return rows
+
+    def export_episodes(self, run_id, case_id, filter='all'):
+        """Rows of the saved analysis/episodes.csv as stored (header, cell text, order), limited to the table filter."""
+        if filter not in EXPORT_FILTERS:
+            raise analysis.BadQuery(f'unknown filter: {filter}')
+        entry = self._loaded(run_id)
+        if case_id not in entry['cases']:
+            raise UnknownItem(f'unknown or incomplete case: {case_id}')
+        rows = self._saved_episode_rows(entry, case_id)
         column, keep = rows[0].index('failure_class'), EXPORT_FILTERS[filter]
         selected = [row for row in rows[1:] if keep(row[column] if column < len(row) else '')]
         return [rows[0], *selected], _download_name((run_id, case_id), f'episodes-{filter}')
+
+    def export_suite_episodes(self, run_id, filter='all'):
+        """Every validated case's saved episodes.csv in case order and file order, each row led by its case_id,
+        limited to the table filter. All or nothing: one changed or mismatched file fails the whole export."""
+        if filter not in EXPORT_FILTERS:
+            raise analysis.BadQuery(f'unknown filter: {filter}')
+        entry, run = self._suite_cases(run_id)
+        header, out = None, []
+        for case in run['cases']:
+            rows = self._saved_episode_rows(entry, case['id'])
+            if header is None:
+                header = rows[0]
+                if 'case_id' in header:
+                    raise ValueError(f'saved episodes.csv of case {case["id"]} already has a case_id column')
+            elif rows[0] != header:
+                raise ValueError(f'saved episodes.csv of case {case["id"]} has different columns from the other cases')
+            if any(len(row) != len(header) for row in rows[1:]):
+                raise ValueError(f'saved episodes.csv of case {case["id"]} has a row whose cell count differs from its header')
+            column, keep = rows[0].index('failure_class'), EXPORT_FILTERS[filter]
+            out += [[case['id'], *row] for row in rows[1:] if keep(row[column])]
+        if header is None:
+            raise UnknownItem('this suite has no completed case to export')
+        return [['case_id', *header], *out], _download_name((run_id,), f'all-cases-episodes-{filter}')
 
     def export_coverage(self, run_id):
         """Every case of the run, including failed or unfinished ones, with the counts the page and report show.

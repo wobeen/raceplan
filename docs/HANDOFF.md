@@ -1,3 +1,17 @@
+# 작업 인계 — 2026-11-21
+
+## 보완 2-1: suite 전체 보기 (브랜치 feature/gui-suite-all, main 7eca23d 기반)
+
+실사용 점검(DEV_PLAN 1단계) 결과의 첫 보완. suite를 열면 "전체 N case": 합계 리더보드, planner × case 도달 행렬, case 열이 있는
+전체 표, 모든 case를 모은 Paired Δ·산점도, 전체 에피소드 CSV. 칸·행·점 → 그 case. 계약은 `docs/GUI_PLAN.md` "보완 2-1".
+새 모듈 `raceplan/gui/suite_view.py`(합계·행렬·저장 집계 대조·풀링), 새 경로 `/api/suite/overview`, `compare ?scope=all`,
+`/api/export/suite-episodes.csv`. `suite.py`는 건드리지 않음(출처 해시 대상) → 같은 정의를 GUI에 두고 저장 집계와 매번 대조.
+실측: 연구 suite(sharp_suite 4 case·60 ep) 합계가 저장 집계와 일치(A* 6/12, low·high·combined 3/12, astar0.20 0/12),
+모은 Paired Δ에서 low RMSE 중앙값 −0.049(연구 기록 0.04882 m 낮음과 같음). 새 실행 폴더 이름이 시나리오 이름을 쓴다.
+검증 GPT sol 1차·재검증 FAIL 지적(한 화면에 다른 시점 섞임 등) 반영. 테스트 **169 passed**(새 테스트 15개). 브라우저: 목록·CLI 주소·
+자동 선택 → 전체, 칸·행·점 드릴다운과 뒤로, 필터 유지, 정렬 초기화, 빈 결과 폴더. Edge 1280×720 스크롤 없음.
+다음: 2-2 연구 조건 실행(여러 시나리오·노이즈·클래스 선택), 2-3 실행 간 비교.
+
 # 작업 인계 — 2026-11-20
 
 ## GUI 4단계: Windows exe 배포 (브랜치 feature/gui-exe, main 566fadc 기반)

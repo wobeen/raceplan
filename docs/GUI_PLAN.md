@@ -167,3 +167,26 @@ exe에서 기본 시나리오는 exe 옆 `scenarios/`, 결과는 `%LOCALAPPDATA%
 "손자 프로세스 잔류" 한계 해소). 콘솔 창 닫기(CTRL_CLOSE_EVENT)는 4초 마감 안에 워커를 먼저 멈추고 Cancelled를 기록한다.
 누락 모듈은 실패한 실행의 마지막 import 오류로 안내하고, Inspector에 "Python 설치판용 명령" 표시. `--window`(pywebview)는 하지 않았다.
 설계 GPT sol, 검증 GPT sol(P1 없음, P2 5·P3 5 반영). 남은 결정: RacePlan `LICENSE` 파일(없어서 exe에 자체 고지 없음).
+
+## 보완 2-1: suite 전체 보기 (브랜치 feature/gui-suite-all)
+
+실사용 점검(sharp_turn 플래너, holdout 4 case)에서 suite 합계를 GUI에서 볼 수 없던 문제를 고쳤다. suite를 목록·자동 선택·CLI로
+열면 "전체 N case"로 열린다(주소 `scope=all`, `case`와 함께 쓸 수 없음. 예전 `?run=` 링크는 예전처럼 첫 case).
+- 리더보드 = 포함 case 합계, 트랙 자리 = planner × case 도달 행렬, 표 = case 열 포함 전체 에피소드, 타임라인·재생은 case를 고른 뒤.
+  행렬 칸·표 행·비교 점을 누르면 그 case로 들어간다(history 1회, 비교 planner·seed 필터 유지, 뒤로 = 전체).
+- 합계 정의는 `suite.py`의 `_summaries`와 같다(충돌 = 'True', 계획 실패 = success 아님, 성공 중앙값 = 포함 case의 도달 행 전체에서,
+  미완료 슬롯을 합성하지 않음). `suite.py`는 연구 결과 출처 해시 대상이라 수정·공유하지 않고 `gui/suite_view.py`에 두었으며,
+  suite가 집계를 쓴 뒤(phase complete)에는 저장된 `summary.csv`·`case_summary.csv`와 값·행·열을 대조해 Inspector에 일치/불일치를
+  표시한다. 도달 행의 RMSE·완료시간이 비유한·빈 값이면 위치를 밝힌 오류(422)로, 빼거나 0으로 바꾸지 않는다.
+- 한 응답 = 한 로드 스냅샷: `/api/suite/overview`가 합계·행렬·행과 같은 시점의 run(case 목록·coverage)을 함께 준다.
+- 비교(Paired Δ·산점도)는 case마다 단일 case 규칙으로 계산한 뒤 모은다(다른 case끼리 짝짓지 않음, 기준이 다르면 레인 분리,
+  기준 없는 case 표시). 요약에 필터로 뺀 쌍·기록 수를 따로 적는다.
+- 내보내기 `/api/export/suite-episodes.csv`: 첫 열 `case_id`, case 순서·저장 순서·저장 셀 그대로, 헤더가 다르거나 파일이 바뀌면 전체 실패.
+- 함께: 새 실행 폴더 이름 = 시나리오 이름(없거나 파일 이름과 같으면 폴더-파일), 지도 표시 `상위폴더/이름`, 빈 목록 안내를 목록 카드 안으로.
+설계 GPT sol(채택, 집계 공유만 위처럼 변경). 검증 GPT sol 1차 FAIL(P1: 두 번 로드해 한 화면에 다른 시점이 섞일 수 있음, P2 5·P3 3) →
+반영 후 재검증 FAIL(로드 중 suite.json 재기록 경합, DictReader가 손상 CSV를 메움, 집계 실패본 미표시, 전환 중 이전 비교 조작, 신규 P2 2) → 반영:
+로드한 suite.json 해시가 검증된 것과 다르면 다시 로드, 저장 집계는 열 이름 반복·행 너비·따옴표 손상을 거절(strict), 비교 응답에 같은 시점의
+case id: 화면의 case 목록보다 새로우면 전체 보기를 다시 읽는다(필터 유지, 좁힌 필터에 새 planner·seed는 꺼진 채 추가, 같은 목록으로는
+한 번만 시도하고 실패하면 알림). 전환 중 비교 조작은 inert로 막는다. 3차 확인: 지적 4건 해결, 남은 P2 2건(재시도 반복, 필터 확장)도 반영.
+유지: 양쪽 도달 쌍의 수치 손상은 `report.py`의 쌍 검증이 case 없이 거절한다(출처 해시 대상이라 고치지 않음, 단일 case와 같은 동작).
+보류: 큰 suite 행렬의 페이지 나눔(카드 안 스크롤로 전부 볼 수 있음), 미완료 열의 Inspector 상세(배너로 상태·오류 표시).

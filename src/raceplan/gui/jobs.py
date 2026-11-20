@@ -111,6 +111,24 @@ def list_scenarios(folder):
     return found
 
 
+def _slug(text):
+    return re.sub(r'[^A-Za-z0-9_-]+', '-', text).strip('-_')[:48]
+
+
+def run_slug(folder, scenario):
+    """Readable part of a new run folder name: the scenario's own name, or its folder and file name when the name is
+    missing, not ASCII or only the file name again (q0.yaml in two folders must not look the same). The folder is the
+    real one even when the scenario is given as a bare file name next to it, as `raceplan-gui watch` does."""
+    path = Path(scenario)
+    try:
+        name = load_scenario(Path(folder) / scenario).name or ''
+    except Exception:  # Validated before a run starts; a name is a convenience, never a reason to fail.
+        name = ''
+    slug = _slug(name) if name.strip() != path.stem else ''
+    parents = path.parent.parts or (Path(folder).resolve().name,)
+    return slug or _slug('-'.join((*parents, path.stem))) or 'run'
+
+
 def _custom_spec(text):
     if not isinstance(text, str) or not text.strip():
         raise JobError('each user planner must be FILE.py:CLASS')
@@ -266,7 +284,7 @@ class Jobs:
             raise OSError(f'cannot write new runs under {folder} ({exc.strerror or exc}); open the explorer on another '
                           'results folder (RacePlan.exe FOLDER, raceplan-gui FOLDER) or give watch --output-root FOLDER') from exc
         # Seconds plus a random tag: raceplan-watch and the explorer may start runs in the same folder in the same second.
-        stem = f'{datetime.now():%Y%m%d-%H%M%S}-{Path(scenario).stem}-{secrets.token_hex(2)}'
+        stem = f'{datetime.now():%Y%m%d-%H%M%S}-{run_slug(self.scenarios, scenario)}-{secrets.token_hex(2)}'
         for index in range(1, 1000):
             output = folder / (stem if index == 1 else f'{stem}-{index}')
             if not output.exists():

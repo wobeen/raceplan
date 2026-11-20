@@ -97,6 +97,7 @@ select.fl{appearance:none;-webkit-appearance:none;font:inherit;font-size:.92em;c
 .cmpsum{flex:none;font-size:.92em;line-height:1.45;color:var(--mut)}.cmpsum b{color:var(--ink);font-weight:600}.cmpsum .warnx{color:var(--red);font-weight:600}
 .selnote{color:var(--ink);font-weight:500}.selnote.hid{color:#a95d06}
 .cmpbody.busy .pt{pointer-events:none;opacity:.4}
+#cmpCtl.busy,.cmpbody.busy{pointer-events:none;opacity:.55}
 .pick{position:absolute;z-index:20;max-width:24em;max-height:70%;overflow-y:auto;background:rgba(255,255,255,.97);border:1px solid rgba(60,60,67,.18);border-radius:.9em;box-shadow:0 .6em 2em rgba(40,52,90,.22);padding:.35em;display:flex;flex-direction:column;gap:.15em}
 .pkh{display:flex;align-items:center;gap:.4em;font-size:.88em;color:var(--mut);padding:.2em .4em;white-space:nowrap}.pkh b{color:var(--ink)}.pkx{margin-left:auto;font:inherit;border:0;background:transparent;cursor:pointer;color:var(--mut);border-radius:1em;padding:0 .4em}.pkx:focus-visible{outline:.18em solid rgba(0,122,255,.45)}
 .pki{font:inherit;font-size:.92em;text-align:left;border:0;background:transparent;border-radius:.6em;padding:.3em .55em;cursor:pointer;display:flex;align-items:center;gap:.45em;white-space:nowrap;color:var(--ink)}.pki:hover,.pki:focus-visible{background:rgba(0,122,255,.12);outline:none}.pki.on{font-weight:600;background:rgba(0,122,255,.08)}.pki .dot{margin:0}
@@ -136,6 +137,15 @@ select.fl{appearance:none;-webkit-appearance:none;font:inherit;font-size:.92em;c
 .phases{display:flex;gap:.5em;flex-wrap:wrap}.ph{font-size:.85em;border-radius:2em;padding:.1em .75em;background:rgba(118,118,128,.12);color:var(--mut)}.ph.running{background:rgba(0,122,255,.14);color:var(--acc)}.ph.complete{background:rgba(52,199,89,.16);color:var(--teal)}.ph.failed{background:rgba(255,59,48,.13);color:var(--red)}
 .fresh{display:inline-block;margin-left:.45em;font-size:.72em;font-weight:700;color:#fff;background:var(--acc);border-radius:1em;padding:0 .5em;vertical-align:.1em}
 .watchbar{display:flex;align-items:center;gap:.6em;background:rgba(0,122,255,.08);border:1px solid rgba(0,122,255,.25);border-radius:.8em;padding:.4em .7em;font-size:.9em}.watchbar span{flex:1;min-width:0;color:var(--mut);word-break:break-all}.watchbar.off{background:rgba(118,118,128,.08);border-color:rgba(118,118,128,.25)}
+.mx{flex:1;min-height:0;overflow:auto}.mx table{font-size:.92em;table-layout:fixed}.mx th,.mx td{text-align:center;padding:.3em .35em;white-space:nowrap}
+.mx thead th{white-space:normal;word-break:break-all;line-height:1.15;vertical-align:bottom}.mx thead th:first-child,.mx tbody th{width:9.5em;overflow:hidden;text-overflow:ellipsis}
+.mx th:first-child,.mx td:first-child{text-align:left;position:sticky;left:0;background:rgba(250,251,253,.97)}
+.mx th small{display:block;font-weight:400;font-size:.82em}.mx th.bad small{color:var(--red)}
+.mx td.c{cursor:pointer;font-variant-numeric:tabular-nums;border-radius:.4em}.mx td.c:hover{outline:2px solid var(--acc)}.mx td.na{color:var(--mut)}
+.mx td.sel,.mx th.sel{outline:2px solid #1c1c1e}.mx tbody th{cursor:pointer;text-align:left}
+.empty small{display:block;margin-top:.5em;font-size:.85em;word-break:break-all}
+.ichk{font-size:.86em;color:var(--mut);margin:.2em 0}.ichk.ok{color:var(--teal)}.ichk.bad{color:var(--red)}
+.icov{font-size:.86em;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:.15em .6em;margin:.3em 0}.icov span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.icov .bad{color:var(--red)}
 </style></head><body>
 <div class="wrap"><div class="app" id="app">
  <div class="top">
@@ -158,7 +168,7 @@ select.fl{appearance:none;-webkit-appearance:none;font:inherit;font-size:.92em;c
   <div class="card lbc"><h3>리더보드 <em id="lbNote"></em></h3><div class="cb"><div class="lbwrap" id="lb"></div>
    <div class="leg"><span style="color:var(--teal)">■</span> 도달 <span style="color:var(--red)">■</span> 충돌 <span style="color:var(--amb)">■</span> 시간 초과 <span style="color:var(--vio)">■</span> 계획 실패 · 성공과 합치지 않습니다</div></div></div>
   <div class="card tbc"><h3>에피소드 <em><select class="fl" id="filter"><option value="all">전체 보기</option><option value="fail">실패만</option><option value="ok">도달만</option></select><button class="csvb" id="epCsv" disabled>CSV ↓</button></em></h3><div class="cb"><div class="tnote" id="tnote"></div><div class="tw" id="table"></div></div></div>
-  <div class="card trc"><h3>트랙 · 체크한 planner 동시 주행 <em id="trk"></em></h3><div class="cb"><svg id="track"><g id="trStatic"></g><g id="trDyn"></g></svg><div class="leg">점선 = 계획 경로 · 실선 = 실제 궤적 · 저장된 결과만 표시합니다</div></div></div>
+  <div class="card trc"><h3><span id="trTitle">트랙 · 체크한 planner 동시 주행</span> <em id="trk"></em></h3><div class="cb"><svg id="track"><g id="trStatic"></g><g id="trDyn"></g></svg><div class="mx" id="matrix" hidden></div><div class="leg" id="trLeg">점선 = 계획 경로 · 실선 = 실제 궤적 · 저장된 결과만 표시합니다</div></div></div>
  </div>
  <div class="cmpv"><div class="card"><h3>비교 분석 <em id="cmpNote"></em></h3><div class="cb"><div class="cmpctl" id="cmpCtl"></div><div class="cmpbody" id="cmpBody"></div><div class="cmpsum" id="cmpSum"></div></div></div></div>
  <div class="insp"><div class="card"><h3>Inspector</h3><div class="cb" id="insp"></div></div></div>
@@ -169,18 +179,20 @@ select.fl{appearance:none;-webkit-appearance:none;font:inherit;font-size:.92em;c
 const $=id=>document.getElementById(id);
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const COLORS=['#007aff','#00a08a','#e8830c','#a94fd8','#e0457b','#5b6ee1','#7a8a00','#8e6b4e'];
-const S={runs:[],run:null,case:null,detail:null,seed:null,sel:null,on:{},t:0,tMax:1,playing:false,sort:{key:'planner',dir:1},filter:'all',token:0};
+const S={runs:[],run:null,case:null,all:false,ov:null,root:null,detail:null,seed:null,sel:null,on:{},t:0,tMax:1,playing:false,sort:{key:'planner',dir:1},filter:'all',token:0};
 
 function group(cls){if(cls==='reached')return 'ok';if(cls==='timeout')return 'to';if(cls.endsWith('collision'))return 'col';return 'pe'}
 const OUT={ok:['t-ok','✓','var(--teal)'],col:['t-col','✕','var(--red)'],to:['t-to','⏱','var(--amb)'],pe:['t-pe','!','var(--vio)']};
 function outLabel(cls){return {reached:'도달',driving_collision:'충돌',initial_collision:'시작 충돌',timeout:'시간 초과',planning_error:'계획 오류'}[cls]||'계획 실패'}
 const fmt=(v,d=3)=>v===null||v===undefined?'—':(+v).toFixed(d);
 function median(a){const s=a.filter(v=>v!==null&&v!==undefined).sort((x,y)=>x-y);if(!s.length)return null;const m=s.length>>1;return s.length%2?s[m]:(s[m-1]+s[m])/2}
-const planners=()=>S.case?S.case.planners:[];
+/* 전체 보기(S.all): suite의 모든 완료 case를 한꺼번에. 집계·대조는 서버(/api/suite/overview), 지도·재생은 case를 고른 뒤에만 */
+const planners=()=>S.case?S.case.planners:S.all&&S.ov?S.ov.planners:[];
 const pIndex=p=>planners().indexOf(p);
 const color=p=>COLORS[pIndex(p)%COLORS.length];
 const badge=p=>String(pIndex(p)+1).padStart(2,'0');
-const eps=()=>S.case?S.case.episodes:[];
+const eps=()=>S.case?S.case.episodes:S.all&&S.ov?S.ov.episodes:[];
+const allSeeds=()=>S.case?S.case.seeds:S.all&&S.ov?S.ov.seeds:[];
 const ep=(p,s)=>eps().find(e=>e.planner===p&&e.simulation_seed===s);
 /* 표본 유효성(valid)은 서버 analysis.trace_valid 한 곳에서 정한다. 무효 궤적은 재생·시계열에 쓰지 않는다 */
 const rawTrace=e=>e&&S.detail?S.detail.traces[e.episode_id]:null;
@@ -191,7 +203,7 @@ async function api(path){const r=await fetch(path);const b=await r.json().catch(
 
 /* 저장된 실행 목록 */
 function renderRuns(){$('runCount').textContent=S.runs.length+'개';
- if(!S.runs.length){$('runs').innerHTML='<div class="empty">저장된 실행이 없습니다</div>';return}
+ if(!S.runs.length){$('runs').innerHTML=`<div class="empty">저장된 실행이 없습니다${S.root?`<small>찾은 폴더: ${esc(S.root)}</small>`:''}<small>${S.ro&&S.ro.enabled?'+ 새 실행으로 비교를 실행할 수 있습니다':'실행 결과가 있는 폴더로 다시 여세요'}</small></div>`;return}
  $('runs').innerHTML=S.runs.map(r=>{const c={ok:0,col:0,to:0,pe:0};Object.entries(r.outcomes).forEach(([k,v])=>{if(k)c[group(k)]+=v});const n=r.episodes||1;
   const bar=r.episodes?`<div class="mini">${[['ok','teal'],['col','red'],['to','amb'],['pe','vio']].map(([k,v])=>`<i style="width:${c[k]/n*100}%;background:var(--${v})"></i>`).join('')}</div>`:'';
   const note=r.status==='complete'?`${r.episodes} ep · 도달 ${c.ok}`:esc(r.status);
@@ -201,25 +213,59 @@ $('runs').onclick=e=>{const r=e.target.closest('.setrow');if(r)openRun(r.dataset
 /* want = {q, warn}: URL 복원 중에만 넘긴다. 사용자 조작 경로는 want 없이 호출되어 복원 상태를 끝내고, 대기 중인 시각을 지금 항목에 먼저 확정한다.
    S.loading 동안에는 주소를 쓰지 않아 "새 run + 이전 case" 같은 중간 상태가 history에 남지 않는다 */
 function beginLoad(token,want){stop();if(!want){S.restoring=0;S.pendingT=null;if(tTimer)writeUrl()}S.loading=token;S.cmp=null;S.ctoken++;closePicker(false);
- $('epCsv').disabled=true;if($('covCsv'))$('covCsv').disabled=true}  // 전환 중에는 이전 run·case를 내려받지 않는다
+ $('epCsv').disabled=true;if($('covCsv'))$('covCsv').disabled=true;  // 전환 중에는 이전 run·case를 내려받지 않는다
+ for(const id of ['cmpCtl','cmpBody']){$(id).classList.add('busy');$(id).inert=true}}  // 이전 범위의 비교 조작(마우스·키보드)·점 선택도 막는다(renderCompare가 푼다)
 async function openRun(id,want=null){const token=++S.token;beginLoad(token,want);showMsg('');if(S.fresh.delete(id))renderRuns();
  try{const run=want&&S.run&&S.run.id===id&&S.run.cases.length?S.run:await api('/api/run?id='+encodeURIComponent(id));if(token!==S.token)return;S.run=run;$('runName').textContent=run.name;renderRuns();renderCoverage();
+  const suite=run.kind==='suite';
+  /* suite는 목록·자동 선택·CLI 진입에서 전체 보기. 주소 복원은 scope=all일 때만 전체(예전 ?run= 링크는 예전처럼 첫 case) */
+  let all=suite&&(!want||!want.q.has('run'));
+  if(want&&want.q.has('scope')){const sc=one(want.q,want.warn,'scope',v=>v==='all','보기 범위 scope');
+   if(sc!==undefined){if(!suite)want.warn.push('전체 보기(scope=all)는 suite에서만 됩니다. 이 실행의 지도를 엽니다');else if(want.q.has('case'))want.warn.push('scope=all과 case를 함께 줄 수 없어 case를 엽니다');else all=true}}
   let cid=run.cases[0]?.id;
-  if(want&&want.q.has('case')){const asked=want.q.getAll('case')[0],cov=run.coverage.find(c=>c.case_id===asked);
+  if(!all&&want&&want.q.has('case')){const asked=want.q.getAll('case')[0],cov=run.coverage.find(c=>c.case_id===asked);
    cid=one(want.q,want.warn,'case',v=>run.cases.some(c=>c.id===v),'링크의 case',`다른 지도로 대신하지 않습니다${cov?` (상태 ${cov.status}${cov.error?' — '+cov.error:''})`:''}. 지도를 선택하세요`)}
-  const ok=cid!==undefined&&run.cases.some(c=>c.id===cid);
-  $('caseSel').innerHTML=(ok||!run.cases.length?'':'<option value="" selected disabled>지도 선택</option>')+run.cases.map(c=>`<option value="${esc(c.id)}">지도: ${esc(c.map)}${c.id==='batch'?'':' ('+esc(c.id)+')'}</option>`).join('');
+  const ok=!all&&cid!==undefined&&run.cases.some(c=>c.id===cid);
+  fillCaseSel(run,!(ok||all||!run.cases.length&&!suite));
+  if(all){try{await openAll(token,want)}
+   catch(err){if(token!==S.token||!run.cases.length)throw err;  // 합계만 실패하면 정상 case는 계속 열 수 있게 첫 case로
+    S.loading=token;await openCase(run.cases[0].id,token,want);if(token===S.token)showMsg('전체 보기를 열 수 없어 첫 case를 열었습니다.\n'+err.message)}
+   return}
   if(ok){await openCase(cid,token,want);return}
-  S.loading=0;S.case=null;S.detail=null;$('seedSel').innerHTML='';renderAll()
- }catch(err){if(token!==S.token)return;S.loading=0;S.run={id,cases:[],coverage:[]};S.case=null;S.detail=null;$('runName').textContent=id;$('caseSel').innerHTML='';$('seedSel').innerHTML='';renderRuns();renderCoverage();renderAll();showMsg('이 실행을 열 수 없습니다.\n'+err.message)}}
-async function openCase(id,token=null,want=null){if(token===null){token=++S.token;beginLoad(token,want)}
+  S.loading=0;S.all=false;S.ov=null;S.case=null;S.detail=null;$('seedSel').innerHTML='';renderAll()
+ }catch(err){if(token!==S.token)return;S.loading=0;S.run={id,cases:[],coverage:[]};S.all=false;S.ov=null;S.case=null;S.detail=null;$('runName').textContent=id;$('caseSel').innerHTML='';$('seedSel').innerHTML='';renderRuns();renderCoverage();renderAll();showMsg('이 실행을 열 수 없습니다.\n'+err.message)}}
+function fillCaseSel(run,placeholder){const suite=run.kind==='suite';
+ $('caseSel').innerHTML=(placeholder?'<option value="" selected disabled>지도 선택</option>':'')+(suite?`<option value="*">전체 ${run.coverage.length} case</option>`:'')+
+  run.cases.map(c=>`<option value="${esc(c.id)}" title="${esc(c.scenario)} · ${esc(c.map_label)}">${suite?esc(c.id)+' · ':'지도: '}${esc(c.map_label)}</option>`).join('')}
+/* overview는 합계·행렬·행과 같은 시점의 run(case 목록·coverage)을 함께 준다: 화면 전체를 그 한 시점으로 바꾼다.
+   keep = 같은 전체 보기를 새 시점으로 다시 읽을 때 planner 선택·비교 필터를 유지 */
+async function openAll(token=null,want=null,keep=false){if(token===null){token=++S.token;beginLoad(token,want)}
+ let ov;try{ov=await api('/api/suite/overview?run='+encodeURIComponent(S.run.id))}catch(err){if(token!==S.token)return;S.loading=0;throw err}
+ if(token!==S.token)return;
+ const before=keep&&S.ov?{p:planners(),s:allSeeds()}:null;
+ S.run=ov.run;$('runName').textContent=ov.run.name;fillCaseSel(ov.run,false);renderCoverage();
+ S.all=true;S.ov=ov;S.case=null;S.detail=null;S.detailKey=null;S.cmp=null;S.ra=S.rb=null;S.on={};if(!keep){S.cPl={};S.cSeed={}}
+ /* 다시 읽어 새로 생긴 planner·seed: 필터를 좁혀 둔 상태면 꺼진 채로 더한다(선택 범위가 저절로 넓어지지 않게) */
+ if(before){if(before.p.some(p=>S.cPl[p]===false))planners().forEach(p=>{if(!before.p.includes(p))S.cPl[p]=false});
+  if(before.s.some(s=>S.cSeed[s]===false))allSeeds().forEach(s=>{if(!before.s.includes(s))S.cSeed[s]=false})}
+ $('caseSel').value='*';$('seedSel').innerHTML='';$('seedSel').hidden=true;
+ if(!ov.planners.includes(S.sel))S.sel=ov.planners[0]??null;
+ if(want)applyAllWant(want);
+ S.loading=0;if($('covCsv'))$('covCsv').disabled=false;renderAll()}
+/* pick = {planner, seed}: 전체 보기의 행·셀·점에서 들어갈 때 그 에피소드를 바로 고른다(주소 기록은 한 번) */
+async function openCase(id,token=null,want=null,pick=null){if(token===null){token=++S.token;beginLoad(token,want)}
  const key=S.run.id+'\n'+id;let detail=want&&S.detail&&S.detailKey===key?S.detail:null;
  if(!detail){try{detail=await api('/api/case?run='+encodeURIComponent(S.run.id)+'&id='+encodeURIComponent(id))}catch(err){if(token!==S.token)return;S.loading=0;throw err}}
  if(token!==S.token)return;
+ S.all=false;S.ov=null;$('seedSel').hidden=false;
+ if(S.sort.key==='case'){if(want)want.warn.push('표 정렬 case는 전체 보기에서만 쓸 수 있어 planner 순으로 정렬합니다');S.sort={key:'planner',dir:1}}
  S.case=S.run.cases.find(c=>c.id===id);S.detail=detail;S.detailKey=key;$('caseSel').value=id;S.cmp=null;S.ra=S.rb=null;S.cPl={};S.cSeed={};S.on={};S.case.planners.forEach(p=>S.on[p]=true);
+ if(pick&&pick.cPl){S.case.planners.forEach(p=>{if(p in pick.cPl)S.cPl[p]=pick.cPl[p]});S.case.seeds.forEach(s=>{if(s in pick.cSeed)S.cSeed[s]=pick.cSeed[s]})}  // 전체 비교에서 고른 planner·seed 필터를 이 case에도 유지
  S.seed=S.case.seeds[0];$('seedSel').innerHTML=S.case.seeds.map(s=>`<option value="${esc(s)}">seed ${esc(s)}</option>`).join('');
  S.sel=(eps().find(e=>group(e.failure_class)!=='ok')||eps()[0]||{}).planner??S.case.planners[0];
- const first=eps().find(e=>e.planner===S.sel&&group(e.failure_class)!=='ok');if(first)S.seed=first.simulation_seed;
+ if(pick&&S.case.planners.includes(pick.planner))S.sel=pick.planner;
+ const first=eps().find(e=>e.planner===S.sel&&group(e.failure_class)!=='ok')||eps().find(e=>e.planner===S.sel);if(first)S.seed=first.simulation_seed;
+ if(pick&&S.case.seeds.includes(pick.seed))S.seed=pick.seed;
  if(want)applyCaseWant(want);$('seedSel').value=String(S.seed);
  const ends=Object.values(detail.traces).filter(t=>t.valid).map(t=>t.t[t.t.length-1]);S.tMax=Math.max(1,...ends);S.t=S.tMax;
  if(want&&S.pendingT&&!(S.view==='cmp'&&S.panel==='replay')){const v=S.pendingT.t;S.pendingT=null;
@@ -227,7 +273,13 @@ async function openCase(id,token=null,want=null){if(token===null){token=++S.toke
   else want.warn.push(`시각 t ${v} s: ${S.panel==='delta'?'Paired Δ':'산점도'} 화면에는 시각이 없어 무시했습니다`)}
  $('scr').max=S.tMax;$('axis').innerHTML=[0,1/3,2/3,1].map(f=>`<span>${(f*S.tMax).toFixed(1)}${f===1?' s':''}</span>`).join('');
  S.loading=0;if($('covCsv'))$('covCsv').disabled=false;buildStatic();renderAll()}
-$('caseSel').onchange=e=>{openCase(e.target.value).catch(err=>{if(S.case)$('caseSel').value=S.case.id;renderCoverage();renderTable();showMsg('이 지도를 열 수 없습니다.\n'+err.message)})};
+function drill(caseId,planner,seed){if(S.loading)return;const done=S.run.coverage.find(c=>c.case_id===caseId);
+ if(!S.run.cases.some(c=>c.id===caseId)){showMsg(`case ${caseId}는 완료되지 않아 열 수 없습니다${done?` (상태 ${done.status}${done.error?' — '+done.error:''})`:''}`);return}
+ openCase(caseId,null,null,{planner,seed,cPl:{...S.cPl},cSeed:{...S.cSeed}}).catch(err=>{loadFailed();showMsg('이 지도를 열 수 없습니다.\n'+err.message)})}
+/* 전환이 실패하면 이전 화면(전체 또는 case)을 그대로 두고, 전환 중 막았던 내려받기·비교를 되살린다 */
+function loadFailed(){$('caseSel').value=S.all?'*':S.case?S.case.id:'';renderCoverage();renderAll()}
+$('caseSel').onchange=e=>{const v=e.target.value;
+ (v==='*'?openAll():openCase(v)).catch(err=>{loadFailed();showMsg((v==='*'?'전체 보기를 열 수 없습니다.\n':'이 지도를 열 수 없습니다.\n')+err.message)})};
 $('seedSel').onchange=e=>{S.seed=+e.target.value;renderAll()};
 $('filter').onchange=e=>{S.filter=e.target.value;renderTable();writeUrl()};
 
@@ -235,7 +287,8 @@ function renderCoverage(){const c=S.run?S.run.coverage:[];const exp=c.every(x=>x
  const bad=c.filter(x=>x.status!=='complete'),el=$('cov');el.classList.toggle('warn',bad.length>0||(exp!==null&&inc<exp));
  el.innerHTML=c.length?`coverage <b>${inc}/${exp??'?'}</b>${bad.length?` · 미완료 case <b>${bad.length}</b>`:''}<button class="csvb" id="covCsv" title="현재 실행의 coverage CSV — 미완료 case 포함 모든 case" aria-label="현재 실행의 coverage CSV 내려받기 — 모든 case">CSV ↓</button>`:'';
  el.title=bad.map(x=>`${x.case_id}: ${x.status}${x.error?' — '+x.error:''}`).join('\n');
- if(bad.length)showMsg('완료되지 않은 case는 집계에서 뺐습니다.\n'+bad.map(x=>`${x.case_id}: ${x.status}${x.error?' — '+x.error:''}`).join('\n'))}
+ const text=bad.length?'완료되지 않은 case는 집계에서 뺐습니다.\n'+bad.map(x=>`${x.case_id}: ${x.status}${x.error?' — '+x.error:''}`).join('\n'):'';
+ if(text)showMsg(text);else if(S.covMsg&&$('msg').textContent===S.covMsg)showMsg('');S.covMsg=text}  // 갱신으로 모두 완료되면 이전 안내를 지운다
 
 /* CSV 내보내기: 서버가 저장 파일에서 만든다(에피소드는 저장 헤더·값·순서 그대로, coverage는 미완료 case 포함).
    fetch로 받아 오류를 화면에 보이고, 수식으로 해석될 수 있는 값이 있으면 저장 전에 확인받는다. 주소·history는 바꾸지 않는다 */
@@ -246,14 +299,16 @@ async function download(path){try{const r=await fetch(path);
   const m=/filename\*=UTF-8''([^;]+)/.exec(r.headers.get('Content-Disposition')||''),a=document.createElement('a');
   a.href=URL.createObjectURL(await r.blob());a.download=m?decodeURIComponent(m[1]):'raceplan.csv';document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),1000)}
  catch(err){showMsg('CSV를 내보내지 못했습니다.\n'+err.message)}}
-$('epCsv').onclick=()=>{if(S.run&&S.case&&!S.loading)download('/api/export/episodes.csv?'+new URLSearchParams({run:S.run.id,case:S.case.id,filter:S.filter}))};
+$('epCsv').onclick=()=>{if(!S.run||S.loading)return;
+ if(S.all)download('/api/export/suite-episodes.csv?'+new URLSearchParams({run:S.run.id,filter:S.filter}));
+ else if(S.case)download('/api/export/episodes.csv?'+new URLSearchParams({run:S.run.id,case:S.case.id,filter:S.filter}))};
 $('cov').onclick=e=>{if(e.target.closest('#covCsv')&&S.run&&!S.loading)download('/api/export/coverage.csv?'+new URLSearchParams({run:S.run.id}))};
 
-function renderGrid(){$('grid').innerHTML=planners().map(p=>`<div class="slot ${S.on[p]?'':'off'} ${S.sel===p?'sel':''}" data-p="${esc(p)}"><div class="num" style="background-color:${color(p)}">${badge(p)}</div><div><b>${esc(p)}</b><small>${S.on[p]?'트랙 표시 중':'트랙에서 숨김'}</small></div></div>`).join('')}
+function renderGrid(){$('grid').innerHTML=planners().map(p=>`<div class="slot ${S.all||S.on[p]?'':'off'} ${S.sel===p?'sel':''}" data-p="${esc(p)}"><div class="num" style="background-color:${color(p)}">${badge(p)}</div><div><b>${esc(p)}</b><small>${S.all?'전체 합계 보기':S.on[p]?'트랙 표시 중':'트랙에서 숨김'}</small></div></div>`).join('')}
 $('grid').onclick=e=>{const s=e.target.closest('.slot');if(s){S.sel=s.dataset.p;if(S.view==='cmp'&&S.panel==='replay'&&S.sel!==S.ra)S.rb=S.sel;renderAll()}};  // 재생 중 고른 planner는 B가 된다
 
 /* 리더보드: 현재 지도의 전체 seed */
-function renderLeaderboard(){if(!S.case){$('lb').innerHTML='';$('lbNote').textContent='';return}
+function renderLeaderboard(){if(S.all){renderAllLeaderboard();return}if(!S.case){$('lb').innerHTML='';$('lbNote').textContent='';return}
  const rows=planners().map(p=>{const a=eps().filter(e=>e.planner===p),ok=a.filter(e=>e.failure_class==='reached'),c={ok:0,col:0,to:0,pe:0};a.forEach(e=>c[group(e.failure_class)]++);
   return{p,a,c,rate:a.length?ok.length/a.length:0,rmse:median(ok.map(e=>e.tracking_rmse_m)),ms:median(a.map(e=>e.runner_planning_time_ms??e.planning_time_ms))}}).sort((x,y)=>y.rate-x.rate||(x.rmse??1e9)-(y.rmse??1e9));
  $('lbNote').textContent='도달률 → RMSE 중앙값 · seed '+S.case.seeds.length+'개';
@@ -261,26 +316,39 @@ function renderLeaderboard(){if(!S.case){$('lb').innerHTML='';$('lbNote').textCo
   return `<div class="row" data-p="${esc(r.p)}"><input type="checkbox" data-p="${esc(r.p)}" ${S.on[r.p]?'checked':''} title="트랙에 표시" aria-label="${esc(r.p)} 트랙에 표시"><div class="num" style="background-color:${color(r.p)}">${badge(r.p)}</div><div style="min-width:0"><b>${esc(r.p)}</b> <small>${r.c.ok}/${r.a.length} 도달</small><div class="bar">${[['ok','teal'],['col','red'],['to','amb'],['pe','vio']].map(([k,v])=>`<i style="width:${r.c[k]/n*100}%;background:var(--${v})"></i>`).join('')}</div></div><span class="r" style="font-weight:700">${r.rmse===null?'n/a':r.rmse.toFixed(3)}</span><span class="r">${fmt(r.ms,2)}</span></div>`}).join('')+'</div>'}
 $('lb').onchange=e=>{if(e.target.type==='checkbox'){S.on[e.target.dataset.p]=e.target.checked;buildStatic();renderAll()}};
 $('lb').onclick=e=>{if(e.target.type==='checkbox')return;const r=e.target.closest('.row');if(r){S.sel=r.dataset.p;renderAll()}};
+/* 전체 보기 리더보드: 서버가 검증된 case 원본 행으로 계산한 합계(suite summary.csv와 같은 정의). 포함 범위를 제목에 밝힌다 */
+function renderAllLeaderboard(){const ov=S.ov,done=ov.coverage.filter(c=>c.status==='complete').length,rec=ov.leaderboard.reduce((a,r)=>a+r.episodes_recorded,0),exp=ov.coverage.every(c=>c.expected!==null&&c.expected!==undefined)?ov.coverage.reduce((a,c)=>a+c.expected,0):null;
+ const rows=[...ov.leaderboard].sort((x,y)=>y.reached/(y.episodes_recorded||1)-x.reached/(x.episodes_recorded||1)||(x.success_median_tracking_rmse_m??1e9)-(y.success_median_tracking_rmse_m??1e9));
+ $('lbNote').textContent=`${done}/${ov.coverage.length} case 합계 · ${rec}/${exp??'?'} 기록 · 도달률 → RMSE 중앙값`;
+ $('lb').innerHTML='<div class="lb"><span></span><span class="hd">#</span><span class="hd">결과 구성 (전체 case)</span><span class="hd r">RMSE m</span><span class="hd r">완료 s</span>'+rows.map(r=>{const n=r.episodes_recorded||1,c={ok:0,col:0,to:0,pe:0};Object.entries(r.outcomes).forEach(([k,v])=>{if(k)c[group(k)]+=v});
+  /* 줄 안에는 도달 수만(1280×720에서 planner 5개가 한 화면에 들어가게). 실패 구성은 막대 색과 제목(마우스)에 있다 */
+  const detail=`충돌 ${r.collisions} · 시간 초과 ${r.timeouts} · 계획 실패 ${r.planning_failures}${r.planning_errors?` (오류 ${r.planning_errors})`:''}`;
+  return `<div class="row" data-p="${esc(r.planner)}" title="${esc(r.planner+' — '+r.reached+'/'+r.episodes_recorded+' 도달 · '+detail)}"><span></span><div class="num" style="background-color:${color(r.planner)}">${badge(r.planner)}</div><div style="min-width:0"><b>${esc(r.planner)}</b> <small>${r.reached}/${r.episodes_recorded} 도달</small><div class="bar">${[['ok','teal'],['col','red'],['to','amb'],['pe','vio']].map(([k,v])=>`<i style="width:${c[k]/n*100}%;background:var(--${v})"></i>`).join('')}</div></div><span class="r" style="font-weight:700">${r.success_median_tracking_rmse_m===null?'n/a':r.success_median_tracking_rmse_m.toFixed(3)}</span><span class="r">${fmt(r.success_median_completion_time_s,2)}</span></div>`}).join('')+'</div>'}
 
 /* 에피소드 표 */
 const COLS=[['planner','planner',0],['simulation_seed','seed',0],['failure_class','결과',0],['tracking_rmse_m','RMSE m',1],['completion_time_s','시간 s',1],['driving_min_sampled_clearance_m','clear m',1]];
-function renderTable(){const eb=$('epCsv');eb.disabled=!S.case;eb.title=S.case?`에피소드 CSV — ${FILTER_LABEL[S.filter]}, 일치하는 모든 행 (저장 순서·저장 값 그대로, 화면 정렬과 무관)`:'완료된 case가 없습니다';eb.setAttribute('aria-label',eb.title);
- if(!S.case){$('tnote').innerHTML='';$('table').innerHTML=S.run?`<div class="empty">표시할 완료 case가 없습니다</div>`:'';return}
- const {key,dir}=S.sort;let rows=eps().filter(e=>S.filter==='all'||(S.filter==='ok')===(e.failure_class==='reached'));
- rows=[...rows].sort((a,b)=>{const x=a[key],y=b[key];if(x===null||x===undefined)return 1;if(y===null||y===undefined)return -1;if(x<y)return -dir;if(x>y)return dir;return a.simulation_seed-b.simulation_seed});
+const CASE_COL=['case','case',0];
+function renderTable(){const eb=$('epCsv'),can=!!S.case||S.all&&eps().length>0;eb.disabled=!can;
+ eb.title=!can?'완료된 case가 없습니다':S.all?`모든 완료 case의 에피소드 CSV — ${FILTER_LABEL[S.filter]}, 첫 열 case_id (case 순서·저장 값 그대로, 화면 정렬과 무관)`:`에피소드 CSV — ${FILTER_LABEL[S.filter]}, 일치하는 모든 행 (저장 순서·저장 값 그대로, 화면 정렬과 무관)`;eb.setAttribute('aria-label',eb.title);
+ if(!S.case&&!S.all){$('tnote').innerHTML='';$('table').innerHTML=S.run?`<div class="empty">표시할 완료 case가 없습니다</div>`:'';return}
+ if(S.all&&!eps().length){$('tnote').innerHTML='';$('table').innerHTML='<div class="empty">완료된 case가 없어 에피소드가 없습니다.\n상단 coverage에서 이유를 보세요</div>';return}
+ const cols=S.all?[CASE_COL,...COLS]:COLS,{key,dir}=S.sort;let rows=eps().filter(e=>S.filter==='all'||(S.filter==='ok')===(e.failure_class==='reached'));
+ rows=[...rows].sort((a,b)=>{const x=a[key],y=b[key],nx=x===null||x===undefined,ny=y===null||y===undefined;if(nx!==ny)return nx?1:-1;  // 값 없음은 방향과 무관하게 끝
+  if(!nx){if(x<y)return -dir;if(x>y)return dir}return (a.case??'').localeCompare(b.case??'')||a.simulation_seed-b.simulation_seed});
  /* 선택이 표 필터에 가려지면 숨긴 행을 끼워 넣지 않고(CSV 범위와 같게) 알린다 */
- const hidden=!!ep(S.sel,S.seed)&&!rows.some(e=>e.planner===S.sel&&e.simulation_seed===S.seed);
- $('tnote').innerHTML=`<span>표시 <b>${rows.length}</b> / 전체 ${eps().length}행</span>`+(hidden?`<span class="hid" title="${esc(`선택 ${S.sel} / seed ${S.seed} — '${FILTER_LABEL[S.filter]}' 필터로 숨김`)}">· 선택 행 숨김('${FILTER_LABEL[S.filter]}')</span><button class="lnk" id="showAll">전체 보기로 전환</button>`:'');
+ const hidden=!S.all&&!!ep(S.sel,S.seed)&&!rows.some(e=>e.planner===S.sel&&e.simulation_seed===S.seed);
+ $('tnote').innerHTML=`<span>표시 <b>${rows.length}</b> / 전체 ${eps().length}행${S.all?` · ${S.ov.cases.length} case`:''}</span>`+(hidden?`<span class="hid" title="${esc(`선택 ${S.sel} / seed ${S.seed} — '${FILTER_LABEL[S.filter]}' 필터로 숨김`)}">· 선택 행 숨김('${FILTER_LABEL[S.filter]}')</span><button class="lnk" id="showAll">전체 보기로 전환</button>`:'')+(S.all?'<span class="hid">· 행을 누르면 그 case의 지도로 들어갑니다</span>':'');
  const top=$('table').scrollTop;
- $('table').innerHTML=`<table><thead><tr>${COLS.map(([k,l,n])=>`<th class="${n?'n':''}" data-k="${k}">${l}${k===key?(dir>0?' ↑':' ↓'):''}</th>`).join('')}</tr></thead><tbody>${rows.map(e=>{const g=group(e.failure_class);
-  return `<tr class="${e.planner===S.sel&&e.simulation_seed===S.seed?'sel':''}" data-p="${esc(e.planner)}" data-s="${e.simulation_seed}"><td class="pl" title="${esc(e.planner)}"><span class="dot" style="background:${color(e.planner)}"></span>${esc(e.planner)}</td><td>${e.simulation_seed}</td><td><span class="tag ${OUT[g][0]}">${esc(outLabel(e.failure_class))}</span></td><td class="n">${fmt(e.tracking_rmse_m)}</td><td class="n">${fmt(e.completion_time_s,2)}</td><td class="n">${fmt(e.driving_min_sampled_clearance_m)}</td></tr>`}).join('')}</tbody></table>`;$('table').scrollTop=top;
+ $('table').innerHTML=`<table><thead><tr>${cols.map(([k,l,n])=>`<th class="${n?'n':''}" data-k="${k}">${l}${k===key?(dir>0?' ↑':' ↓'):''}</th>`).join('')}</tr></thead><tbody>${rows.map(e=>{const g=group(e.failure_class);
+  return `<tr class="${!S.all&&e.planner===S.sel&&e.simulation_seed===S.seed?'sel':''}" data-p="${esc(e.planner)}" data-s="${e.simulation_seed}"${S.all?` data-c="${esc(e.case)}"`:''}>${S.all?`<td class="pl" title="${esc(e.case)}">${esc(e.case)}</td>`:''}<td class="pl" title="${esc(e.planner)}"><span class="dot" style="background:${color(e.planner)}"></span>${esc(e.planner)}</td><td>${e.simulation_seed}</td><td><span class="tag ${OUT[g][0]}">${esc(outLabel(e.failure_class))}</span></td><td class="n">${fmt(e.tracking_rmse_m)}</td><td class="n">${fmt(e.completion_time_s,2)}</td><td class="n">${fmt(e.driving_min_sampled_clearance_m)}</td></tr>`}).join('')}</tbody></table>`;$('table').scrollTop=top;
  /* 선택·필터가 바뀌었을 때만(표가 보일 때) 선택 행을 고정 헤더 아래로 보이게 한다. 일반 재렌더는 스크롤을 건드리지 않는다 */
- const sk=`${S.run.id}|${S.case.id}|${S.sel}|${S.seed}|${S.filter}`,tw=$('table'),row=tw.querySelector('tbody tr.sel');
+ const sk=`${S.run.id}|${S.case?S.case.id:'*'}|${S.sel}|${S.seed}|${S.filter}`,tw=$('table'),row=tw.querySelector('tbody tr.sel');
  if(S.view==='explore'&&sk!==S.tableKey){S.tableKey=sk;if(row){const head=tw.querySelector('thead').getBoundingClientRect().height,rr=row.getBoundingClientRect(),y=rr.top-tw.getBoundingClientRect().top+tw.scrollTop;
   if(y-head<tw.scrollTop)tw.scrollTop=y-head;else if(y+rr.height>tw.scrollTop+tw.clientHeight)tw.scrollTop=y+rr.height-tw.clientHeight}}}
 $('tnote').onclick=e=>{if(e.target.id==='showAll'){S.filter='all';$('filter').value='all';renderTable();writeUrl();$('filter').focus()}};
 $('table').onclick=e=>{const th=e.target.closest('th');if(th){const k=th.dataset.k;S.sort=S.sort.key===k?{key:k,dir:-S.sort.dir}:{key:k,dir:1};renderTable();writeUrl();return}
- const tr=e.target.closest('tbody tr');if(tr){S.sel=tr.dataset.p;S.seed=+tr.dataset.s;$('seedSel').value=String(S.seed);renderAll()}};
+ const tr=e.target.closest('tbody tr');if(!tr)return;if(tr.dataset.c){drill(tr.dataset.c,tr.dataset.p,+tr.dataset.s);return}
+ S.sel=tr.dataset.p;S.seed=+tr.dataset.s;$('seedSel').value=String(S.seed);renderAll()};
 
 /* 트랙 */
 const W=()=>S.detail.grid.width*S.detail.grid.resolution,H=()=>S.detail.grid.height*S.detail.grid.resolution;
@@ -306,9 +374,22 @@ function drawDyn(){if(!S.detail){$('trDyn').innerHTML='';return}let s='';
  planners().forEach(p=>{if(!S.on[p])return;const e=ep(p,S.seed),tr=trace(e);if(!tr||!tr.t.length)return;const n=indexAt(tr.t,S.t);
   s+=vehicle(p,tr,n,S.sel===p,n===tr.t.length-1&&group(e.failure_class)==='col')});
  $('trDyn').innerHTML=s;$('trk').textContent=`${S.t.toFixed(1)} s · seed ${S.seed}`}
+/* 전체 보기에서 트랙 자리: planner × case 도달 행렬(도달/기록). 완료하지 못한 case는 0이 아니라 —와 상태로 보인다 */
+function renderMatrix(){const on=S.all&&!!S.ov;$('matrix').hidden=!on;$('track').style.display=on?'none':'';$('trLeg').textContent=on?'칸 = 도달/기록 · 칸·열 이름을 누르면 그 case의 지도로 들어갑니다 · — = 완료되지 않은 case':'점선 = 계획 경로 · 실선 = 실제 궤적 · 저장된 결과만 표시합니다';
+ $('trTitle').textContent=on?'case별 도달 · planner × case':'트랙 · 체크한 planner 동시 주행';if(!on)return;
+ const ov=S.ov,cov=ov.coverage,cell=(c,p)=>{const x=(ov.matrix[c.case_id]||{})[p];
+  if(c.status!=='complete')return `<td class="na" title="${esc(`${c.case_id}: ${c.status}${c.error?' — '+c.error:''}`)}">—</td>`;
+  if(!x)return '<td class="na" title="이 case에 없는 planner">·</td>';const r=x.episodes_recorded?x.reached/x.episodes_recorded:0;
+  return `<td class="c ${S.sel===p?'sel':''}" data-c="${esc(c.case_id)}" data-p="${esc(p)}" tabindex="0" role="button" style="background:rgba(52,199,89,${(.08+r*.42).toFixed(2)})" title="${esc(`${p} · ${c.case_id}: 도달 ${x.reached}/${x.episodes_recorded} · 충돌 ${x.collisions} · 시간 초과 ${x.timeouts} · 계획 실패 ${x.planning_failures} — 눌러서 이 case 열기`)}">${x.reached}/${x.episodes_recorded}</td>`};
+ $('matrix').innerHTML=`<table><thead><tr><th>planner</th>${cov.map(c=>`<th class="${c.status==='complete'?'':'bad'}" data-c="${esc(c.case_id)}" title="${esc(c.case_id)}">${esc(c.case_id)}<small>${c.status==='complete'?`${c.included}/${c.expected??'?'} 기록`:esc(c.status)}</small></th>`).join('')}</tr></thead><tbody>${planners().map(p=>`<tr><th data-p="${esc(p)}" class="${S.sel===p?'sel':''}"><span class="dot" style="background:${color(p)}"></span>${esc(p)}</th>${cov.map(c=>cell(c,p)).join('')}</tr>`).join('')}</tbody></table>`;
+ $('trk').textContent=`${cov.length} case`}
+function matrixPick(t){if(t.matches('td.c'))drill(t.dataset.c,t.dataset.p,null);else if(t.matches('thead th[data-c]'))drill(t.dataset.c,S.sel,null);else if(t.matches('tbody th[data-p]')){S.sel=t.dataset.p;renderAll()}}
+$('matrix').onclick=e=>{const t=e.target.closest('td.c,th[data-c],th[data-p]');if(t)matrixPick(t)};
+$('matrix').onkeydown=e=>{if(e.key!=='Enter'&&e.key!==' ')return;const t=e.target.closest('td.c');if(t){e.preventDefault();matrixPick(t)}};
 
 /* 타임라인 */
-function renderLanes(){if(!S.case){$('lanes').innerHTML='<div class="empty"></div>';return}
+function renderLanes(){$('play').hidden=S.all;if(S.all){$('lanes').innerHTML='<div class="empty">전체 보기에는 공통 시간축이 없습니다. 재생하려면 상단에서 case를 고르세요(행렬 칸·표 행을 눌러도 됩니다)</div>';$('axis').innerHTML='';return}
+ if(!S.case){$('lanes').innerHTML='<div class="empty"></div>';return}
  $('lanes').innerHTML=planners().filter(p=>S.on[p]).map(p=>{const e=ep(p,S.seed);if(!e)return'';const g=group(e.failure_class),tr=trace(e),o=OUT[g],has=tr&&tr.t.length,end=has?tr.t[tr.t.length-1]:0;
   return `<div class="lane"><div class="lab" data-p="${esc(p)}"><div class="num" style="background-color:${color(p)}">${badge(p)}</div><b>${esc(p)}</b></div><div class="rl" data-end="${end}">${has?`<div class="fillb" style="background-color:${color(p)}"></div><div class="ev" style="left:${end/S.tMax*100}%;color:${o[2]};border-color:${o[2]}" title="${esc(outLabel(e.failure_class))} ${end.toFixed(2)} s">${o[1]}</div>`:`<div class="ev" style="left:1.2em;color:${o[2]};border-color:${o[2]}">${o[1]}</div><span class="nodrive-l" style="left:2.4em">${badTrace(e)?'궤적 데이터 오류':esc(outLabel(e.failure_class))+' — 주행 없음'}</span>`}</div></div>`}).join('');tick()}
 $('lanes').onclick=e=>{const l=e.target.closest('.lab');if(l){S.sel=l.dataset.p;renderAll()}};
@@ -335,7 +416,16 @@ function sparkCursor(){const box=$('sparks');if(!box)return;const tr=trace(ep(S.
  box.querySelectorAll('.spk').forEach(d=>{const l=d.querySelector('.cur');l.setAttribute('x1',px);l.setAttribute('x2',px);const s=SERIES[+d.dataset.i],a=tr[s[1]][n];d.querySelector('b').textContent=before||a===null?'—':a.toFixed(s[3])+' '+s[2]+(after?' (마지막)':'')})}
 function deltaCell(v,better,digits){if(v===null||v===undefined)return '<span class="d">—</span>';const r=+v.toFixed(digits),good=better==='low'?r<0:r>0,bad=better==='low'?r>0:r<0;
  return `<span class="d ${good?'up':bad?'dn':''}">${r>0?'+':r<0?'−':''}${Math.abs(r).toFixed(digits)}</span>`}
-function renderInspector(){if(!S.case){$('insp').innerHTML='';return}const e=ep(S.sel,S.seed);if(!e){$('insp').innerHTML='<div class="empty">이 조합의 에피소드가 없습니다</div>';return}
+/* 전체 보기 Inspector: case 포함 범위, 저장 집계와의 대조 결과, 고른 planner의 합계. 궤적·시계열은 case에서만 */
+function renderAllInspector(){const ov=S.ov,chk=ov.summary_check,l=ov.leaderboard.find(r=>r.planner===S.sel);
+ const check=chk.status==='match'?'<div class="ichk ok">✔ 저장 집계(summary.csv·case_summary.csv)와 일치</div>':
+  chk.status==='mismatch'?`<div class="ichk bad">✕ 저장 집계와 ${chk.count}곳 다름 — 화면은 검증된 case 기록 기준입니다<br>${chk.differences.slice(0,4).map(d=>esc(`${d.file} ${d.row}${d.field?' · '+d.field+': 저장 '+d.saved+' / 계산 '+d.computed:' · 행 '+(d.saved===null?'없음(저장)':'없음(계산)')}`)).join('<br>')}</div>`:
+  chk.status==='missing'?`<div class="ichk bad">저장 집계 파일을 읽지 못했습니다 — ${esc(chk.message)}</div>`:`<div class="ichk">suite 상태가 ${esc(chk.suite_status)}라 저장 집계와 대조하지 않았습니다</div>`;
+ const cov=`<div class="icov">${ov.coverage.map(c=>`<span title="${esc(c.case_id)}">${esc(c.case_id)}</span><span class="${c.status==='complete'?'':'bad'}" title="${esc(c.error||'')}">${c.status==='complete'?`${c.included}/${c.expected??'?'}`:esc(c.status)}</span>`).join('')}</div>`;
+ const mine=l?`<div style="display:flex;align-items:center;gap:.6em;flex:none"><div class="num" style="background-color:${color(l.planner)}">${badge(l.planner)}</div><div style="min-width:0;flex:1"><b style="font-size:1.1em;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(l.planner)}</b><small style="color:var(--mut)">전체 ${ov.coverage.filter(c=>c.status==='complete').length} case 합계</small></div><span class="tag t-ok">${l.reached}/${l.episodes_recorded} 도달</span></div>
+  <div class="mt"><span></span><span class="h">값</span><span class="h"></span>${[['충돌',l.collisions],['시간 초과',l.timeouts],['계획 실패',l.planning_failures+(l.planning_errors?` (오류 ${l.planning_errors})`:'')],['성공 RMSE 중앙값',fmt(l.success_median_tracking_rmse_m)+' m'],['성공 완료시간 중앙값',fmt(l.success_median_completion_time_s,2)+' s']].map(([k,v])=>`<span class="k">${k}</span><span class="v">${v}</span><span class="d"></span>`).join('')}</div>`:'';
+ $('insp').innerHTML=`${mine}<div class="il"><span>case 포함 범위</span><span>${ov.coverage.filter(c=>c.status==='complete').length}/${ov.coverage.length}</span></div>${cov}<div class="il"><span>집계 검증</span><span></span></div>${check}<div class="nodrive">궤적·시계열은 case를 고른 뒤 보입니다</div>`}
+function renderInspector(){if(S.all){renderAllInspector();return}if(!S.case){$('insp').innerHTML='';return}const e=ep(S.sel,S.seed);if(!e){$('insp').innerHTML='<div class="empty">이 조합의 에피소드가 없습니다</div>';return}
  const g=group(e.failure_class),o=OUT[g],tr=trace(e),base=S.case.baseline,pair=S.case.pairs.find(x=>x.planner===S.sel&&x.simulation_seed===S.seed),isBase=S.sel===base;
  const row=(k,v,d)=>`<span class="k">${k}</span><span class="v">${v}</span>${d}`,dash='<span class="d">—</span>',cell=(f,b,n)=>pair?deltaCell(pair[f],b,n):dash;
  let fail='';const hasTr=tr&&tr.t.length;
@@ -344,13 +434,13 @@ function renderInspector(){if(!S.case){$('insp').innerHTML='';return}const e=ep(
  if(g==='pe')fail=`<div class="fail pe"><b>! ${esc(outLabel(e.failure_class))}${e.planning_error_type?' · '+esc(e.planning_error_type):''}</b>${esc(e.planning_error_message||e.planning_status)}</div>`;
  const body=hasTr?`<div class="sparks" id="sparks">${SERIES.filter(s=>tr[s[1]]).map(s=>`<div class="spk" data-i="${SERIES.indexOf(s)}"><div class="sph"><span>${s[0]}</span><b></b></div>${spark(tr,s,color(S.sel))}</div>`).join('')}</div>`:`<div class="nodrive">${badTrace(e)?'궤적 데이터 오류로 시계열을 표시하지 않습니다':'주행이 없어 시계열이 없습니다'}</div>`;
  const cmd=S.case.reproduce?S.case.reproduce.map(a=>/\s/.test(a)?`"${a}"`:a).join(' '):null;
- $('insp').innerHTML=`<div style="display:flex;align-items:center;gap:.6em;flex:none"><div class="num" style="background-color:${color(S.sel)}">${badge(S.sel)}</div><div style="min-width:0;flex:1"><b style="font-size:1.1em;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(S.sel)}</b><small style="color:var(--mut)">${esc(S.case.map)} · seed ${e.simulation_seed}</small></div><span class="tag ${o[0]}">${o[1]} ${esc(outLabel(e.failure_class))}</span></div>
+ $('insp').innerHTML=`<div style="display:flex;align-items:center;gap:.6em;flex:none"><div class="num" style="background-color:${color(S.sel)}">${badge(S.sel)}</div><div style="min-width:0;flex:1"><b style="font-size:1.1em;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(S.sel)}</b><small style="color:var(--mut)" title="${esc(S.case.map_label||S.case.map)}">${esc(S.case.id==='batch'?S.case.map_label||S.case.map:S.case.id)} · seed ${e.simulation_seed}</small></div><span class="tag ${o[0]}">${o[1]} ${esc(outLabel(e.failure_class))}</span></div>
  <div class="mt"><span></span><span class="h">값</span><span class="h">${isBase?'기준':esc(base?base+' 대비':'')}</span>
  ${row('RMSE',fmt(e.tracking_rmse_m)+' m',cell('delta_tracking_rmse_m','low',3))}${row('완료시간',fmt(e.completion_time_s,2)+' s',cell('delta_completion_time_s','low',2))}${row('최소 clearance',fmt(e.driving_min_sampled_clearance_m)+' m',cell('delta_driving_min_sampled_clearance_m','high',3))}${row('계획시간',fmt(e.runner_planning_time_ms??e.planning_time_ms,2)+' ms',dash)}</div>
  ${fail}<div class="il"><span>시계열</span><span>타임라인과 연동</span></div>${body}
  <div class="il"><span>Provenance</span><span style="color:var(--teal)">✔ 저장 입력 검증 통과</span></div>${cmd?`${S.ro&&S.ro.frozen?'<div class="il"><span>다시 실행</span><span>Python 설치판용 명령 · exe에는 없음</span></div>':''}<div class="cmd" title="새 출력 폴더로 다시 실행하는 명령">${esc(cmd)}</div>`:''}`;sparkCursor()}
 
-function renderAll(){if(S.cmp&&S.case)drawCompare();else renderCompare();document.querySelector('.scrubz').classList.toggle('off',!S.detail);renderGrid();renderLeaderboard();renderTable();renderInspector();renderLanes();if(!S.detail){$('trStatic').innerHTML='';drawDyn();$('trk').textContent=''}writeUrl()}
+function renderAll(){if(S.cmp&&(S.case||S.all))drawCompare();else renderCompare();document.querySelector('.scrubz').classList.toggle('off',!S.detail);renderGrid();renderLeaderboard();renderTable();renderInspector();renderLanes();renderMatrix();if(!S.detail){$('trStatic').innerHTML='';drawDyn();if(!S.all)$('trk').textContent=''}writeUrl()}
 
 /* 비교 분석: 집계(분모·제외 사유)는 서버가 저장 결과에서 계산한다 */
 Object.assign(S,{view:'explore',panel:'delta',metric:'rmse',xsrc:'reported',cOut:'all',cPl:{},cSeed:{},cmp:null,ctoken:0,ra:null,rb:null,rspeed:1});
@@ -362,7 +452,9 @@ function setView(v){stop();S.view=v;viewDom();
  if(v==='cmp'&&S.panel==='replay'&&S.ra!==null&&S.sel&&S.sel!==S.ra&&S.sel!==S.rb)S.rb=S.sel;  // 탐색에서 고른 planner가 재생 B가 된다
  if(v==='cmp')renderCompare();else{S.pendingT=null;if(S.detail){renderTable();tick()}}writeUrl()}
 $('tabs').onclick=e=>{const b=e.target.closest('button');if(b)setView(b.dataset.v)};
-function cmpQuery(){const keys=(k,list)=>list.length?list.map(v=>k+'='+enc(v)):[k+'='],pl=planners().filter(p=>S.cPl[p]!==false),sd=S.case.seeds.filter(s=>S.cSeed[s]!==false);
+/* 전체 보기의 기준: case마다 저장된 기준이 모두 같으면 그 이름, 다르면 없음(차선이 기준별로 나뉜다) */
+const cmpBase=()=>S.case?S.case.baseline:S.ov&&S.ov.cases.length&&S.ov.cases.every(c=>c.baseline===S.ov.cases[0].baseline)?S.ov.cases[0].baseline:null;
+function cmpQuery(){const keys=(k,list)=>list.length?list.map(v=>k+'='+enc(v)):[k+'='],pl=planners().filter(p=>S.cPl[p]!==false),sd=allSeeds().filter(s=>S.cSeed[s]!==false);
  let q=[...keys('planners',pl),...keys('seeds',sd)];
  if(S.cOut==='reached')q=q.concat(keys('outcomes',['reached']));else if(S.cOut==='fail')q=q.concat(keys('outcomes',[...new Set(eps().map(e=>e.failure_class).filter(c=>c!=='reached'))]));
  return q.join('&')}
@@ -374,15 +466,19 @@ function renderCmpCtl(){const opt=(v,l,cur)=>`<option value="${v}" ${v===cur?'se
  $('cmpCtl').innerHTML=tabs+`
  <div class="grp">${S.panel==='delta'?`<span class="lbl">지표</span><select class="pill" id="cMetric">${Object.entries(METRIC).map(([k,m])=>opt(k,m[0],S.metric)).join('')}</select>`:`<span class="lbl">X 계획시간</span><select class="pill" id="cX">${opt('reported','보고값 (planning_time_ms)',S.xsrc)}${opt('runner','실측 (runner_planning_time_ms)',S.xsrc)}</select>`}
  <span class="lbl">결과</span><select class="pill" id="cOut">${opt('all','전체',S.cOut)}${opt('reached','도달만',S.cOut)}${opt('fail','실패만',S.cOut)}</select></div>
- <div class="grp"><span class="lbl">planner</span>${planners().map(p=>`<button class="chip ${S.cPl[p]!==false?'on':''}" aria-pressed="${S.cPl[p]!==false}" data-p="${esc(p)}"><span class="dot" style="background:${color(p)}"></span>${esc(p)}${p===S.case.baseline?' (기준)':''}</button>`).join('')}</div>
- <div class="grp"><span class="lbl">seed</span>${S.case.seeds.map(s=>`<button class="chip ${S.cSeed[s]!==false?'on':''}" aria-pressed="${S.cSeed[s]!==false}" data-s="${s}">${s}</button>`).join('')}</div>`}
+ <div class="grp"><span class="lbl">planner</span>${planners().map(p=>`<button class="chip ${S.cPl[p]!==false?'on':''}" aria-pressed="${S.cPl[p]!==false}" data-p="${esc(p)}"><span class="dot" style="background:${color(p)}"></span>${esc(p)}${p===cmpBase()?' (기준)':''}</button>`).join('')}</div>
+ <div class="grp"><span class="lbl">seed</span>${allSeeds().map(s=>`<button class="chip ${S.cSeed[s]!==false?'on':''}" aria-pressed="${S.cSeed[s]!==false}" data-s="${s}">${s}</button>`).join('')}</div>`}
 $('cmpCtl').onclick=e=>{const t=e.target.closest('button');if(!t)return;
  if(t.dataset.v){stop();if(t.dataset.v==='replay'&&S.panel!=='replay'&&S.sel&&S.sel!==S.ra)S.rb=S.sel;S.panel=t.dataset.v}else if(t.dataset.p)S.cPl[t.dataset.p]=S.cPl[t.dataset.p]===false;else if(t.dataset.s)S.cSeed[t.dataset.s]=S.cSeed[t.dataset.s]===false;else return;focusSel=t.dataset.v?'#panelTabs [data-v="'+t.dataset.v+'"]':t.dataset.p?'#cmpCtl [data-p="'+CSS.escape(t.dataset.p)+'"]':'#cmpCtl [data-s="'+t.dataset.s+'"]';renderCompare()};
 $('cmpCtl').onchange=e=>{const id=e.target.id,v=e.target.value;
  if(id==='rA'||id==='rB'){if(id==='rA'){S.ra=v;if(S.rb===v)S.rb=null}else S.rb=v;const pair=replayPair();if(pair&&!pair.includes(S.sel))S.sel=pair[1];focusSel='#'+id;renderAll();return}
  if(id==='cMetric')S.metric=v;else if(id==='cX')S.xsrc=v;else if(id==='cOut')S.cOut=v;else if(id==='rSpd'){S.rspeed=+v;writeUrl();return}else return;focusSel='#'+id;renderCompare()};
-async function renderCompare(){if(S.view!=='cmp')return;
- if(!S.case){S.ctoken++;S.cmp=null;$('cmpCtl').innerHTML='';$('cmpSum').innerHTML='';$('cmpBody').innerHTML='<div class="empty">표시할 완료 case가 없습니다</div>';return}
+async function renderCompare(){if(S.view!=='cmp'||S.loading)return;  // 전환 중에는 이전 범위로 요청하지 않는다(끝나면 renderAll이 다시 부른다)
+ $('cmpCtl').classList.remove('busy');$('cmpCtl').inert=$('cmpBody').inert=false;if(S.panel==='replay'||!S.case&&!S.all)$('cmpBody').classList.remove('busy');
+ if(!S.case&&!S.all){S.ctoken++;S.cmp=null;$('cmpCtl').innerHTML='';$('cmpSum').innerHTML='';$('cmpBody').innerHTML='<div class="empty">표시할 완료 case가 없습니다</div>';return}
+ if(S.all&&S.panel==='replay'){S.ctoken++;S.cmp=null;stop();$('cmpCtl').innerHTML=`<div class="tabs" id="panelTabs">${[['delta','Paired Δ'],['scatter','산점도'],['replay','나란히 재생']].map(([v,l])=>`<button data-v="${v}" class="${S.panel===v?'on':''}">${l}</button>`).join('')}</div>`;
+  $('cmpSum').innerHTML='';$('cmpNote').textContent='';$('cmpBody').innerHTML='<div class="empty">나란히 재생은 지도 하나에서만 됩니다.\n상단에서 case를 고르거나, Paired Δ·산점도에서 점을 눌러 그 case로 들어가세요</div>';
+  if(S.pendingT){linkWarn(`시각 t ${S.pendingT.t} s: 전체 보기에는 재생이 없어 무시했습니다`);S.pendingT=null}writeUrl();restoreFocus();return}
  S.cmp=null;const panel=S.panel;let url;
  if(panel==='replay'){stop();S.t=0;const pair=replayPair();renderCmpCtl();
   if(!pair){S.ctoken++;$('cmpSum').innerHTML='';$('cmpNote').textContent='';$('cmpBody').innerHTML='<div class="empty">나란히 재생하려면 이 case에 planner가 2개 이상 있어야 합니다</div>';
@@ -392,9 +488,14 @@ async function renderCompare(){if(S.view!=='cmp')return;
   $('cmpSum').innerHTML='';$('cmpBody').innerHTML='<div class="empty">재생 데이터를 불러오는 중입니다</div>'}
  else{S.pendingT=null;renderCmpCtl();closePicker(false);$('cmpBody').classList.add('busy');  // 새 응답 전에는 이전 점을 고를 수 없고, 이전 상태줄·분모도 보이지 않는다
   $('cmpSum').innerHTML='<div class="selnote hid">비교 데이터를 불러오는 중입니다 — 분모와 선택 상태는 응답 뒤에 다시 씁니다</div>';
-  url=`/api/compare/${panel==='delta'?'delta?metric='+S.metric:'scatter?x='+S.xsrc}&run=${enc(S.run.id)}&case=${enc(S.case.id)}&${cmpQuery()}`}
+  url=`/api/compare/${panel==='delta'?'delta?metric='+S.metric:'scatter?x='+S.xsrc}&run=${enc(S.run.id)}&${S.all?'scope=all':'case='+enc(S.case.id)}&${cmpQuery()}`}
  writeUrl();const token=++S.ctoken;
- try{const d=await api(url);if(token!==S.ctoken)return;$('cmpBody').classList.remove('busy');S.cmp=d;S.cmpPanel=panel;S.cmpUrl=url;drawCompare();restoreFocus()}
+ try{const d=await api(url);if(token!==S.ctoken)return;
+  /* 전체 보기가 읽은 뒤 case가 더 완료됐으면 점과 화면 목록이 다른 시점이다: 전체 보기를 새 시점으로 다시 읽는다(필터 유지).
+     같은 case 목록으로는 한 번만 시도한다: 다시 읽기가 실패하면 점을 그리고 목록이 오래됐다고 알린다(반복 요청 없음) */
+  const ids=d.scope==='all'?d.case_ids.join('\n'):null,stale=ids!==null&&ids!==S.run.cases.map(c=>c.id).join('\n');
+  if(stale&&S.staleTried!==ids){S.staleTried=ids;openAll(null,null,true).catch(err=>{loadFailed();showMsg('전체 보기를 새로 읽지 못했습니다. 비교에만 있는 case는 아직 열 수 없습니다.\n'+err.message)});return}
+  $('cmpBody').classList.remove('busy');S.cmp=d;S.cmpPanel=panel;S.cmpUrl=url;drawCompare();restoreFocus()}
  catch(err){if(token!==S.ctoken)return;$('cmpBody').classList.remove('busy');S.cmp=null;$('cmpSum').innerHTML='';$('cmpBody').innerHTML='<div class="empty">비교 데이터를 읽지 못했습니다.\n'+esc(err.message)+'</div>'}}
 const nice=(lo,hi,n)=>Array.from({length:n+1},(_,i)=>lo+(hi-lo)*i/n);
 function pointShape(x,y,r,fill,outcome,sel){const stroke=sel?'#1c1c1e':'#fff',sw=sel?2.5:1.5;
@@ -408,7 +509,9 @@ function drawCompare(){const box=$('cmpBody'),d=S.cmp;if(!d||S.view!=='cmp'||S.c
  const txt=(x,y,t,a='start',c='#6e6e73',z=.88,wt=400)=>`<text x="${x}" y="${y}" text-anchor="${a}" font-size="${fs*z}" fill="${c}" font-weight="${wt}">${esc(t)}</text>`;
  if(S.panel==='delta'){const [name,unit,dig,cond]=METRIC[S.metric],lanes=d.lanes;
   const reasons=Object.entries(d.excluded).filter(([,n])=>n).map(([k,n])=>`${REASON[k]} ${n}`).join(' · ');
-  sum=selNote(d)+(d.baseline===null?'<span class="warnx">저장된 기준 planner가 없어 Δ를 표시하지 않습니다.</span>':`기준 <b>${esc(d.baseline)}</b>(저장된 값) · 후보 쌍 <b>${d.candidate}</b> · 표시 <b>${d.plotted}</b> · 제외 <b>${d.candidate-d.plotted}</b>${reasons?' ('+reasons+')':''} · ${cond}만 그리며 제외 쌍은 0에 찍지 않습니다.`);
+  const multi=d.scope==='all'&&d.baselines.length>1,baseTxt=d.scope==='all'?(d.baselines.length?d.baselines.join(', '):null):d.baseline,scope=d.scope==='all'?` · <b>${d.case_ids.length}/${d.cases_listed}</b> case 모음`:'';
+  const filtered=d.excluded_pairs.filter(p=>p.reason==='filtered_planner'||p.reason==='filtered_seed').length;  // planner·seed 필터로 후보에서 뺀 쌍(분모 밖)
+  sum=selNote(d)+(baseTxt===null?`<span class="warnx">저장된 기준 planner가 없어 Δ를 표시하지 않습니다${scope?` (${d.case_ids.length}/${d.cases_listed} case 모음)`:''}.</span>`:`기준 <b>${esc(baseTxt)}</b>(case마다 저장된 값)${scope} · 후보 쌍 <b>${d.candidate}</b> · 표시 <b>${d.plotted}</b> · 제외 <b>${d.candidate-d.plotted}</b>${reasons?' ('+reasons+')':''}${filtered?` · planner·seed 필터로 뺀 쌍 ${filtered}`:''} · ${cond}만 그리며 제외 쌍은 0에 찍지 않습니다.`)+(d.cases_without_baseline&&d.cases_without_baseline.length?` <span class="warnx">기준 없는 case ${esc(d.cases_without_baseline.join(', '))}는 뺐습니다.</span>`:'');
   if(!lanes.length){box.innerHTML='<div class="empty">비교할 planner가 없습니다.\n기준 planner는 비교 대상에서 빠집니다.</div>';$('cmpSum').innerHTML=sum;$('cmpNote').textContent='';return}
   if(!fit())return;const all=lanes.flatMap(l=>l.points.map(p=>p.delta));let lo=Math.min(0,...all),hi=Math.max(0,...all);if(hi-lo<1e-9){lo-=1;hi+=1}const pad=(hi-lo)*.08;lo-=pad;hi+=pad;
   const X=v=>m.l+(v-lo)/(hi-lo)*(w-m.l-m.r),lh=(h-m.t-m.b)/lanes.length;
@@ -416,19 +519,20 @@ function drawCompare(){const box=$('cmpBody'),d=S.cmp;if(!d||S.view!=='cmp'||S.c
   s+=`<line x1="${X(0)}" x2="${X(0)}" y1="${m.t}" y2="${h-m.b}" stroke="#1c1c1e" stroke-width="1.5" stroke-dasharray="4 3"/>`;
   const good=d.better==='lower';s+=txt(good?m.l:w-m.r,h-fs*.4,(good?'← 개선 (작을수록 좋음) · ':'개선 → (클수록 좋음) · ')+name+' ('+unit+') · 0 = 기준과 같음',good?'start':'end');
   lanes.forEach((l,i)=>{const y0=m.t+i*lh,cy=y0+lh/2,ex=Object.values(l.excluded).reduce((a,b)=>a+b,0);
-   s+=`<rect x="0" y="${y0}" width="${w}" height="${lh}" fill="${i%2?'rgba(118,118,128,.05)':'transparent'}"/><circle cx="${fs*.9}" cy="${cy-fs*.5}" r="${fs*.45}" fill="${color(l.planner)}"/>`+txt(fs*1.7,cy-fs*.2,l.planner,'start','#1c1c1e',.95,600)+txt(fs*1.7,cy+fs*1.05,`표시 ${l.points.length}/${l.candidate} · 제외 ${ex}`,'start',ex?'#c9281e':'#6e6e73',.82)+(ex?txt(fs*1.7,cy+fs*2,Object.entries(l.excluded).filter(([,n])=>n).map(([k,n])=>REASON[k]+' '+n).join(' · '),'start','#6e6e73',.76):'');
+   s+=`<rect x="0" y="${y0}" width="${w}" height="${lh}" fill="${i%2?'rgba(118,118,128,.05)':'transparent'}"/><circle cx="${fs*.9}" cy="${cy-fs*.5}" r="${fs*.45}" fill="${color(l.planner)}"/>`+txt(fs*1.7,cy-fs*.2,l.planner+(multi?' vs '+l.baseline:''),'start','#1c1c1e',.95,600)+txt(fs*1.7,cy+fs*1.05,`표시 ${l.points.length}/${l.candidate} · 제외 ${ex}`,'start',ex?'#c9281e':'#6e6e73',.82)+(ex?txt(fs*1.7,cy+fs*2,Object.entries(l.excluded).filter(([,n])=>n).map(([k,n])=>REASON[k]+' '+n).join(' · '),'start','#6e6e73',.76):'');
    if(l.median!==null)s+=`<line x1="${X(l.median)}" x2="${X(l.median)}" y1="${cy-lh*.38}" y2="${cy+lh*.38}" stroke="${color(l.planner)}" stroke-width="3" stroke-linecap="round" opacity=".55"/>`+txt(X(l.median),y0+fs*.9,'중앙값 '+l.median.toFixed(dig),'middle',color(l.planner),.78,600);
    /* 같은 Δ의 쌍은 한 표식(×N)으로 묶고 눌러서 seed를 고른다. 값이 다른 점만 지터로 벌린다 */
    const byDelta=new Map();l.points.forEach(p=>{const k=String(p.delta);if(!byDelta.has(k))byDelta.set(k,[]);byDelta.get(k).push(p)});
-   [...byDelta.values()].forEach((g,j)=>{const p=g[0],px=X(p.delta),py=cy+Math.min(lh*.22,fs*.9)*((j%3)-1),sel=S.sel===l.planner&&g.some(q=>q.seed===S.seed),dl=q=>`${l.planner} seed ${q.seed} · Δ ${q.delta.toFixed(dig)} ${unit} · ${outLabel(q.outcome)}`;
-    if(g.length===1){s+=`<g class="pt" tabindex="0" role="button" data-p="${esc(l.planner)}" data-s="${p.seed}" aria-label="${esc(dl(p))}"><title>${esc(dl(p))}</title>${pointShape(px,py,fs*.55,color(l.planner),p.outcome,sel)}</g>`;return}
-    const key='d:'+l.planner+'|'+p.delta,outs=new Set(g.map(q=>q.outcome)),label=`같은 Δ의 쌍 ${g.length}개 · seed 선택 — `+g.map(q=>'seed '+q.seed+' '+outLabel(q.outcome)).join(', ');
-    S.groups[key]=g.map(q=>({planner:l.planner,seed:q.seed,text:dl(q)}));
+   [...byDelta.values()].forEach((g,j)=>{const p=g[0],px=X(p.delta),py=cy+Math.min(lh*.22,fs*.9)*((j%3)-1),sel=!S.all&&S.sel===l.planner&&g.some(q=>q.seed===S.seed),dl=q=>`${q.case?q.case+' · ':''}${l.planner} seed ${q.seed} · Δ ${q.delta.toFixed(dig)} ${unit} · ${outLabel(q.outcome)}`,dc=q=>q.case?` data-c="${esc(q.case)}"`:'';
+    if(g.length===1){s+=`<g class="pt" tabindex="0" role="button" data-p="${esc(l.planner)}" data-s="${p.seed}"${dc(p)} aria-label="${esc(dl(p))}"><title>${esc(dl(p))}</title>${pointShape(px,py,fs*.55,color(l.planner),p.outcome,sel)}</g>`;return}
+    const key='d:'+l.planner+'|'+l.baseline+'|'+p.delta,outs=new Set(g.map(q=>q.outcome)),label=`같은 Δ의 쌍 ${g.length}개 · ${S.all?'case·':''}seed 선택 — `+g.map(q=>(q.case?q.case+' ':'')+'seed '+q.seed+' '+outLabel(q.outcome)).join(', ');
+    S.groups[key]=g.map(q=>({planner:l.planner,seed:q.seed,case:q.case,text:dl(q)}));
     s+=`<g class="pt" tabindex="0" role="button" aria-haspopup="dialog" data-g="${esc(key)}" aria-label="${esc(label)}"><title>${esc(label)}</title>${pointShape(px,py,fs*.55,color(l.planner),outs.size>1?'mixed':p.outcome,sel)}${txt(px+fs*.7,py-fs*.5,'×'+g.length,'start','#1c1c1e',.82,700)}</g>`})});
-  $('cmpNote').textContent='점 = 같은 case·seed의 한 쌍 · 사각형 = 도달하지 못한 에피소드 · 마름모 = 결과가 섞인 묶음 · ×N = 같은 Δ, 눌러서 seed 선택'}
+  $('cmpNote').textContent=(S.all?'모든 case 모음 · 점을 누르면 그 case로 · ':'')+'점 = 같은 case·seed의 한 쌍 · 사각형 = 도달하지 못한 에피소드 · 마름모 = 결과가 섞인 묶음 · ×N = 같은 Δ, 눌러서 seed 선택'}
  else{const pts=d.points;
-  sum=selNote(d)+`표시 <b>${d.plotted}</b> / 기록 <b>${d.records}</b> · 미도달 ${d.not_reached} · 값 없음·비유한 값 ${d.no_value} · 로그축 불가(X≤0) ${d.log_axis}. 점은 <b>도달 에피소드</b>이며 실패는 표와 요약에 남습니다. 같은 plan_id의 계획시간은 seed마다 반복되므로 독립 표본이 아닙니다.`;
-  $('cmpNote').textContent='점 = 도달 에피소드 하나 · ×N = 같은 좌표(planner 무관), 눌러서 seed 선택';
+  const filtered=d.excluded.filter(e=>String(e.reason).startsWith('filtered_')).length;  // planner·seed·결과 필터로 뺀 기록(분모 밖)
+  sum=selNote(d)+`표시 <b>${d.plotted}</b> / 필터 후 기록 <b>${d.records}</b>${filtered?` (필터로 뺀 기록 ${filtered})`:''}${d.scope==='all'?` · ${d.case_ids.length}/${d.cases_listed} case 모음`:''} · 미도달 ${d.not_reached} · 값 없음·비유한 값 ${d.no_value} · 로그축 불가(X≤0) ${d.log_axis}. 점은 <b>도달 에피소드</b>이며 실패는 표와 요약에 남습니다. 같은 plan_id의 계획시간은 seed마다 반복되므로 독립 표본이 아닙니다.`;
+  $('cmpNote').textContent=(S.all?'모든 case 모음 · 점을 누르면 그 case로 · ':'')+'점 = 도달 에피소드 하나 · ×N = 같은 좌표(planner 무관), 눌러서 seed 선택';
   if(!pts.length){box.innerHTML='<div class="empty">표시할 도달 에피소드가 없습니다.\n'+esc(`기록 ${d.records} · 미도달 ${d.not_reached} · 값 없음 ${d.no_value} · 로그축 불가 ${d.log_axis}`)+'</div>';$('cmpSum').innerHTML=sum;return}
   if(!fit())return;const xs=pts.map(p=>Math.log10(p.x)),ys=pts.map(p=>p.y);let lx=Math.min(...xs),hx=Math.max(...xs);if(hx-lx<1e-9){lx-=.3;hx+=.3}const px=(hx-lx)*.08;lx-=px;hx+=px;const hy=Math.max(...ys,1e-9)*1.12;
   const X=v=>m.l+(Math.log10(v)-lx)/(hx-lx)*(w-m.l-m.r),Y=v=>h-m.b-v/hy*(h-m.t-m.b);
@@ -438,11 +542,11 @@ function drawCompare(){const box=$('cmpBody'),d=S.cmp;if(!d||S.view!=='cmp'||S.c
   s+=txt(w/2,h-fs*.4,(S.xsrc==='runner'?'실측 계획시간 runner_planning_time_ms':'보고 계획시간 planning_time_ms')+' (ms, 로그축) · 세로: 추적 RMSE (m)','middle');
   /* 원본 (x, y)가 같은 점은 planner가 달라도 한 표식으로 묶는다(반올림으로 묶지 않음) */
   const groups=new Map();pts.forEach(p=>{const k=p.x+'|'+p.y;if(!groups.has(k))groups.set(k,[]);groups.get(k).push(p)});
-  groups.forEach((g,k)=>{g.sort((a,b)=>pIndex(a.planner)-pIndex(b.planner)||a.seed-b.seed);const p=g[0],sx=X(p.x),sy=Y(p.y),sel=g.some(q=>q.planner===S.sel&&q.seed===S.seed),one=new Set(g.map(q=>q.planner)).size===1;
-   const sl=q=>`${q.planner} seed ${q.seed} · 계획 ${q.x.toFixed(2)} ms · RMSE ${q.y.toFixed(3)} m · 도달`;
-   if(g.length===1){s+=`<g class="pt" tabindex="0" role="button" data-p="${esc(p.planner)}" data-s="${p.seed}" aria-label="${esc(sl(p))}"><title>${esc(sl(p))}</title>${pointShape(sx,sy,fs*.6,color(p.planner),'reached',sel)}</g>`;return}
-   const key='sc:'+k,label=`같은 좌표의 에피소드 ${g.length}개 · seed 선택 — `+g.map(q=>q.planner+' seed '+q.seed).join(', ');
-   S.groups[key]=g.map(q=>({planner:q.planner,seed:q.seed,text:sl(q)}));
+  groups.forEach((g,k)=>{g.sort((a,b)=>pIndex(a.planner)-pIndex(b.planner)||(a.case??'').localeCompare(b.case??'')||a.seed-b.seed);const p=g[0],sx=X(p.x),sy=Y(p.y),sel=!S.all&&g.some(q=>q.planner===S.sel&&q.seed===S.seed),one=new Set(g.map(q=>q.planner)).size===1;
+   const sl=q=>`${q.case?q.case+' · ':''}${q.planner} seed ${q.seed} · 계획 ${q.x.toFixed(2)} ms · RMSE ${q.y.toFixed(3)} m · 도달`;
+   if(g.length===1){s+=`<g class="pt" tabindex="0" role="button" data-p="${esc(p.planner)}" data-s="${p.seed}"${p.case?` data-c="${esc(p.case)}"`:''} aria-label="${esc(sl(p))}"><title>${esc(sl(p))}</title>${pointShape(sx,sy,fs*.6,color(p.planner),'reached',sel)}</g>`;return}
+   const key='sc:'+k,label=`같은 좌표의 에피소드 ${g.length}개 · ${S.all?'case·':''}seed 선택 — `+g.map(q=>(q.case?q.case+' ':'')+q.planner+' seed '+q.seed).join(', ');
+   S.groups[key]=g.map(q=>({planner:q.planner,seed:q.seed,case:q.case,text:sl(q)}));
    s+=`<g class="pt" tabindex="0" role="button" aria-haspopup="dialog" data-g="${esc(key)}" aria-label="${esc(label)}"><title>${esc(label)}</title>${pointShape(sx,sy,fs*.6,one?color(p.planner):'#8e8e93','reached',sel)}${txt(sx+fs*.8,sy-fs*.5,'×'+g.length,'start','#1c1c1e',.82,700)}</g>`})}
  box.innerHTML=`<svg id="cmpSvg" width="${w}" height="${h}">${s}</svg>`}
 /* 선택 한 건이 차트에 왜 보이는지/안 보이는지: 서버가 준 excluded·excluded_pairs 사유를 그대로 쓴다 */
@@ -459,12 +563,13 @@ function selNote(d){if(!S.case||S.sel==null||!ep(S.sel,S.seed))return '';const e
  return `<div class="selnote${hid?' hid':''}">선택 <b>${esc(S.sel)}</b> · seed <b>${esc(S.seed)}</b> — ${esc(text)}</div>`}
 let focusSel=null;
 function restoreFocus(){if(!focusSel)return;const el=document.querySelector(focusSel);focusSel=null;if(el)el.focus()}
-function pickPoint(g,kb){if(S.loading)return;S.sel=g.dataset.p;S.seed=+g.dataset.s;$('seedSel').value=String(S.seed);if(kb)focusSel=`#cmpBody .pt[data-p="${CSS.escape(g.dataset.p)}"][data-s="${g.dataset.s}"]`;renderAll();restoreFocus()}
+function pickPoint(g,kb){if(S.loading)return;if(g.dataset.c){drill(g.dataset.c,g.dataset.p,+g.dataset.s);return}  // 전체 보기의 점: 그 case의 같은 비교 화면으로
+ S.sel=g.dataset.p;S.seed=+g.dataset.s;$('seedSel').value=String(S.seed);if(kb)focusSel=`#cmpBody .pt[data-p="${CSS.escape(g.dataset.p)}"][data-s="${g.dataset.s}"]`;renderAll();restoreFocus()}
 function pickSide(h,kb){S.sel=h.dataset.p;if(kb)focusSel=`#cmpBody .rph[data-p="${CSS.escape(h.dataset.p)}"]`;renderAll();restoreFocus()}
 /* 겹친 점 seed 선택: 열기·닫기·포커스는 화면 상태가 아니므로 주소에 쓰지 않고, 확정만 선택을 바꾼다(push 1회) */
 function openPicker(g,key){const items=S.groups[g.dataset.g];if(S.loading||!items)return;const box=$('cmpBody'),br=box.getBoundingClientRect(),r=g.getBoundingClientRect();
  closePicker(false);S.pick=g.dataset.g;const el=document.createElement('div');el.className='pick';el.setAttribute('role','dialog');el.setAttribute('aria-label',`겹친 에피소드 ${items.length}개 — seed 선택`);
- el.innerHTML=`<div class="pkh"><b>겹친 에피소드 ${items.length}개</b> — seed 선택<button class="pkx" aria-label="닫기">✕</button></div>`+items.map(i=>`<button class="pki ${i.planner===S.sel&&i.seed===S.seed?'on':''}" data-p="${esc(i.planner)}" data-s="${i.seed}"><span class="dot" style="background:${color(i.planner)}"></span>${esc(i.text)}</button>`).join('');
+ el.innerHTML=`<div class="pkh"><b>겹친 에피소드 ${items.length}개</b> — ${S.all?'case·':''}seed 선택<button class="pkx" aria-label="닫기">✕</button></div>`+items.map(i=>`<button class="pki ${!S.all&&i.planner===S.sel&&i.seed===S.seed?'on':''}" data-p="${esc(i.planner)}" data-s="${i.seed}"${i.case?` data-c="${esc(i.case)}"`:''}><span class="dot" style="background:${color(i.planner)}"></span>${esc(i.text)}</button>`).join('');
  box.appendChild(el);el.style.left=Math.max(4,Math.min(r.right-br.left+6,box.clientWidth-el.offsetWidth-4))+'px';el.style.top=Math.max(4,Math.min(r.top-br.top,box.clientHeight-el.offsetHeight-4))+'px';
  const first=el.querySelector('.pki.on')||el.querySelector('.pki'),mine=g.dataset.g;
  // Tab 등으로 목록을 벗어나면 포커스를 빼앗지 않고 닫는다
@@ -473,7 +578,8 @@ function openPicker(g,key){const items=S.groups[g.dataset.g];if(S.loading||!item
  if(key){const up=ev=>{if(ev.key!==key)return;document.removeEventListener('keyup',up);if(S.pick===mine&&el.isConnected)first.focus()};document.addEventListener('keyup',up)}else first.focus()}
 function closePicker(refocus){const key=S.pick;S.pick=null;const el=$('cmpBody').querySelector('.pick');if(el)el.remove();
  if(refocus&&key){const g=document.querySelector(`#cmpBody .pt[data-g="${CSS.escape(key)}"]`)||document.querySelector('#panelTabs .on');if(g)g.focus()}}
-function choose(b){if(S.loading)return;const key=S.pick;S.pick=null;S.sel=b.dataset.p;S.seed=+b.dataset.s;$('seedSel').value=String(S.seed);focusSel=`#cmpBody .pt[data-g="${CSS.escape(key)}"]`;renderAll();restoreFocus()}
+function choose(b){if(S.loading)return;const key=S.pick;S.pick=null;if(b.dataset.c){closePicker(false);drill(b.dataset.c,b.dataset.p,+b.dataset.s);return}
+ S.sel=b.dataset.p;S.seed=+b.dataset.s;$('seedSel').value=String(S.seed);focusSel=`#cmpBody .pt[data-g="${CSS.escape(key)}"]`;renderAll();restoreFocus()}
 $('cmpBody').onclick=e=>{const box=$('cmpBody');
  if(e.target.closest('.pick')){const b=e.target.closest('.pki');if(b)choose(b);else if(e.target.closest('.pkx'))closePicker(true);return}
  if(S.pick)closePicker(false);if(box.classList.contains('busy'))return;
@@ -532,9 +638,11 @@ Object.assign(S,{restoring:0,rgen:0,loading:0,pendingT:null,lw:[],rwarn:null,url
 function urlState(){const q=new URLSearchParams();if(!S.run)return q;q.set('run',S.run.id);
  const list=(k,chosen,all)=>{if(chosen.length===all.length)return;if(!chosen.length)q.append(k,'');else chosen.forEach(v=>q.append(k,v))};
  if(S.case){q.set('case',S.case.id);q.set('seed',S.seed);if(S.sel!=null)q.set('planner',S.sel)}
+ else if(S.all){q.set('scope','all');if(S.sel!=null)q.set('planner',S.sel)}
  if(S.view!=='explore')q.set('view',S.view);if(S.panel!=='delta')q.set('panel',S.panel);if(S.filter!=='all')q.set('filter',S.filter);
  if(S.sort.key!=='planner')q.set('sort',S.sort.key);if(S.sort.dir<0)q.set('dir','desc');
  if(S.metric!=='rmse')q.set('metric',S.metric);if(S.xsrc!=='reported')q.set('x',S.xsrc);if(S.cOut!=='all')q.set('out',S.cOut);
+ if(S.all){const ps=planners(),sd=allSeeds();list('planners',ps.filter(p=>S.cPl[p]!==false),ps);list('seeds',sd.filter(s=>S.cSeed[s]!==false),sd)}
  if(S.case){const ps=planners(),sd=S.case.seeds;list('track',ps.filter(p=>S.on[p]),ps);list('planners',ps.filter(p=>S.cPl[p]!==false),ps);list('seeds',sd.filter(s=>S.cSeed[s]!==false),sd);
   if(S.ra)q.set('a',S.ra);if(S.rb)q.set('b',S.rb)}
  if(S.rspeed!==1)q.set('speed',S.rspeed);
@@ -565,19 +673,26 @@ function applyCaseWant({q,warn}){const ps=planners(),sd=S.case.seeds,isP=v=>ps.i
  const a=one(q,warn,'a',isP,'재생 A');if(a!==undefined)S.ra=a;const effA=S.ra??(ps.includes(S.case.baseline)?S.case.baseline:ps[0]);
  const b=one(q,warn,'b',isP,'재생 B');if(b!==undefined){if(b===effA)warn.push(`재생 B '${b}'가 A와 같아 다른 planner로 바꿨습니다`);else S.rb=b}
  const t=one(q,warn,'t',v=>v.trim()!==''&&Number.isFinite(+v)&&+v>=0,'시각 t');if(t!==undefined)S.pendingT={t:+t,url:null}}
-function closeRun(){++S.token;S.ctoken++;S.loading=0;S.run=null;S.case=null;S.detail=null;S.cmp=null;$('runName').textContent='—';$('caseSel').innerHTML='';$('seedSel').innerHTML='';showMsg('');renderRuns();renderCoverage();renderAll()}
+/* 전체 보기 링크: planner 선택과 비교 필터만 있다. 지도 하나에만 있는 값(seed·트랙·재생 A/B·시각)은 쓰지 않고 알린다 */
+function applyAllWant({q,warn}){const ps=planners(),sd=allSeeds(),isP=v=>ps.includes(v),isSeed=v=>/^-?\d+$/.test(v)&&sd.includes(+v);
+ const p=one(q,warn,'planner',isP,'Inspector planner');if(p!==undefined)S.sel=p;
+ const cp=many(q,warn,'planners',isP,'비교 planner');if(cp)ps.forEach(x=>S.cPl[x]=cp.includes(x));
+ const cs=many(q,warn,'seeds',isSeed,'비교 seed');if(cs)sd.forEach(x=>S.cSeed[x]=cs.map(Number).includes(x));
+ const extra=['seed','track','a','b','t'].filter(k=>q.has(k));if(extra.length)warn.push(`전체 보기에는 ${extra.join('·')} 설정이 없어 무시했습니다(case를 고르면 쓸 수 있습니다)`)}
+function closeRun(){++S.token;S.ctoken++;S.loading=0;S.run=null;S.all=false;S.ov=null;S.case=null;S.detail=null;S.cmp=null;$('runName').textContent='—';$('caseSel').innerHTML='';$('seedSel').innerHTML='';$('seedSel').hidden=false;showMsg('');renderRuns();renderCoverage();renderAll()}
 /* 첫 진입과 뒤로/앞으로가 같은 경로: 기본값에서 시작해 URL 값을 검증하며 덮어쓴다 */
 async function restore(){const q=new URLSearchParams(location.search),my=++S.rgen,warn=[],want={q,warn};S.restoring=my;S.rwarn=warn;stop();clearTimeout(tTimer);tTimer=null;S.pendingT=null;S.urlBase=q.toString();
  S.view=one(q,warn,'view',v=>VIEWS.includes(v),'화면 view')??'explore';S.panel=one(q,warn,'panel',v=>PANELS.includes(v),'비교 패널 panel')??'delta';
  S.metric=one(q,warn,'metric',v=>Object.hasOwn(METRIC,v),'Δ 지표 metric')??'rmse';S.xsrc=one(q,warn,'x',v=>XS.includes(v),'산점도 X축 x')??'reported';
  S.cOut=one(q,warn,'out',v=>COUTS.includes(v),'비교 결과 필터 out')??'all';S.filter=one(q,warn,'filter',v=>FILTERS.includes(v),'표 필터 filter')??'all';
- const key=one(q,warn,'sort',v=>COLS.some(c=>c[0]===v),'표 정렬 sort'),dir=one(q,warn,'dir',v=>v==='asc'||v==='desc','정렬 방향 dir');S.sort={key:key??'planner',dir:dir==='desc'?-1:1};
+ const key=one(q,warn,'sort',v=>v==='case'||COLS.some(c=>c[0]===v),'표 정렬 sort'),dir=one(q,warn,'dir',v=>v==='asc'||v==='desc','정렬 방향 dir');S.sort={key:key??'planner',dir:dir==='desc'?-1:1};
  const speed=one(q,warn,'speed',v=>SPEEDS.includes(+v),'재생 속도 speed');S.rspeed=speed===undefined?1:+speed;
  $('filter').value=S.filter;viewDom();
  try{if(!q.has('run')){const pick=S.runs.find(r=>r.status==='complete')||S.runs[0];await openRun(pick.id,want)}
   else{const id=one(q,warn,'run',v=>S.runs.some(r=>r.id===v),'링크의 실행','다른 실행으로 대신하지 않습니다. 왼쪽 목록에서 실행을 고르세요');
    if(id!==undefined)await openRun(id,want);else closeRun()}}
- finally{if(S.restoring===my){S.restoring=0;S.urlBase=urlState().toString()}if(S.rgen===my){S.rwarn=null;S.lw=warn;renderLinkWarn()}}}
+ finally{const mine=S.restoring===my;if(mine){S.restoring=0;S.urlBase=urlState().toString()}
+  if(S.rgen===my){S.rwarn=null;if(mine){S.lw=warn;renderLinkWarn()}}}}  // 복원 도중 사용자가 다른 것을 골랐다면 이전 링크 경고는 띄우지 않는다
 function renderLinkWarn(){const n=S.lw.length;$('lw').hidden=!n;$('lw').textContent=n?`링크 설정 ${n}개를 적용하지 못했습니다 · 상세`:'';$('lwd').textContent=S.lw.map(w=>'• '+w).join('\n');if(!n)$('lwd').hidden=true}
 $('lw').onclick=()=>{$('lwd').hidden=!$('lwd').hidden};
 $('lwd').onclick=()=>{S.lw=[];renderLinkWarn()};
@@ -600,7 +715,8 @@ async function post(path,body){const r=await fetch(path,{method:'POST',headers:{
 async function loadRunOptions(){try{S.ro=await api('/api/run-options')}catch(err){S.ro={enabled:false,reason:err.message}}
  const b=$('newRun');b.hidden=false;b.disabled=!S.ro.enabled||!TOKEN;b.title=!S.ro.enabled?'실행 기능 꺼짐: '+(S.ro.reason||''):!TOKEN?NO_TOKEN:'새 비교를 별도 프로세스로 실행합니다';
  S.watch=S.ro.watch||null;if(S.ro.current_job){S.job=S.ro.current_job;if(S.job.status==='running')pollJob()}if(S.watch&&S.watch.active)pollWatch();renderJobPill();
- if(S.ro.frozen&&S.case)renderInspector()}  // 결과가 먼저 그려졌으면 exe 안내를 넣어 다시 그린다
+ if(S.ro.frozen&&S.case)renderInspector();  // 결과가 먼저 그려졌으면 exe 안내를 넣어 다시 그린다
+ if(!S.runs.length)renderRuns()}  // 빈 목록 안내의 "+ 새 실행" 문구는 실행 기능 여부를 안 뒤에 정한다
 function renderJobPill(){const j=S.job,p=$('jobPill');p.hidden=!j;if(!j)return;const ph=j.workflow&&j.workflow.current_phase;
  p.className='jp'+(j.status==='complete'?' ok':j.status==='running'?'':' bad');
  const w=S.watch&&S.watch.active?`watch ${S.watch.runs}회 · `:'';
@@ -693,7 +809,7 @@ async function reloadRuns(force){if(!S.listReady&&!force)return;let v=null;
   showMsg(`열어 둔 실행 ${open.name}의 상태가 ${open.status}(으)로 바뀌었습니다. 목록에서 다시 누르면 최신 결과를 봅니다.`)}
 setInterval(()=>{if(!document.hidden)refreshRuns()},3000);
 
-(async()=>{loadRunOptions();try{S.runsVersion=(await api('/api/runs-version')).version}catch(err){}try{const d=await api('/api/runs');S.runs=d.runs;renderRuns();S.listReady=true;  // 첫 목록 전에는 자동 갱신(새 표시)을 하지 않는다
- if(!S.runs.length){showMsg('저장된 실행을 찾지 못했습니다.\n검색한 폴더: '+d.root+'\n[+ 새 실행]으로 비교를 실행할 수 있습니다(실행 기능이 켜져 있을 때).');return}
+(async()=>{loadRunOptions();try{S.runsVersion=(await api('/api/runs-version')).version}catch(err){}try{const d=await api('/api/runs');S.root=d.root;S.runs=d.runs;renderRuns();S.listReady=true;  // 첫 목록 전에는 자동 갱신(새 표시)을 하지 않는다
+ if(!S.runs.length)return;  // 빈 목록 안내는 "저장된 실행" 카드 안에 있다(다른 카드를 가리지 않게)
  await restore()}catch(err){showMsg('결과 목록을 읽지 못했습니다.\n'+err.message)}})();
 </script></body></html>
