@@ -4,8 +4,9 @@ A job is one ``raceplan.workflow`` call (through raceplan.gui.workflow_runner, w
 tolerate the explorer reading workflow.json on Windows). Requests are validated against what the server lists
 (scenarios, built-in planners) before anything starts; user planner files are only checked for existence here and are
 loaded, and therefore executed, by the workflow process. One job runs at a time, with a time limit and cancellation;
-stopping kills the whole process tree and records the stop in the job's own workflow.json the way workflow.py records
-an interrupt.
+stopping a running job kills its process tree (taskkill /T on Windows, the process group on POSIX) and records the stop
+in the job's own workflow.json the way workflow.py records an interrupt. Processes a planner started and left running
+after the workflow itself ended are not tracked and are not stopped.
 """
 from __future__ import annotations
 
@@ -315,8 +316,9 @@ class Jobs:
         except Exception:
             watch.active = False
             raise
-        watch.thread = threading.Thread(target=self._watch_loop, args=(watch, baseline, on_event), daemon=True)
-        watch.thread.start()
+        thread = threading.Thread(target=self._watch_loop, args=(watch, baseline, on_event), daemon=True)
+        thread.start()
+        watch.thread = thread  # Published only once started, so stop_watch() never joins a thread that has not begun.
         return {'watch': watch.snapshot(), 'job': job}
 
     def _watch_loop(self, watch, last, on_event):

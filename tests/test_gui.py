@@ -894,16 +894,40 @@ def test_explorer_port_and_threads_cannot_be_taken_over(runner, monkeypatch):
         intruder.close()
         taskkill = jobs_module._taskkill()
         assert os.path.isabs(taskkill) and Path(taskkill).is_file()  # Never a taskkill.exe from the current folder.
-    monkeypatch.setattr(server_module, 'BODY_DEADLINE_S', 0.5)
-    connection = socket.create_connection(('127.0.0.1', server.port), timeout=10)
+    monkeypatch.setattr(server_module, 'BODY_DEADLINE_S', 1.0)
     origin = f'127.0.0.1:{server.port}'
-    connection.sendall((f'POST /api/jobs HTTP/1.1\r\nHost: {origin}\r\nOrigin: http://{origin}\r\n'
-                        f'X-RacePlan-Token: {server.server.token}\r\nContent-Type: application/json\r\n'
-                        'Content-Length: 100\r\n\r\n{"scen').encode())
+    head = (f'POST /api/jobs HTTP/1.1\r\nHost: {origin}\r\nOrigin: http://{origin}\r\nX-RacePlan-Token: {server.server.token}\r\n'
+            'Content-Type: application/json\r\nContent-Length: 100\r\n\r\n').encode()
+
+    def status_line(connection):
+        reply = b''
+        while b'\r\n' not in reply:
+            chunk = connection.recv(4096)
+            if not chunk:
+                break
+            reply += chunk
+        connection.close()
+        return reply.split(b'\r\n')[0]
+
+    # A sender that trickles a byte every 0.2 s never trips a per-read timeout; only the whole-body deadline stops it.
+    trickle = socket.create_connection(('127.0.0.1', server.port), timeout=10)
+    trickle.sendall(head)
     started = time.monotonic()
-    reply = connection.recv(4096)
-    connection.close()
-    assert b' 408 ' in reply.split(b'\r\n')[0] and time.monotonic() - started < 5  # A body that never ends is cut off.
+
+    def keep_sending():
+        try:
+            for _ in range(30):
+                trickle.sendall(b' ')
+                time.sleep(0.2)
+        except OSError:
+            pass  # The server answered and closed the connection: that is the point.
+    Thread(target=keep_sending, daemon=True).start()
+    assert b' 408 ' in status_line(trickle) and time.monotonic() - started < 4
+
+    short = socket.create_connection(('127.0.0.1', server.port), timeout=10)
+    short.sendall(head + b'{"scen')
+    short.shutdown(socket.SHUT_WR)  # The body ends before its declared length: a bad request, not a slow one.
+    assert b' 400 ' in status_line(short)
 
 
 def test_watch_command_runs_once_and_reports_the_saved_outcome(tmp_path, capsys):

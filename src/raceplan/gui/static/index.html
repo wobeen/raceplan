@@ -594,7 +594,7 @@ const NO_TOKEN='이 탭에는 실행 권한이 없습니다. raceplan-gui가 열
 const tokenHint=msg=>/session token/.test(msg)?'이 탭의 실행 권한이 이 서버와 맞지 않습니다(서버가 다시 시작되었을 수 있음). raceplan-gui가 출력한 주소로 다시 여세요.':msg;
 const JOB_LABEL={running:'실행 중',complete:'완료',failed:'실패',timeout:'시간 초과로 중지',cancelled:'취소됨'};
 const PHASE_LABEL={experiment:'계획·주행',analysis:'분석',report:'그림'},PHASE_STATE={pending:'대기',running:'진행 중',complete:'완료',failed:'실패'};
-Object.assign(S,{ro:null,job:null,jobTimer:null,dlgFrom:null,jobShown:null,watch:null,watchTimer:null,watchShown:null,watchGen:0,runsVersion:null,listGen:0,fresh:new Set(),finished:new Set()});
+Object.assign(S,{ro:null,job:null,jobTimer:null,dlgFrom:null,jobShown:null,watch:null,watchTimer:null,watchShown:null,watchGen:0,runsVersion:null,listQ:Promise.resolve(),fresh:new Set(),finished:new Set()});
 async function post(path,body){const r=await fetch(path,{method:'POST',headers:{'Content-Type':'application/json','X-RacePlan-Token':TOKEN},body:JSON.stringify(body)});
  const b=await r.json().catch(()=>({error:'응답을 읽지 못했습니다'}));if(!r.ok)throw new Error(b.error||('HTTP '+r.status));return b}
 async function loadRunOptions(){try{S.ro=await api('/api/run-options')}catch(err){S.ro={enabled:false,reason:err.message}}
@@ -660,10 +660,10 @@ function renderJob(force){const j=S.job,d=$('dlg');if($('dlgbg').hidden||(!force
  if(text!==log.textContent&&!selecting){const atEnd=log.scrollHeight-log.scrollTop-log.clientHeight<4;log.textContent=text;if(atEnd)log.scrollTop=log.scrollHeight}}
 function pollJob(){clearTimeout(S.jobTimer);const id=S.job&&S.job.id;if(!id)return;
  S.jobTimer=setTimeout(async()=>{let j;try{j=await api('/api/jobs/'+id)}catch(e){if(S.job&&S.job.id===id){S.job={...S.job,pollError:e.message};renderJobPill();renderJob();pollJob()}return}
-  if(!S.job||S.job.id!==id)return;const was=S.job.status;S.job=j;renderJobPill();renderJob();
-  if(j.status==='running'){pollJob();return}if(was==='running')jobFinished(j)},700)}
+  if(!S.job||S.job.id!==id)return;S.job=j;renderJobPill();renderJob();
+  if(j.status==='running'){pollJob();return}jobFinished(j)},700)}  // 시작 응답이 이미 끝난 상태여도 처리(작업마다 한 번)
 /* 끝난 작업은 작업마다 한 번만 처리한다(작업 폴링과 watch 폴링 어느 쪽이 먼저 보든) */
-async function jobFinished(j){if(S.finished.has(j.id))return;S.finished.add(j.id);await refreshRuns(true);
+async function jobFinished(j){if(S.finished.has(j.id))return;S.finished.add(j.id);await refreshRuns(true);  // 목록 반영을 기다린 뒤 연다
  if(j.status==='complete'&&S.runs.some(r=>r.id===j.run_id)){if(!$('dlgbg').hidden&&!(S.watch&&S.watch.active))closeDialog();await openRun(j.run_id)}}
 /* watch: 서버가 파일 변경마다 새 작업을 시작한다. 1.5초마다 상태를 읽어 새 작업이 생기면 그 작업을 따라가고, 끝나면 새 결과를 연다 */
 function pollWatch(){clearTimeout(S.watchTimer);if(!S.watch||!S.watch.active)return;
@@ -676,16 +676,17 @@ function renderWatchBar(){const box=$('jbWatch');if(!box)return;const w=S.watch;
  const key=w?JSON.stringify([w.active,w.runs,w.last_change,w.missing,w.blocked,w.error]):'';if(key===S.watchShown)return;S.watchShown=key;  // 버튼 포커스를 지키려고 바뀔 때만 다시 그린다
  if(!w){box.innerHTML='';return}const t=w.last_change?new Date(w.last_change).toLocaleTimeString():'';
  box.innerHTML=`<div class="watchbar ${w.active?'':'off'}"><b>${w.active?'watch 중':'watch 꺼짐'}</b><span>${esc(w.files.map(f=>f.split(/[\\/]/).pop()).join(', '))} · 실행 ${esc(w.runs)}회${t?' · 마지막 변경 '+esc(t):''}${w.blocked?' · 실행 안 함: '+esc(w.blocked):w.missing?' · 파일을 읽을 수 없음(저장 중이거나 삭제됨)':''}${w.error?' · '+esc(w.error):''}</span>${w.active?'<button class="btn" id="jbUnwatch">watch 끄기</button>':''}</div>`}
-$('dlg').addEventListener('click',async e=>{if(e.target.id!=='jbUnwatch')return;const b=e.target,box=$('jbErr');b.disabled=true;S.watchGen++;
- try{const r=await post('/api/watch/stop',{});S.watchGen++;S.watch=r.watch;renderJobPill();renderWatchBar()}catch(err){b.disabled=false;if(box)box.textContent='watch를 끄지 못했습니다: '+tokenHint(err.message)}});
-/* 목록 갱신은 이 함수 하나로만 한다. 3초마다 서명만 확인해 바뀌면 다시 읽고(force면 바로), 늦게 온 이전 응답은 버린다.
-   다른 창의 raceplan-watch나 CLI가 만든 결과도 여기서 "새"로 나타난다 */
-async function refreshRuns(force){if(!S.listReady)return;const gen=++S.listGen;let v=null;
+$('dlg').addEventListener('click',async e=>{if(e.target.id!=='jbUnwatch')return;const b=e.target,box=$('jbErr'),gen=++S.watchGen;b.disabled=true;
+ try{const r=await post('/api/watch/stop',{});if(gen!==S.watchGen)return;S.watchGen++;S.watch=r.watch;renderJobPill();renderWatchBar()}  // 그 사이 새 watch가 시작됐으면 늦은 응답은 버린다
+ catch(err){b.disabled=false;if(box)box.textContent='watch를 끄지 못했습니다: '+tokenHint(err.message);if(gen===S.watchGen)pollWatch()}});  // 실패하면 따라가기를 다시 시작
+/* 목록 갱신은 이 함수 하나로, 한 번에 하나씩 차례로 한다(늦은 응답이 새 목록을 덮지 않고, 완료 처리가 목록 반영을 기다릴 수 있게).
+   3초마다 서명만 확인해 바뀌면 다시 읽고(force면 바로). 다른 창의 raceplan-watch나 CLI가 만든 결과도 여기서 "새"로 나타난다 */
+function refreshRuns(force){return S.listQ=S.listQ.then(()=>reloadRuns(force)).catch(()=>{})}
+async function reloadRuns(force){if(!S.listReady&&!force)return;let v=null;
  try{v=(await api('/api/runs-version')).version}catch(err){if(!force)return}if(!force&&v===S.runsVersion)return;
  let d;try{d=await api('/api/runs')}catch(err){if(force)showMsg('결과 목록을 다시 읽지 못했습니다.\n'+err.message);return}
- if(gen!==S.listGen)return;
- const before=new Map(S.runs.map(r=>[r.id,r.status])),wasEmpty=!S.runs.length;S.runs=d.runs;if(v)S.runsVersion=v;  // 목록을 읽은 뒤에야 서명을 기억한다
- d.runs.forEach(r=>{if(!before.has(r.id))S.fresh.add(r.id)});renderRuns();if(wasEmpty&&S.runs.length&&!S.run)showMsg('');
+ const ready=S.listReady,before=new Map(S.runs.map(r=>[r.id,r.status])),wasEmpty=!S.runs.length;S.runs=d.runs;if(v)S.runsVersion=v;  // 목록을 읽은 뒤에야 서명을 기억한다
+ if(ready)d.runs.forEach(r=>{if(!before.has(r.id))S.fresh.add(r.id)});renderRuns();if(wasEmpty&&S.runs.length&&!S.run)showMsg('');
  const open=S.run&&d.runs.find(r=>r.id===S.run.id);
  if(open&&before.has(open.id)&&before.get(open.id)!==open.status&&!(S.job&&S.job.run_id===open.id))
   showMsg(`열어 둔 실행 ${open.name}의 상태가 ${open.status}(으)로 바뀌었습니다. 목록에서 다시 누르면 최신 결과를 봅니다.`)}

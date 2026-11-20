@@ -39,6 +39,7 @@ LOAD_ERRORS = (OSError, ValueError, KeyError, TypeError, AttributeError, csv.Err
 MAX_BODY = 16 * 1024
 DRAIN_LIMIT = 1024 * 1024  # Larger refused bodies are not read; the connection is just closed.
 BODY_DEADLINE_S = 5.0  # For the whole body, not per read: a slow sender cannot hold a server thread.
+WRITE_TIMEOUT_S = 10.0
 JOB_PATH = re.compile(r'/api/jobs/([0-9a-f]{16})')
 JOB_POST = re.compile(r'/api/(?:jobs(?:/([0-9a-f]{16})/cancel)?|(watch)(/stop)?)')
 
@@ -178,23 +179,28 @@ class Handler(BaseHTTPRequestHandler):
             self._json(HTTPStatus.UNPROCESSABLE_ENTITY, {'error': str(exc)})
 
     def _read_body(self, length):
-        """Exactly length bytes, or None when the sender is too slow or the connection breaks."""
+        """(body, None), or (None, 'timeout') when the whole body is not in within BODY_DEADLINE_S, or
+        (None, 'ended') when the connection ends or breaks before Content-Length bytes."""
         deadline = time.monotonic() + BODY_DEADLINE_S
         chunks, remaining = [], length
         try:
             while remaining > 0:
                 left = deadline - time.monotonic()
                 if left <= 0:
-                    return None
+                    return None, 'timeout'
                 self.connection.settimeout(left)
                 chunk = self.rfile.read1(min(remaining, 64 * 1024))
                 if not chunk:
-                    return None
+                    return None, 'ended'
                 chunks.append(chunk)
                 remaining -= len(chunk)
+        except TimeoutError:
+            return None, 'timeout'
         except OSError:
-            return None
-        return b''.join(chunks)
+            return None, 'ended'
+        finally:
+            self.connection.settimeout(WRITE_TIMEOUT_S)  # The answer gets its own time, not what was left of the read.
+        return b''.join(chunks), None
 
     def _refuse(self, status, message):
         """Answer a refused POST after reading its (bounded) body: closing a socket with unread bytes makes Windows
@@ -233,10 +239,13 @@ class Handler(BaseHTTPRequestHandler):
         if jobs is None:
             self._refuse(HTTPStatus.FORBIDDEN, self.server.run_disabled)
             return
-        raw = self._read_body(length) if length else b''
-        if raw is None:
+        raw, problem = self._read_body(length) if length else (b'', None)
+        if problem:
             self.close_connection = True
-            self._json(HTTPStatus.REQUEST_TIMEOUT, {'error': f'the body did not arrive within {BODY_DEADLINE_S:g} s'})
+            if problem == 'timeout':
+                self._json(HTTPStatus.REQUEST_TIMEOUT, {'error': f'the body did not arrive within {BODY_DEADLINE_S:g} s'})
+            else:
+                self._json(HTTPStatus.BAD_REQUEST, {'error': 'the body ended before its Content-Length'})
             return
         try:
             body = json.loads(raw.decode('utf-8')) if raw else {}
@@ -293,20 +302,27 @@ def explorer_url(server, run_name=None):
 
 
 def open_browser(url):
-    """Open the explorer. On Linux and macOS the browser launcher (xdg-open, open) gets the address as a command-line
-    argument other accounts can read, so it gets a private (0600) local file that forwards to the address instead;
-    the file is removed after a minute. Windows does not show other accounts' command lines, so it opens the address."""
+    """Open the explorer; returns a launcher file to remove at exit, if one was made. On Linux and macOS the browser
+    launcher (xdg-open, open) gets the address as a command-line argument other accounts can read, so it gets a private
+    (0600) local file that forwards to the address instead, removed after a minute or at exit. Windows does not show
+    other accounts' command lines, so it opens the address. A failure only means opening the printed address by hand."""
     if os.name == 'nt':
         webbrowser.open(url)
-        return
-    descriptor, name = tempfile.mkstemp(prefix='raceplan-open-', suffix='.html')
-    with os.fdopen(descriptor, 'w', encoding='utf-8') as stream:
-        stream.write(f'<!doctype html><meta charset="utf-8"><title>RacePlan Explorer</title>'
-                     f'<script>location.replace({json.dumps(url)})</script><a href="{html.escape(url)}">RacePlan Explorer</a>')
-    webbrowser.open(Path(name).as_uri())
-    remover = threading.Timer(60, lambda: Path(name).unlink(missing_ok=True))
-    remover.daemon = True
-    remover.start()
+        return None
+    name = None
+    try:
+        descriptor, name = tempfile.mkstemp(prefix='raceplan-open-', suffix='.html')
+        with os.fdopen(descriptor, 'w', encoding='utf-8') as stream:
+            stream.write(f'<!doctype html><meta charset="utf-8"><title>RacePlan Explorer</title>'
+                         f'<script>location.replace({json.dumps(url)})</script><a href="{html.escape(url)}">RacePlan Explorer</a>')
+        webbrowser.open(Path(name).as_uri())
+    except OSError as exc:
+        print(f'could not open a browser ({exc}); open the explorer= address above', flush=True)
+    if name:
+        remover = threading.Timer(60, lambda: Path(name).unlink(missing_ok=True))
+        remover.daemon = True
+        remover.start()
+    return name
 
 
 def _stop_on_signal(*_):
@@ -343,15 +359,16 @@ def main(argv=None):
         server = make_server(path.parent if is_run else path, args.port, None if args.no_run else args.scenarios,
                              args.run_timeout, 'running comparisons is off (--no-run)')
     except OSError as exc:
-        parser.error(str(exc))
+        hint = ('; a previous explorer may still hold this port for a moment: wait, or leave out --port to use any free port'
+                if args.port else '')
+        parser.error(f'{exc}{hint}')
     url = explorer_url(server, path.name if is_run else None)
     print(f'explorer={url}', flush=True)
     print(f'run={"on, scenarios=" + str(server.jobs.scenarios) if server.jobs else "off: " + server.run_disabled}', flush=True)
     for name in ('SIGTERM', 'SIGHUP', 'SIGBREAK'):
         if hasattr(signal, name):
             signal.signal(getattr(signal, name), _stop_on_signal)
-    if not args.no_browser:
-        open_browser(url)
+    launcher = None if args.no_browser else open_browser(url)
     try:
         server.serve_forever()
     except KeyboardInterrupt:
@@ -360,6 +377,8 @@ def main(argv=None):
         if server.jobs:
             server.jobs.shutdown()
         server.server_close()
+        if launcher:
+            Path(launcher).unlink(missing_ok=True)
     return 0
 
 
