@@ -25,6 +25,7 @@ raceplan-suite = "raceplan.suite:main"
 raceplan-report = "raceplan.report:main"
 raceplan-gui = "raceplan.gui.server:main"
 raceplan-watch = "raceplan.gui.watch:main"
+raceplan-generate = "raceplan.generate:main"
 
 [project.optional-dependencies]
 # Windows RacePlan.exe build only (packaging/windows/build.py); not needed to run RacePlan.

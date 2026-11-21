@@ -41,7 +41,10 @@ Python에 설치한 RacePlan(`raceplan-*` 명령)과 결과·CSV 형식이 같�
   플래너 파일을 저장할 때마다 다시 실행하고 planner별 도달 수를 출력한다. `--scenario`를 여러 번 주거나 노이즈 옵션
   (`--steering-std-rad 0.01` 등, `watch --help`)을 주면 suite로 실행한다. `--once`는 한 번만 실행하고 완료면 0,
   실패면 1, 중단(Ctrl+C)이면 130을 돌려준다.
-- 옵션 목록: `RacePlan.exe --help`, `RacePlan.exe gui --help`, `RacePlan.exe watch --help`.
+- **seed 지도 생성(터미널)**: `RacePlan.exe generate create gate --seeds 1:8 --output-dir C:\내폴더\gates`,
+  `RacePlan.exe generate verify C:\내폴더\gates`. 탐색기의 `+ 새 실행` → "seed로 지도 생성"도 같다
+  ([seed 지도 생성](SEED_MAPS.md)).
+- 옵션 목록: `RacePlan.exe --help`, `RacePlan.exe gui --help`, `RacePlan.exe watch --help`, `RacePlan.exe generate --help`.
 
 ## 사용자 플래너
 

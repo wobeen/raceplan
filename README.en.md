@@ -70,7 +70,8 @@ Opened from the address the command opens or prints (it carries `#token=…`), t
 to a new folder under `gui-runs/`). Choosing several scenarios or any noise runs it as a suite (the same
 format as `raceplan-suite`, opened on all of its cases together); "클래스 찾기" lists the Planner classes of a
 planner file (it is parsed, not run) as checkboxes. With a planner file selected, watch re-runs it with the same
-conditions on every save. `--no-run` turns running off. The same from a terminal:
+conditions on every save. Switching the map choice to "seed로 지도 생성" generates maps from a seed range and runs them
+as a suite right away (see "Seeded maps" below). `--no-run` turns running off. The same from a terminal:
 
 ```powershell
 .\.venv\Scripts\raceplan-watch.exe examples/my_planner.py:MyPlanner --scenario scenarios/demo.yaml
@@ -99,6 +100,19 @@ episodes, deduplicated planning, paired data, and case/overall summaries. Relati
 are resolved from the config file. Failed cases preserve partial outputs and explicit
 missing coverage; ordinary case errors allow later cases to run and produce a nonzero
 final exit. See the [schema and interruption policy](docs/SUITE.md) (Korean).
+
+## Seeded maps
+
+`raceplan-generate` makes scattered-island, staggered-window and gate maps with their scenarios from a seed range.
+The same kind, values and seed always give byte-identical files; a seed whose map has no drivable path for the default
+vehicle is recorded as rejected, never redrawn. When every seed passes it also writes a `suite.yaml` to run them all.
+Rules, values and exit codes are in [seeded maps](docs/SEED_MAPS.md) (Korean).
+
+```powershell
+.\.venv\Scripts\raceplan-generate.exe create staggered_windows --seeds 0:7 --output-dir generated/windows
+.\.venv\Scripts\raceplan-generate.exe verify generated/windows
+.\.venv\Scripts\raceplan-suite.exe generated/windows/suite.yaml --output-dir results/raw/windows
+```
 
 ## Your planner
 

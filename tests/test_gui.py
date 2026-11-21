@@ -1,6 +1,7 @@
 import csv
 import http.client
 import json
+import os
 from pathlib import Path
 from threading import Thread
 from urllib.parse import quote
@@ -8,7 +9,7 @@ from urllib.parse import quote
 import pytest
 import yaml
 
-from raceplan import experiment, suite, workflow
+from raceplan import experiment, seed_maps, suite, workflow
 from raceplan.gui.data import Explorer, UnknownItem, find_runs
 from raceplan.gui.analysis import BadQuery
 from raceplan.gui.server import make_server
@@ -1419,6 +1420,86 @@ def test_research_run_requests_are_checked_before_anything_starts(runner, tmp_pa
     aliases = Jobs(tmp_path, ROOT / 'scenarios', allowed=['demo.yaml', 'corridor_width/../demo.yaml'])
     with pytest.raises(JobError, match='different files'):  # One file under two names is one case, not two.
         aliases.validate({**good, 'scenarios': ['demo.yaml', 'corridor_width/../demo.yaml']})
+
+
+def test_generated_maps_run_as_a_suite_and_a_map_without_a_path_runs_nothing(runner):
+    server = runner()
+    root = server.server.explorer.root
+    narrow = {'generate': {'kind': 'gate', 'first': 1, 'last': 3, 'params': {'gap_min': 3, 'gap_max': 7}},
+              'planners': ['astar'], 'seeds': [0]}
+    status, reply = server.post('/api/jobs', narrow)
+    assert status == 422 and [item['seed'] for item in reply['rejected']] == [2, 3]
+    assert 'gate_clearance' in reply['error'] and (root / reply['family'] / 'family.json').is_file()
+    assert not (root / 'gui-runs').exists()  # Nothing ran.
+    good = {'generate': {'kind': 'offset_islands', 'first': 5, 'last': 6, 'revision': 1}, 'planners': ['astar'],
+            'seeds': [0]}
+    for change in ({'scenarios': ['demo.yaml']}, {'generate': {'kind': 'maze', 'first': 0, 'last': 1}},
+                   {'generate': {'kind': 'gate', 'first': 2, 'last': 1}},
+                   {'generate': {'kind': 'gate', 'first': 0, 'last': 16}},
+                   {'generate': {'kind': 'gate', 'first': 0, 'last': 1, 'params': {'gap_min': 4}}},
+                   {'generate': {'kind': 'gate', 'first': True, 'last': 1}}, {'generate': [0, 1]},
+                   {'generate': {'kind': 'gate', 'first': 0, 'last': 1, 'revision': 2}},
+                   {'generate': {'kind': 'gate', 'first': 0, 'last': 1, 'revision': True}}):
+        status, error = server.post('/api/jobs', {**good, **change})
+        assert status == 400 and error['error'], change
+    status, job = server.post('/api/jobs', good)
+    assert status == 202 and job['kind'] == 'suite' and job['family'].startswith('generated/')
+    done = server.wait(job['id'])
+    assert done['status'] == 'complete', done['log'][-20:]
+    resolved = json.loads((root / done['run_id'] / 'resolved_config.json').read_text(encoding='utf-8'))
+    assert [case['id'][-11:] for case in resolved['cases']] == ['s0000000005', 's0000000006']
+    assert seed_maps.verify_family(root / job['family']) == []
+    status, error = server.post('/api/watch', {**good, 'custom_planners': [f'{ROOT / "examples/my_planner.py"}:MyPlanner'],
+                                               'trust_user_code': True})
+    assert status == 400 and 'watch' in error['error']
+
+
+def _link_folder(link, target):
+    try:
+        os.symlink(target, link, target_is_directory=True)
+    except OSError:
+        if os.name != 'nt':
+            pytest.skip('this system cannot make a folder link')
+        import _winapi  # A junction needs no privilege on Windows.
+        _winapi.CreateJunction(str(target), str(link))
+
+
+def test_run_folders_that_lead_outside_the_results_are_refused_before_writing(tmp_path, monkeypatch):
+    from raceplan.gui.jobs import JobError, Jobs
+    root, outside = tmp_path / 'results', tmp_path / 'elsewhere'
+    root.mkdir()
+    outside.mkdir()
+    _link_folder(root / 'gui-runs', outside)
+    _link_folder(root / 'generated', outside)
+    jobs = Jobs(root, ROOT / 'scenarios')
+    suite_body = {'scenarios': ['demo.yaml', 'validation_open.yaml'], 'planners': ['astar'], 'seeds': [0]}
+    for body in (suite_body, {'scenarios': ['demo.yaml'], 'planners': ['astar'], 'seeds': [0]},  # workflow: _output
+                 {'generate': {'kind': 'gate', 'first': 1, 'last': 1}, 'planners': ['astar'], 'seeds': [0]}):
+        with pytest.raises(JobError, match='link or junction'):
+            jobs.start(body)
+        assert not jobs.preparing
+    # One level deeper: a real gui-runs whose .suite-inputs leads elsewhere.
+    (os.rmdir if os.name == 'nt' else os.unlink)(root / 'gui-runs')  # Removes the link, never what it points to.
+    (root / 'gui-runs').mkdir()
+    _link_folder(root / 'gui-runs' / '.suite-inputs', outside)
+    with pytest.raises(JobError, match='link or junction'):
+        jobs.start(suite_body)
+    assert list(outside.iterdir()) == []
+    # A pending suite config that cannot be removed must not leave the explorer "preparing" for good.
+    (tmp_path / 'other').mkdir()
+    fresh = Jobs(tmp_path / 'other', ROOT / 'scenarios')
+
+    def refuse(*args, **kwargs):
+        raise JobError('stopped before starting')
+
+    def locked(self, missing_ok=False):
+        raise PermissionError('locked')
+    monkeypatch.setattr(Jobs, '_start_process', refuse)
+    monkeypatch.setattr(Path, 'unlink', locked)
+    with pytest.raises(JobError, match='stopped'):
+        fresh.start({'scenarios': ['demo.yaml', 'validation_open.yaml'], 'planners': ['astar'], 'seeds': [0]})
+    monkeypatch.undo()
+    assert not fresh.preparing
 
 
 def test_suite_case_ids_are_what_the_suite_accepts():

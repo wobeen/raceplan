@@ -32,6 +32,7 @@ import yaml
 
 from raceplan import experiment, suite, workflow
 from raceplan.common import load_scenario
+from raceplan import seed_maps
 from raceplan.gui import suite_view
 from raceplan.gui.frozen import workflow_command, worker_folder
 from raceplan.gui.workflow_runner import START_SIGNAL, SUITE
@@ -50,7 +51,9 @@ MAX_CASE_SEEDS = 200  # scenarios x seeds
 MAX_EPISODES = 1000  # scenarios x seeds x planners
 SEED_LIMIT = 2**31 - 1
 NOISE_FIELDS = tuple(field.name for field in fields(NoiseConfig))
-FIELDS = {'scenario', 'scenarios', 'planners', 'custom_planners', 'seeds', 'baseline', 'noise', 'trust_user_code'}
+FIELDS = {'scenario', 'scenarios', 'generate', 'planners', 'custom_planners', 'seeds', 'baseline', 'noise',
+          'trust_user_code'}
+GENERATED_FOLDER = 'generated'  # Seeded map families made for runs, next to gui-runs (never inside the engine output).
 RESERVED_IDS = {'con', 'prn', 'aux', 'nul'} | {f'{prefix}{index}' for prefix in ('com', 'lpt') for index in range(1, 10)}
 FINISH_WAIT_S = 15.0
 WATCH_INTERVAL_S = 1.0
@@ -59,6 +62,14 @@ MAX_WATCH_BYTES = 16 * 1024 * 1024  # A planner file larger than this is not has
 
 class JobError(ValueError):
     """The run request is not acceptable."""
+
+
+class GenerateRejected(JobError):
+    """A generated map family had seeds without a drivable path; it was kept, nothing ran."""
+
+    def __init__(self, message, family, rejected):
+        super().__init__(message)
+        self.family, self.rejected = family, rejected
 
 
 class Busy(RuntimeError):
@@ -234,9 +245,9 @@ def _note_watch_run(job):
     try:
         note = {'schema_version': 1, 'run': job.output.name, 'state_sha256': hashlib.sha256(state.read_bytes()).hexdigest(),
                 'watch_session': job.owner.session, 'watch_run': job.watch_run, 'trigger': job.trigger}
+        if os.path.lexists(folder) and seed_maps.is_link(folder):
+            raise OSError(f'{folder} is a link or junction')  # Never write through a link elsewhere.
         folder.mkdir(exist_ok=True)
-        if folder.resolve() != job.output.parent.resolve() / '.run-meta':
-            raise OSError(f'{folder} leads outside the runs folder')  # Never write through a link elsewhere.
         workflow._save_state(folder / f'{job.output.name}.json', note)
     except OSError as exc:
         job.record = '; '.join(filter(None, [job.record, f'could not note the watch run ({exc})']))
@@ -380,7 +391,9 @@ class Jobs:
                 'planners': list(experiment.PLANNER_FACTORIES), 'timeout_s': self.timeout_s,
                 'output_folder': OUTPUT_FOLDER, 'current_job': current, 'watch': watch, 'noise_fields': list(NOISE_FIELDS),
                 'limits': {'scenarios': MAX_CASES, 'seeds': MAX_SEEDS, 'scenario_seeds': MAX_CASE_SEEDS,
-                           'episodes': MAX_EPISODES, 'user_planners': MAX_CUSTOM_PLANNERS}}
+                           'episodes': MAX_EPISODES, 'user_planners': MAX_CUSTOM_PLANNERS},
+                'generators': {kind: {name: list(bounds) for name, bounds in params.items()}
+                               for kind, params in seed_maps.PARAMS.items()}}
 
     def validate(self, body):
         """Check types before using values as set members or dict keys, so odd JSON is a 400 and never a crash.
@@ -390,14 +403,21 @@ class Jobs:
         unknown = set(body) - FIELDS
         if unknown:
             raise JobError(f'unknown fields: {", ".join(sorted(unknown))}')
-        if ('scenario' in body) == ('scenarios' in body):
-            raise JobError('give either scenario or scenarios')
-        scenarios = [body['scenario']] if 'scenario' in body else body['scenarios']
-        listed = self.allowed if self.allowed is not None else {item['id'] for item in list_scenarios(self.scenarios)}
-        if (not isinstance(scenarios, list) or not 1 <= len(scenarios) <= MAX_CASES
-                or not all(isinstance(item, str) for item in scenarios) or len(set(scenarios)) != len(scenarios)
-                or any(item not in listed for item in scenarios)):
-            raise JobError(f'scenarios must be 1-{MAX_CASES} different listed scenarios')
+        if 'generate' in body:
+            if 'scenario' in body or 'scenarios' in body:
+                raise JobError('give generate or scenario(s), not both')
+            generate, scenarios = self._generate_request(body['generate']), None
+            count = generate['last'] - generate['first'] + 1
+        else:
+            if ('scenario' in body) == ('scenarios' in body):
+                raise JobError('give either scenario or scenarios')
+            scenarios, generate = [body['scenario']] if 'scenario' in body else body['scenarios'], None
+            listed = self.allowed if self.allowed is not None else {item['id'] for item in list_scenarios(self.scenarios)}
+            if (not isinstance(scenarios, list) or not 1 <= len(scenarios) <= MAX_CASES
+                    or not all(isinstance(item, str) for item in scenarios) or len(set(scenarios)) != len(scenarios)
+                    or any(item not in listed for item in scenarios)):
+                raise JobError(f'scenarios must be 1-{MAX_CASES} different listed scenarios')
+            count = len(scenarios)
         planners = body.get('planners')
         if (not isinstance(planners, list) or not planners or not all(isinstance(name, str) for name in planners)
                 or len(set(planners)) != len(planners) or any(name not in experiment.PLANNER_FACTORIES for name in planners)):
@@ -430,27 +450,85 @@ class Jobs:
             if not ok:
                 raise JobError(f'noise {name} must be a finite number of at least 0')
             values[name] = float(value)
-        pairs = len(scenarios) * len(seeds)
+        pairs = count * len(seeds)
         if pairs > MAX_CASE_SEEDS or pairs * (len(planners) + len(custom)) > MAX_EPISODES:
             raise JobError(f'too large: scenarios x seeds must be at most {MAX_CASE_SEEDS} and scenarios x seeds x '
                            f'planners at most {MAX_EPISODES} episodes (asked {pairs} and {pairs * (len(planners) + len(custom))})')
+        common = {'planners': planners, 'custom_planners': custom, 'seeds': seeds, 'baseline': baseline, 'noise': values}
+        if generate is not None:  # Always a suite: the maps are made when the run starts (see _generated).
+            return {'kind': 'suite', 'scenario': None, 'scenarios': [], 'generate': generate, **common}
         self._scenario_paths(scenarios)
         kind = 'suite' if len(scenarios) > 1 or any(values.values()) else 'workflow'
-        return {'kind': kind, 'scenario': scenarios[0] if len(scenarios) == 1 else None, 'scenarios': scenarios,
-                'planners': planners, 'custom_planners': custom, 'seeds': seeds, 'baseline': baseline, 'noise': values}
+        return {'kind': kind, 'scenario': scenarios[0] if len(scenarios) == 1 else None, 'scenarios': scenarios, **common}
 
-    def _scenario_paths(self, scenarios):
+    @staticmethod
+    def _generate_request(value):
+        """{kind, first, last, params, revision}: a seeded map family of at most MAX_CASES maps (see raceplan.seed_maps);
+        params and revision are optional (defaults, current revision)."""
+        keys = {'kind', 'first', 'last', 'params', 'revision'}
+        if not isinstance(value, dict) or not {'kind', 'first', 'last'} <= set(value) <= keys:
+            raise JobError('generate must be {"kind", "first", "last"} with optional "params" and "revision"')
+        first, last, params = value['first'], value['last'], value.get('params', {})
+        revision = value.get('revision', seed_maps.REVISION)
+        if type(first) is not int or type(last) is not int or not 0 <= first <= last <= seed_maps.SEED_LIMIT:
+            raise JobError(f'map seeds must be integers with 0 <= first <= last <= {seed_maps.SEED_LIMIT}')
+        if last - first + 1 > MAX_CASES:
+            raise JobError(f'at most {MAX_CASES} generated maps per run')
+        if not isinstance(value['kind'], str) or not isinstance(params, dict) or type(revision) is not int:
+            raise JobError('generate kind must be a name, params an object and revision an integer')
+        try:
+            spec = seed_maps.normalize(value['kind'], params, revision)
+        except seed_maps.SpecError as exc:
+            raise JobError(f'cannot generate these maps: {exc}') from None
+        return {'kind': spec.kind, 'revision': spec.revision, 'params': spec.params, 'first': first, 'last': last}
+
+    def _own_folder(self, *parts):
+        """A folder below the results root, made one level at a time; a level that is a link or junction (checked on
+        the entry itself, not followed) is refused before anything is written inside it."""
+        folder = self.root
+        for part in parts:
+            folder = folder / part
+            if os.path.lexists(folder) and seed_maps.is_link(folder):
+                raise JobError(f'{folder} is a link or junction; remove it or open another results folder')
+            folder.mkdir(exist_ok=True)
+        return folder
+
+    def _generated(self, spec):
+        """Make the requested map family under <root>/generated/ and return the spec that runs it as a suite. A family
+        with any rejected seed is kept for inspection but nothing runs (GenerateRejected)."""
+        request = spec['generate']
+        folder = self._own_folder(GENERATED_FOLDER)
+        stamp = f'{datetime.now():%Y%m%d-%H%M%S}'
+        out = folder / f'{stamp}-{request["kind"]}-s{request["first"]}-{request["last"]}-{secrets.token_hex(2)}'
+        record = seed_maps.write_family(seed_maps.normalize(request['kind'], request['params'], request['revision']),
+                                        request['first'], request['last'], out)
+        family = out.relative_to(self.root).as_posix()
+        rejected = [{'seed': member['seed'], 'reason': member['reason']} for member in record['members']
+                    if member['status'] == 'rejected']
+        if rejected:
+            listed = ', '.join(f'{item["seed"]} ({item["reason"]})' for item in rejected)
+            raise GenerateRejected(f'{len(rejected)} of {len(record["members"])} map seeds have no drivable path for the '
+                                   f'default vehicle: {listed}; nothing was run (the maps are kept in {family})',
+                                   family, rejected)
+        names = [member['name'] for member in record['members']]
+        return {**spec, 'scenarios': [f'members/{name}/q0.yaml' for name in names], 'case_ids': names,
+                'scenario_root': str(out), 'family': family,
+                'slug': f'gen-{request["kind"]}-s{request["first"]}-{request["last"]}'}
+
+    def _scenario_paths(self, scenarios, root=None):
         """The files the ids name, checked again on every launch (a watch reruns long after its request was listed):
-        inside the scenarios folder after following links, and different files even through aliases."""
-        paths = [(self.scenarios / item).resolve() for item in scenarios]
-        if any(self.scenarios not in path.parents or not path.is_file() for path in paths) or len(set(paths)) != len(paths):
+        inside the scenarios folder (or a generated family's folder) after following links, and different files even
+        through aliases."""
+        base = Path(root) if root else self.scenarios
+        paths = [(base / item).resolve() for item in scenarios]
+        if any(base not in path.parents or not path.is_file() for path in paths) or len(set(paths)) != len(paths):
             raise JobError('scenarios must be different files inside the scenarios folder')
         return paths
 
     def _output(self, slug):
         folder = self.root / OUTPUT_FOLDER
         try:
-            folder.mkdir(exist_ok=True)
+            self._own_folder(OUTPUT_FOLDER)
             probe = folder / f'.write-check-{secrets.token_hex(4)}'
             probe.mkdir()
             probe.rmdir()
@@ -461,7 +539,7 @@ class Jobs:
         stem = f'{datetime.now():%Y%m%d-%H%M%S}-{slug}-{secrets.token_hex(2)}'
         for index in range(1, 1000):
             output = folder / (stem if index == 1 else f'{stem}-{index}')
-            if not output.exists():
+            if not os.path.lexists(output):  # A dangling link is a taken name, not a free one.
                 return output
         raise JobError('no free output folder name')
 
@@ -472,12 +550,12 @@ class Jobs:
         renamed after the run folder once that is chosen."""
         planners = spec['planners']
         config = {'version': 1,
-                  'cases': [{'id': case_id, 'scenario': str(path)}
-                            for case_id, path in zip(case_ids(spec['scenarios']), self._scenario_paths(spec['scenarios']))],
+                  'cases': [{'id': case_id, 'scenario': str(path)} for case_id, path in
+                            zip(spec.get('case_ids') or case_ids(spec['scenarios']),
+                                self._scenario_paths(spec['scenarios'], spec.get('scenario_root')))],
                   'planners': planners, 'custom_planners': spec['custom_planners'], 'simulation_seeds': spec['seeds'],
                   'noise': spec['noise'], 'baseline': spec['baseline'] or ('astar' if 'astar' in planners else planners[0])}
-        folder = self.root / OUTPUT_FOLDER / SUITE_INPUTS
-        folder.mkdir(parents=True, exist_ok=True)
+        folder = self._own_folder(OUTPUT_FOLDER, SUITE_INPUTS)
         path = folder / f'pending-{secrets.token_hex(6)}.yaml'
         with path.open('x', encoding='utf-8') as stream:
             yaml.safe_dump(config, stream, allow_unicode=True, sort_keys=False)
@@ -499,17 +577,23 @@ class Jobs:
             self.preparing = True
         pending = None
         try:
-            paths = self._scenario_paths(spec['scenarios'])
+            if spec.get('generate'):
+                spec = self._generated(spec)
+            paths = self._scenario_paths(spec['scenarios'], spec.get('scenario_root'))
             if watch is not None and watch.paths is not None and paths != watch.paths:
                 raise JobError('a scenario file of this watch now points somewhere else; start the watch again')
-            slug = runs_slug(self.scenarios, spec['scenarios'])  # Reads the scenario names; outside the lock.
+            slug = spec.get('slug') or runs_slug(self.scenarios, spec['scenarios'])  # Reads names; outside the lock.
             pending = self._suite_config(spec) if spec['kind'] == 'suite' else None
             return self._start_process(spec, trigger, watch, pending, paths, slug)
         finally:
-            if pending is not None:
-                pending.unlink(missing_ok=True)  # Renamed when the run started; left only when it did not.
-            with self.lock:
-                self.preparing = False
+            try:
+                if pending is not None:
+                    pending.unlink(missing_ok=True)  # Renamed when the run started; left only when it did not.
+            except OSError:
+                pass  # A leftover pending-*.yaml is harmless; it must not keep "preparing" set.
+            finally:
+                with self.lock:
+                    self.preparing = False
 
     def _refuse_if_busy(self, watch):
         """Called with the lock held."""
@@ -562,6 +646,8 @@ class Jobs:
     def watch(self, body, on_event=None):
         """Run now, then again whenever a user planner file changes, until stop_watch()."""
         spec = self.validate(body)
+        if spec.get('generate'):
+            raise JobError('watch does not generate maps; generate them once, then watch with those scenarios')
         if not spec['custom_planners']:
             raise JobError('watch needs at least one user planner file to watch')
         files = list(dict.fromkeys(Path(item.rpartition(':')[0]) for item in spec['custom_planners']))  # One file, many classes.
@@ -722,7 +808,7 @@ class Jobs:
                      'finished_at_utc': _now(), 'error': error,
                      'cases': {case_id: {'case_id': case_id, 'status': 'not_run', 'expected_episode_count': per_case,
                                          'raw_episode_count': 0, 'included_episode_count': 0}
-                               for case_id in case_ids(job.spec['scenarios'])}}
+                               for case_id in job.spec.get('case_ids') or case_ids(job.spec['scenarios'])}}
             state['coverage'] = suite._coverage(state)
             try:
                 workflow._save_state(job.output / 'suite.json', state)

@@ -72,7 +72,8 @@ PNG의 집계는 전체 seed 기준이며 기본 첫 seed의 궤적을 표시합
 시나리오를 여러 개 고르거나 노이즈를 0보다 크게 주면 아래 "여러 시나리오 일괄 실행"과 같은
 suite로 실행하고, 결과는 모든 case 합계 보기로 열립니다. 사용자 플래너 파일 경로를 넣고
 "클래스 찾기"를 누르면 파일 안의 Planner 클래스를 체크박스로 고를 수 있습니다(파일을 읽기만
-하고 실행하지 않음). watch를 켜면 파일을 저장할 때마다 같은 조건으로 다시 실행합니다.
+하고 실행하지 않음). watch를 켜면 파일을 저장할 때마다 같은 조건으로 다시 실행합니다. 지도를 "seed로 지도 생성"으로
+바꾸면 종류·seed 범위로 지도를 만들어 바로 suite로 실행합니다(아래 "seed로 지도 생성").
 `--no-run`은 실행 기능을 끕니다. 같은 일을 터미널에서 하려면:
 
 ```powershell
@@ -98,6 +99,19 @@ YAML의 공통 설정으로 case별 workflow를 순차 실행하고 episodes/pla
 전체·시나리오별 집계 CSV를 만듭니다. 상대경로는 설정 파일 기준입니다. 실패 case는
 부분 결과와 누락 coverage를 남기고 일반 오류 후 다음 case를 진행하며 최종 nonzero를
 반환합니다. [설정·출력·중단 정책](docs/SUITE.md)을 참고하세요.
+
+## seed로 지도 생성
+
+흩어진 섬·엇갈린 벽과 창·좁은 통로(gate) 지도와 시나리오를 seed 범위로 만듭니다. 같은 종류·값·seed면 언제나
+바이트까지 같은 지도이고, 기본 차량이 지나갈 길이 없는 seed는 다시 뽑지 않고 거부로 기록합니다. 모든 seed가
+통과하면 `suite.yaml`도 만들어 바로 일괄 실행할 수 있습니다. 규칙·값·종료 코드는 [seed 지도 생성](docs/SEED_MAPS.md)을
+참고하세요.
+
+```powershell
+.\.venv\Scripts\raceplan-generate.exe create staggered_windows --seeds 0:7 --output-dir generated/windows
+.\.venv\Scripts\raceplan-generate.exe verify generated/windows
+.\.venv\Scripts\raceplan-suite.exe generated/windows/suite.yaml --output-dir results/raw/windows
+```
 
 ## 사용자 플래너
 

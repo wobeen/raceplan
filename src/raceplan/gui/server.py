@@ -32,7 +32,7 @@ from raceplan.gui.analysis import BadQuery
 from raceplan.gui.console import CLOSE_DEADLINE_S, on_console_close
 from raceplan.gui.data import Explorer, UnknownItem, _formula_risk, find_runs
 from raceplan.gui.frozen import default_results, default_scenarios, is_frozen
-from raceplan.gui.jobs import Busy, JobError, Jobs
+from raceplan.gui.jobs import Busy, GenerateRejected, JobError, Jobs
 from raceplan.gui.planner_scan import ScanError, classes as planner_classes
 
 HOST = '127.0.0.1'
@@ -288,6 +288,8 @@ class Handler(BaseHTTPRequestHandler):
                 self._json(HTTPStatus.ACCEPTED, jobs.watch(body))
             else:
                 self._json(HTTPStatus.ACCEPTED, jobs.start(body))
+        except GenerateRejected as exc:  # Maps made, some without a drivable path: nothing ran; say which and where.
+            self._json(HTTPStatus.UNPROCESSABLE_ENTITY, {'error': str(exc), 'family': exc.family, 'rejected': exc.rejected})
         except (ValueError, UnicodeDecodeError, TypeError) as exc:  # JobError, ScanError, malformed JSON, odd JSON types
             self._json(HTTPStatus.BAD_REQUEST,
                        {'error': str(exc) if isinstance(exc, (JobError, ScanError)) else 'body must be valid JSON'})

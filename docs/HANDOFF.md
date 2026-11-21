@@ -1,5 +1,16 @@
 # 작업 인계 — 2026-11-21
 
+## seed 지도 생성 엔진 (브랜치 feature/seed-maps, feature/deploy-base 기반)
+
+seed 하나 = 지도 하나. 새 모듈 `seed_maps.py`(흩어진 섬·엇갈린 벽과 창·gate, PCG64 원시 값 규칙, 정수 칸, 보수적 주행 증거,
+거부는 다시 뽑지 않고 기록, family.json·verify)와 CLI `raceplan-generate create|verify`(exe: `RacePlan.exe generate`).
+탐색기 `+ 새 실행` → "seed로 지도 생성": 결과 폴더 `generated/` 아래에 만들고 모두 통과하면 suite로 바로 실행, 거부가 있으면
+422로 seed·사유만 알리고 실행하지 않는다. 계약은 `docs/SEED_MAPS.md`. 연구 소스(workflow·suite·experiment·common)는 그대로.
+설계(GPT sol)에서 바꾼 것: 엇갈린 창 기본 offset 12 → 8(12면 A* 0/6·Hybrid A* 1/6). 실측 A*/Hybrid A*: 섬 6/6·6/6,
+gate 6/6·6/6, 창 0/6·2/6(격자 A*가 창 모서리를 깎아 충돌 — 생성기 결함 아님). 고정 해시 테스트로 OS 간 바이트 동일성 확인.
+검증 GPT sol 1차 FAIL 반영: 증거가 도착 방향(+x)까지 요구(섬은 양 끝 2 m를 비워 200/200 통과), 결과 폴더 아래 링크·junction
+거부(`_own_folder`, 기존 실행 경로 포함), verify는 family.json 원시 바이트 비교, 닫힌 대화상자에도 422 표시. 테스트 **200 passed**.
+
 ## 배포 기반 3단계 (브랜치 feature/deploy-base) — LICENSE는 사용자 결정으로 보류
 
 GitHub Actions `.github/workflows/ci.yml`: push·PR마다 pytest(Windows 3.13, Ubuntu 3.11·3.13, `uv sync --locked`), 통과하면
