@@ -1,5 +1,13 @@
 # 작업 인계 — 2026-11-21
 
+## 배포 기반 3단계 (브랜치 feature/deploy-base) — LICENSE는 사용자 결정으로 보류
+
+GitHub Actions `.github/workflows/ci.yml`: push·PR마다 pytest(Windows 3.13, Ubuntu 3.11·3.13, `uv sync --locked`), 통과하면
+Windows `RacePlan.exe` 빌드(`packaging/windows/build.py`가 번들 소스와 checkout의 바이트 동일성을 검사)와 zip·sha256·BUILD-INFO 산출물.
+README(국·영)의 낡은 "113개 테스트" 문구를 CI 안내로 바꾸고, 영문 README에 탐색기 보완(전체 보기·연구 조건 실행·실행 비교)을 반영.
+주의: `pyproject.toml`의 `license = "MIT"`는 예전부터 있던 선언이고 LICENSE 파일은 없다(보류 결정과 어긋남 — 사용자 결정 대기).
+다음: seed 지도 생성 엔진(섬·엇갈린 창·gate, CLI + GUI).
+
 ## 보완 2-3: 실행 간 비교 (브랜치 feature/gui-suite-all)
 
 실행 목록에 플래너 파일 버전(sha8)·watch 회차, 탭 "실행 비교"(B = 지금 연 실행, A = 고른 실행 또는 같은 조건의 직전 실행).

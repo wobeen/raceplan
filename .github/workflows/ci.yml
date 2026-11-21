@@ -1,0 +1,59 @@
+name: CI
+
+# Every push and pull request: the test suite on Windows and Ubuntu (lowest and newest supported Python), then the
+# Windows RacePlan.exe package. The package build itself refuses a bundle whose RacePlan sources differ from the
+# checkout (packaging/windows/build.py check_sources), so a green build is also the source-identity check.
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: pytest (${{ matrix.os }}, Python ${{ matrix.python }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            python: '3.13'
+          - os: ubuntu-latest
+            python: '3.13'
+          - os: ubuntu-latest
+            python: '3.11'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - name: Install (locked)
+        run: uv sync --locked --python ${{ matrix.python }} --extra dev
+      - name: Test
+        run: uv run --locked --python ${{ matrix.python }} --extra dev python -m pytest -q -p no:cacheprovider
+
+  exe:
+    name: RacePlan.exe (Windows x64)
+    needs: test
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - name: Build (checks bundled sources against the checkout)
+        run: uv run --locked --python 3.13 --extra exe python packaging/windows/build.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: RacePlan-windows-x64
+          path: |
+            dist/RacePlan-*-windows-x64.zip
+            dist/RacePlan-*-windows-x64.zip.sha256
+            dist/RacePlan/BUILD-INFO.txt
+          if-no-files-found: error
+          retention-days: 14

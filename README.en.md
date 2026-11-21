@@ -67,16 +67,27 @@ Stop it with `Ctrl+C`.
 
 Opened from the address the command opens or prints (it carries `#token=…`), the
 `+ 새 실행` button runs a new comparison in a separate process (time limit, cancel; results go
-to a new folder under `gui-runs/`). With a planner file selected, watch re-runs it on every save.
-`--no-run` turns running off. The same from a terminal:
+to a new folder under `gui-runs/`). Choosing several scenarios or any noise runs it as a suite (the same
+format as `raceplan-suite`, opened on all of its cases together); "클래스 찾기" lists the Planner classes of a
+planner file (it is parsed, not run) as checkboxes. With a planner file selected, watch re-runs it with the same
+conditions on every save. `--no-run` turns running off. The same from a terminal:
 
 ```powershell
 .\.venv\Scripts\raceplan-watch.exe examples/my_planner.py:MyPlanner --scenario scenarios/demo.yaml
+.\.venv\Scripts\raceplan-watch.exe examples/my_planner.py:MyPlanner --scenario a.yaml --scenario b.yaml --seeds 11 12 13 --steering-std-rad 0.01
 ```
 
 Every save writes a new result under `results/raw/gui-runs/` and prints reached counts per
-planner; an open explorer lists it within 3 s. `--once` runs once and reports completion in the
-exit code. Planner files run as code on this computer: only use files you trust.
+planner (for a suite: totals of its completed cases and the failed cases); an open explorer lists it within 3 s.
+`--once` runs once and reports completion in the exit code. Planner files run as code on this computer: only use
+files you trust.
+
+A suite opens on all of its cases together: totals per planner (checked against the suite's own saved totals), a
+planner × case reach matrix and comparisons pooled over cases; a cell, row or point opens that case. Each run in
+the list shows its planner file version (first 8 characters of the sha256) and its watch run number. The
+"실행 비교" tab compares the open run with another one (by default the previous run with the same conditions)
+from saved results only: cases are paired by their saved scenario and map file hashes and identical conditions,
+episodes by planner and common seed, with whole-run totals, paired changes and B − A deltas kept apart.
 
 Without Python, use the Windows `RacePlan.exe` package (zip); installing, running and building are in the
 [Windows exe guide](docs/WINDOWS_EXE.md) (Korean).
@@ -129,7 +140,9 @@ The manifest records settings, source hashes, map provenance, and environment.
 Summary, path, and trajectory CSVs preserve planning failures and driving outcomes.
 See [map conventions](maps/README.md) for map inputs.
 
-Run `.\.venv\Scripts\python.exe -m pytest -q` after installation. The last full verification passed 113 tests.
+Run `.\.venv\Scripts\python.exe -m pytest -q` after installation. GitHub Actions (`.github/workflows/ci.yml`) runs the
+full suite on every push and pull request on Windows (Python 3.13) and Ubuntu (3.11, 3.13), then builds the Windows
+`RacePlan.exe` zip as an artifact (the build checks that the bundled RacePlan sources match the checkout byte for byte).
 Experimental candidates and historical runners are indexed separately in
 [feature scope](docs/FEATURE_SCOPE.md) (Korean), [results](results/README.md), and
 [handoff](docs/HANDOFF.md). Earlier README content is retained under

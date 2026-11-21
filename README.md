@@ -140,8 +140,9 @@ Dijkstra/A*는 점의 격자 연결성, Hybrid A*는 회전한 차량 footprint�
 
 ## 개발과 연구 자료
 
-테스트는 설치 후 `.\.venv\Scripts\python.exe -m pytest -q`로 실행합니다.
-마지막 전체 검증은 113개 테스트가 통과했습니다.
+테스트는 설치 후 `.\.venv\Scripts\python.exe -m pytest -q`로 실행합니다. GitHub Actions(`.github/workflows/ci.yml`)가
+push·PR마다 Windows(Python 3.13)와 Ubuntu(3.11·3.13)에서 전체 테스트를 돌리고, 테스트가 통과하면 Windows용
+`RacePlan.exe` zip을 빌드해 산출물로 올립니다(번들의 RacePlan 소스가 checkout과 바이트 단위로 같은지 빌드가 검사).
 
 효과가 확인되지 않은 후보와 버전별 실험은 기본 사용 안내에서 제외했습니다.
 연구 기능의 상태·보존 이유·이전 문서 위치는 [기능 범위](docs/FEATURE_SCOPE.md),
