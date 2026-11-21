@@ -84,12 +84,14 @@ def _json_bytes(value):
     return (json.dumps(value, sort_keys=True, separators=(',', ':'), ensure_ascii=True) + '\n').encode('ascii')
 
 
+LINK_REPARSE_TAGS = (0xA000000C, 0xA0000003)  # IO_REPARSE_TAG_SYMLINK, _MOUNT_POINT; the stat names exist only on Windows
+
+
 def is_link(path):
     """True for a symbolic link or a Windows junction at path itself (not followed). Other reparse points, such as
     OneDrive's cloud folders, are ordinary folders here."""
     info = os.lstat(path)
-    return stat.S_ISLNK(info.st_mode) or getattr(info, 'st_reparse_tag', 0) in (stat.IO_REPARSE_TAG_SYMLINK,
-                                                                                stat.IO_REPARSE_TAG_MOUNT_POINT)
+    return stat.S_ISLNK(info.st_mode) or getattr(info, 'st_reparse_tag', 0) in LINK_REPARSE_TAGS
 
 
 def _entries(root):
