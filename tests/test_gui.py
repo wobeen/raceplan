@@ -1633,3 +1633,130 @@ def test_one_start_is_prepared_at_a_time(tmp_path, monkeypatch):
     release.set()
     first.join(10)
     assert jobs.preparing is False
+
+
+def _rc_case(case_id, scenario='s', seeds=(1, 2), noise=0.0, rows=(), versions=None):
+    from hashlib import sha256
+    digest = lambda text: sha256(text.encode()).hexdigest()  # noqa: E731
+    manifest = {'scenario_sha256': digest(scenario), 'map_yaml_sha256': digest('m'), 'map_image_sha256': digest('i'),
+                'experiment_revision': 2, 'simulation_seeds': list(seeds), 'noise': {'steering_std_rad': noise},
+                'vehicle': {}, 'tracker': {}, 'simulation': {}, 'inflation_radius_m': 0.0, 'noise_model': 'n', 'collision_grid': 'g',
+                'planners': {'astar': {'class': 'A', 'config': {}}, 'mine': {'class': 'M'}},
+                'custom_planner_sources': {'mine': {'path': 'p.py', 'sha256': versions or 'a' * 64, 'class': 'Mine'}},
+                'source_sha256': {'experiment.py': 'x', 'gui\\data.py': case_id}, 'python': '3.13', 'numpy': '2'}
+    episodes = [{'planner': planner, 'simulation_seed': str(seed), 'failure_class': outcome,
+                 'tracking_rmse_m': '' if outcome != 'reached' else str(rmse), 'completion_time_s': '' if outcome != 'reached' else '10',
+                 'driving_min_sampled_clearance_m': str(rmse)} for planner, seed, outcome, rmse in rows]
+    return {'id': case_id, 'manifest': manifest, 'episodes': episodes}
+
+
+def test_two_runs_are_paired_by_saved_inputs_and_never_by_name():
+    from raceplan.gui.run_compare import compare
+    a = {'cases': [_rc_case('q0', 's', rows=[('mine', 1, 'driving_collision', 0), ('mine', 2, 'reached', 0.30),
+                                             ('astar', 1, 'reached', 0.1), ('astar', 2, 'reached', 0.1)]),
+                   _rc_case('old_only', 'gone', rows=[('mine', 1, 'reached', 0.1)]),
+                   _rc_case('noisy', 'n', noise=0.0, rows=[('mine', 1, 'reached', 0.1)])]}
+    b = {'cases': [_rc_case('renamed', 's', seeds=(2, 3), versions='b' * 64,
+                            rows=[('mine', 2, 'reached', 0.20), ('mine', 3, 'reached', 0.2), ('astar', 2, 'reached', 0.1),
+                                  ('astar', 3, 'reached', 0.1)]),
+                   _rc_case('noisy', 'n', noise=0.01, rows=[('mine', 1, 'reached', 0.1)])]}
+    result = compare(a, b)
+    statuses = {tuple(case['case_a'] + case['case_b']): case['status'] for case in result['cases']}
+    assert statuses == {('q0', 'renamed'): 'compared', ('old_only',): 'a_only', ('noisy', 'noisy'): 'condition_changed'}
+    assert result['scope'] == 'overlap' and any('only one of the runs' in issue for issue in result['issues'])
+    mine = next(item for item in result['planners'] if item['planner'] == 'mine')
+    # Whole runs: A 3 reached of 4 (all its cases), B 3 of 3; paired: only seed 2 of the one compared case.
+    assert mine['totals'] == {'a': {'recorded': 4, 'reached': 3}, 'b': {'recorded': 3, 'reached': 3}}
+    assert mine['paired'] == 1 and mine['pairs']['both'] == 1
+    assert mine['deltas']['rmse']['median'] == pytest.approx(-0.1) and mine['deltas']['rmse']['n'] == 1  # B - A
+    assert not any('engine' in issue for issue in result['issues'])  # Only the explorer's own files differ.
+
+
+def test_run_comparison_refuses_what_it_cannot_pair_honestly():
+    from raceplan.gui.run_compare import compare
+    twice = {'cases': [_rc_case('x', 's'), _rc_case('y', 's')]}
+    assert compare(twice, {'cases': [_rc_case('z', 's')]})['cases'][0]['status'] == 'ambiguous'
+    broken = {'cases': [_rc_case('q', 's', rows=[('mine', 1, 'reached', 0.1), ('mine', 1, 'reached', 0.2)])]}
+    with pytest.raises(ValueError, match='appears twice'):
+        compare(broken, broken)
+    engine = _rc_case('q', 's')
+    engine['manifest']['source_sha256'] = {'experiment.py': 'changed'}
+    assert any('engine files differ' in issue for issue in compare({'cases': [_rc_case('q', 's')]}, {'cases': [engine]})['issues'])
+
+
+def test_previous_run_and_watch_run_come_from_saved_files(two_case_suite, tmp_path, runner):
+    import shutil
+    from types import SimpleNamespace
+    from raceplan.gui.jobs import _note_watch_run
+    for name, finished in (('old', '2026-01-01T00:00:00Z'), ('mid', '2026-01-02T00:00:00Z'), ('new', '2026-01-03T00:00:00Z')):
+        shutil.copytree(two_case_suite / 'two', tmp_path / 'gui-runs' / name)
+        state = json.loads((tmp_path / 'gui-runs' / name / 'suite.json').read_text(encoding='utf-8'))
+        state['finished_at_utc'] = finished
+        (tmp_path / 'gui-runs' / name / 'suite.json').write_text(json.dumps(state), encoding='utf-8')
+    _note_watch_run(SimpleNamespace(output=tmp_path / 'gui-runs/new', owner=SimpleNamespace(session='a1'), watch_run=3,
+                                    trigger='change', record=None))
+    explorer = Explorer(tmp_path)
+    meta = {run['id']: run['meta'] for run in explorer.runs()}
+    assert meta['gui-runs/new']['watch'] == {'watch_session': 'a1', 'watch_run': 3, 'trigger': 'change'}
+    assert meta['gui-runs/old']['watch'] is None and meta['gui-runs/new']['cases_complete'] == 2
+    answer = explorer.compare_runs('gui-runs/new')
+    assert answer['suggested'] and answer['a']['id'] == 'gui-runs/mid'  # The latest earlier run of the same conditions.
+    assert answer['result']['scope'] == 'full'
+    assert all(item['totals']['a'] == item['totals']['b'] and item['pairs']['a_only'] == item['pairs']['b_only'] == 0
+               for item in answer['result']['planners'])
+    assert explorer.compare_runs('gui-runs/old')['a'] is None  # Nothing earlier: no made-up baseline.
+    server = RunServer(tmp_path)
+    try:
+        assert server.request('GET', '/api/compare/runs?b=gui-runs/new&a=gui-runs/old')[0] == 200
+        for bad, code in (('?b=gui-runs/new&a=gui-runs/new', 400), ('?b=gui-runs/new&x=1', 400), ('?a=gui-runs/old', 400),
+                          ('?b=missing', 404)):
+            assert server.request('GET', '/api/compare/runs' + bad)[0] == code, bad
+    finally:
+        server.close()
+
+
+def test_run_comparison_needs_evidence_and_real_pairs():
+    from raceplan.gui.run_compare import compare
+    bare = _rc_case('q', 's', rows=[('mine', 1, 'reached', 0.1)])
+    del bare['manifest']['scenario_sha256']  # An old or foreign manifest: which case is it?
+    result = compare({'cases': [bare]}, {'cases': [dict(bare, manifest=dict(bare['manifest']))]})
+    assert {case['status'] for case in result['cases']} == {'no_evidence'} and result['scope'] == 'none'
+    mine = next(item for item in result['planners'] if item['planner'] == 'mine')
+    assert mine['paired'] == 0 and mine['paired_change'] is None  # 1/1 vs 1/1 is not a change claimed over no pairs.
+    moved = compare({'cases': [_rc_case('q0', 's')]}, {'cases': [_rc_case('q0', 'other')]})
+    assert any('q0: its scenario or map files changed' in issue for issue in moved['issues'])
+    runtime = _rc_case('q', 's')
+    runtime['manifest']['numpy'] = '3'
+    assert any('runtime' in issue for issue in compare({'cases': [_rc_case('q', 's')]}, {'cases': [runtime]})['issues'])
+
+
+def test_watch_note_and_previous_run_are_not_trusted_blindly(two_case_suite, tmp_path):
+    import shutil
+    for name, finished in (('old', '2026-01-01T00:00:00+00:00'), ('undated', None)):
+        shutil.copytree(two_case_suite / 'two', tmp_path / 'gui-runs' / name)
+        state = json.loads((tmp_path / 'gui-runs' / name / 'suite.json').read_text(encoding='utf-8'))
+        state['finished_at_utc'] = finished
+        (tmp_path / 'gui-runs' / name / 'suite.json').write_text(json.dumps(state), encoding='utf-8')
+    (tmp_path / 'gui-runs/.run-meta').mkdir()
+    (tmp_path / 'gui-runs/.run-meta/old.json').write_text(json.dumps(  # Written for another state of the folder.
+        {'schema_version': 1, 'run': 'old', 'state_sha256': '0' * 64, 'watch_session': 'a1', 'watch_run': 2,
+         'trigger': 'change'}), encoding='utf-8')
+    explorer = Explorer(tmp_path)
+    assert {run['id']: run['meta']['watch'] for run in explorer.runs()}['gui-runs/old'] is None
+    answer = explorer.compare_runs('gui-runs/undated')  # No finish time: it cannot know which run came before it.
+    assert answer['a'] is None and answer['note'] == 'not_ready'
+    assert explorer.compare_runs('gui-runs/undated', 'gui-runs/old')['result']['scope'] == 'full'
+
+
+def test_repeated_seeds_and_repeated_cases_are_not_counted_twice():
+    from raceplan.gui.run_compare import compare, run_meta
+    twice = _rc_case('q', 's', seeds=(1, 1), rows=[('mine', 1, 'reached', 0.1)])
+    assert compare({'cases': [twice]}, {'cases': [_rc_case('q', 's', rows=[('mine', 1, 'reached', 0.1)])]})['scope'] == 'none'
+    same_inputs = [('x', _rc_case('x', 's')['manifest']), ('y', _rc_case('y', 's')['manifest'])]
+    assert run_meta(same_inputs, 2, '2026-01-01T00:00:00+00:00', None)['fingerprint'] is None  # Never an automatic A.
+    one = _rc_case('q', 's', rows=[('mine', 1, 'reached', 0.1), ('mine', 2, 'reached', 0.1), ('astar', 1, 'reached', 0.1)])
+    other = _rc_case('q', 's', rows=[('mine', 1, 'reached', 0.1), ('mine', 2, 'reached', 0.1), ('astar', 1, 'reached', 0.1),
+                                     ('astar', 2, 'reached', 0.1)])
+    result = compare({'cases': [one]}, {'cases': [other]})
+    assert next(p for p in result['planners'] if p['planner'] == 'astar')['pairs']['missing'] == 1
+    assert result['scope'] == 'overlap'  # A slot only one run recorded keeps it from being a full comparison.

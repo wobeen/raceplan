@@ -222,6 +222,26 @@ def _suite_versions(folder):
     return suite_view.planner_versions(provenance, manifests)
 
 
+def _note_watch_run(job):
+    """Keep which watch run made this folder next to the runs (gui-runs/.run-meta/<run>.json), outside the engine's
+    output, so the run list can show it later. The note carries the hash of the run's final state file, so a folder
+    replaced or rewritten later is not shown with this run number. Only for a run that saved its state; a failure is
+    noted, not fatal."""
+    state = next((job.output / name for name in ('suite.json', 'workflow.json') if (job.output / name).is_file()), None)
+    if state is None:
+        return
+    folder = job.output.parent / '.run-meta'
+    try:
+        note = {'schema_version': 1, 'run': job.output.name, 'state_sha256': hashlib.sha256(state.read_bytes()).hexdigest(),
+                'watch_session': job.owner.session, 'watch_run': job.watch_run, 'trigger': job.trigger}
+        folder.mkdir(exist_ok=True)
+        if folder.resolve() != job.output.parent.resolve() / '.run-meta':
+            raise OSError(f'{folder} leads outside the runs folder')  # Never write through a link elsewhere.
+        workflow._save_state(folder / f'{job.output.name}.json', note)
+    except OSError as exc:
+        job.record = '; '.join(filter(None, [job.record, f'could not note the watch run ({exc})']))
+
+
 def _rewrite_running(path, change):
     """Apply change to a saved state that still says running and save it atomically. Returns None when done or when
     there is nothing to correct, 'missing' when the file does not exist, else the last error."""
@@ -326,6 +346,7 @@ class Watch:
     def __init__(self, spec, files, interval_s):
         self.spec, self.files, self.interval_s = spec, files, interval_s
         self.paths = None  # The scenario files the watch was started on; every rerun must use the same ones.
+        self.session = secrets.token_hex(4)  # Tells this watch's runs apart from another watch's run 1, 2, ...
         self.active, self.runs, self.missing, self.blocked, self.error = True, 0, False, None, None
         self.started_at, self.last_change = _now(), None
         self.stop_event = threading.Event()
@@ -648,6 +669,8 @@ class Jobs:
                 self._record_stop(job, status)  # Before publishing, so a finished job never shows a stale state file.
             if job.spec['kind'] == 'suite':
                 job.versions = _suite_versions(job.output)
+            if job.owner is not None:
+                _note_watch_run(job)
         finally:
             with self.lock:
                 job.exit_code = code

@@ -1,5 +1,13 @@
 # 작업 인계 — 2026-11-21
 
+## 보완 2-3: 실행 간 비교 (브랜치 feature/gui-suite-all)
+
+실행 목록에 플래너 파일 버전(sha8)·watch 회차, 탭 "실행 비교"(B = 지금 연 실행, A = 고른 실행 또는 같은 조건의 직전 실행).
+case는 저장된 시나리오·지도 해시로, 조건이 같을 때만 짝짓고, 전체 도달·짝·Δ의 분모를 따로 보인다. 계약은 `docs/GUI_PLAN.md` "보완 2-3".
+새 모듈 `gui/run_compare.py`, 새 경로 `GET /api/compare/runs`, watch 회차 기록 `gui-runs/.run-meta/<실행>.json`.
+실측: 실사용 점검의 두 suite에서 sharp_turn_astar 0/12 → 3/12(offset_islands_q1 seed 11–13 충돌 → 도달). 검증 GPT sol 1차 FAIL 반영.
+이것으로 실사용 점검 보완(2-1~2-3)을 마쳤다. 다음: DEV_PLAN 3(배포 기반: LICENSE·README·CI) — LICENSE 보유자 이름은 사용자 결정.
+
 ## 보완 2-2: 연구 조건 실행 (브랜치 feature/gui-suite-all)
 
 새 실행에서 시나리오 여러 개·노이즈 5필드·seed를 주면 `raceplan-suite`와 같은 suite로 실행한다(시나리오 1개·노이즈 0은 예전 workflow).

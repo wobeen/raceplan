@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from collections import Counter
 import csv
+from datetime import datetime, timezone
 from hashlib import sha256
 from io import StringIO
 import json
@@ -13,7 +14,7 @@ from threading import Lock
 
 import numpy as np
 
-from raceplan.gui import analysis, suite_view
+from raceplan.gui import analysis, run_compare, suite_view
 from raceplan.report import Reader, _load
 
 STATE_FILES = ('suite.json', 'workflow.json', 'comparison_manifest.json')
@@ -123,13 +124,73 @@ def find_runs(root):
     return found
 
 
-def _run_summary(root, folder):
+WATCH_NOTE = re.compile(r'[0-9a-f]{1,32}')
+
+
+def _utc(text):
+    """A saved finish time as an aware UTC datetime, or None when it is missing or not a full ISO time with a zone."""
+    try:
+        moment = datetime.fromisoformat(text) if isinstance(text, str) else None
+    except ValueError:
+        return None
+    return moment.astimezone(timezone.utc) if moment is not None and moment.tzinfo is not None else None
+
+
+def _watch_record(folder, state_path):
+    """The explorer's own note of which watch run made this folder (gui-runs/.run-meta/<run>.json, outside the engine
+    output). Trusted only inside a gui-runs folder, in the expected form, about this folder, and only while the run's
+    state file is still the one the note was written for; otherwise None ("no watch record")."""
+    if folder.parent.name != 'gui-runs':
+        return None
+    path = folder.parent / '.run-meta' / f'{folder.name}.json'
+    if path.resolve().parent != folder.parent.resolve() / '.run-meta':
+        return None  # A link out of gui-runs/.run-meta is not this explorer's note.
+    try:
+        note = _read_json(path)
+        state_hash = sha256(state_path.read_bytes()).hexdigest()
+    except (OSError, ValueError):
+        return None
+    if (not isinstance(note, dict) or note.get('schema_version') != 1 or note.get('run') != folder.name
+            or note.get('state_sha256') != state_hash or type(note.get('watch_run')) is not int or note['watch_run'] < 1
+            or not isinstance(note.get('watch_session'), str) or not WATCH_NOTE.fullmatch(note['watch_session'])
+            or note.get('trigger') not in ('start', 'change')):
+        return None
+    return {key: note[key] for key in ('watch_session', 'watch_run', 'trigger')}
+
+
+def _case_manifest(folder, case_id):
+    """A completed suite case's manifest, refusing ids and links that lead outside the run folder."""
+    if not isinstance(case_id, str) or Path(case_id).name != case_id or case_id in {'', '.', '..'}:
+        raise ValueError(f'invalid saved case id: {case_id!r}')
+    path = (folder / 'cases' / case_id / 'comparison_manifest.json').resolve()
+    if folder.resolve() not in path.parents:
+        raise ValueError(f'case {case_id} leads outside its run folder')
+    return _read_json(path)
+
+
+def _saved_manifests(folder, state, is_suite):
+    """(completed case manifests, number of cases the run was asked to do), read from saved files only."""
+    if is_suite:
+        cases = state.get('cases') if isinstance(state.get('cases'), dict) else {}
+        done = [case_id for case_id, record in cases.items() if isinstance(record, dict) and record.get('status') == 'complete']
+        return [(case_id, _case_manifest(folder, case_id)) for case_id in done], len(cases)
+    manifest = (folder / 'comparison_manifest.json').resolve()
+    if state.get('status') != 'complete' or not manifest.is_file() or manifest.parent != folder.resolve():
+        return [], 1
+    return [(folder.name, _read_json(manifest))], 1
+
+
+def _run_summary(root, folder, meta_cache=None):
     state_path = _state_file(folder)
     is_suite = state_path.name == 'suite.json'
+    info = state_path.stat()
     summary = {'id': folder.relative_to(root).as_posix(), 'name': folder.name, 'kind': 'suite' if is_suite else 'batch',
-               'modified': state_path.stat().st_mtime, 'status': 'unreadable', 'outcomes': {}, 'episodes': 0}
+               'modified': info.st_mtime, 'status': 'unreadable', 'outcomes': {}, 'episodes': 0, 'meta': None}
     try:
-        summary['status'] = _read_json(state_path).get('status', 'unknown')
+        if state_path.resolve().parent != folder.resolve():
+            raise ValueError('the state file leads outside its run folder')
+        state = _read_json(state_path)
+        summary['status'] = state.get('status', 'unknown')
         episodes = folder / ('episodes.csv' if is_suite else 'analysis/episodes.csv')
         if episodes.is_file():
             with episodes.open(newline='', encoding='utf-8-sig') as stream:
@@ -138,6 +199,20 @@ def _run_summary(root, folder):
             summary['episodes'] = sum(outcomes.values())
     except (OSError, ValueError, AttributeError, csv.Error):
         summary['status'] = 'unreadable'
+        return summary
+    try:  # Versions and conditions for the list; a run whose files cannot say this still lists, without them.
+        note = folder.parent / '.run-meta' / f'{folder.name}.json'
+        key = (info.st_mtime_ns, info.st_size, note.stat().st_mtime_ns if note.is_file() else None)
+        cached = meta_cache.get(str(folder)) if meta_cache is not None else None
+        if cached is not None and cached[0] == key:
+            summary['meta'] = cached[1]  # A saved run's manifests do not change; only a new state or note re-reads.
+        else:
+            manifests, total = _saved_manifests(folder, state, is_suite)
+            summary['meta'] = run_compare.run_meta(manifests, total, state.get('finished_at_utc'), _watch_record(folder, state_path))
+            if meta_cache is not None:
+                meta_cache[str(folder)] = (key, summary['meta'])
+    except (OSError, ValueError, AttributeError, TypeError):
+        pass
     return summary
 
 
@@ -210,9 +285,10 @@ class Explorer:
         self.root = Path(root).resolve()
         self._lock = Lock()
         self._cache = {}
+        self._meta_cache = {}  # run folder -> (state/note signature, list meta)
 
     def runs(self):
-        summaries = [_run_summary(self.root, folder) for folder in find_runs(self.root)]
+        summaries = [_run_summary(self.root, folder, self._meta_cache) for folder in find_runs(self.root)]
         return sorted(summaries, key=lambda item: (-item['modified'], item['id']))
 
     def runs_signature(self):
@@ -224,6 +300,10 @@ class Explorer:
             except (OSError, AttributeError):
                 stamp = 0
             digest.update(f'{folder.relative_to(self.root).as_posix()}|{stamp}\n'.encode())
+            try:  # A watch note written after the run finished must also refresh the list.
+                digest.update(f'{(folder.parent / ".run-meta" / f"{folder.name}.json").stat().st_mtime_ns}\n'.encode())
+            except OSError:
+                pass
         return digest.hexdigest()[:16]
 
     def _folder(self, run_id):
@@ -367,6 +447,66 @@ class Explorer:
         _, run = self._suite_cases(run_id)
         pooled = (suite_view.pooled_delta if kind == 'delta' else suite_view.pooled_scatter)(run['cases'], **options)
         return {**pooled, 'case_ids': [case['id'] for case in run['cases']], 'cases_listed': len(run['coverage'])}
+
+    def _comparable(self, run_id):
+        """One loaded snapshot of a run for comparing with another: its completed cases (manifest and saved episode
+        rows) and what the run list says about it, all from that snapshot."""
+        entry = self._loaded(run_id)
+        cases = [{'id': case['id'], 'manifest': case['manifest'], 'episodes': case['episodes']} for case in entry['cases'].values()]
+        coverage = entry['coverage']
+        meta = run_compare.run_meta([(case['id'], case['manifest']) for case in cases], len(coverage) or 1,
+                                    entry['state'].get('finished_at_utc'), _watch_record(entry['folder'], _state_file(entry['folder'])))
+        status = entry['state'].get('status')
+        return {'id': run_id, 'name': entry['folder'].name, 'kind': 'suite' if self._is_suite(entry) else 'batch',
+                'status': status, 'complete': status == 'complete', 'meta': meta, 'cases': cases,
+                'coverage': [{'case_id': row['case_id'], 'status': row['status']} for row in coverage]}
+
+    @staticmethod
+    def _auto_ready(run):
+        """Can this run take part in choosing "the previous run" automatically? Complete, every case with full
+        evidence (fingerprint), one version per planner, and a readable finish time."""
+        meta = run['meta']
+        return (run['status'] == 'complete' and meta and meta['fingerprint'] and not meta['mixed_versions']
+                and _utc(meta['finished_at']) is not None)
+
+    def _previous(self, run_id, b):
+        """The latest run finished before B with the same cases (saved input hashes), conditions, seeds, planner names,
+        engine and runtime; None when there is none or B itself cannot say. Planner code may differ: that is the
+        comparison."""
+        if not self._auto_ready(b):
+            return None
+        mine = _utc(b['meta']['finished_at'])
+        found = [run for run in self.runs() if run['id'] != run_id and self._auto_ready(run)
+                 and run['meta']['fingerprint'] == b['meta']['fingerprint'] and _utc(run['meta']['finished_at']) < mine]
+        return max(found, key=lambda run: (_utc(run['meta']['finished_at']), run['id']))['id'] if found else None
+
+    def compare_runs(self, b_id, a_id=None):
+        """Run B against run A (by default the previous run of the same conditions): one loaded snapshot of each, the
+        header facts and every number of the answer come from those two snapshots."""
+        if a_id is not None and a_id == b_id:
+            raise analysis.BadQuery('choose two different runs')
+        b = self._comparable(b_id)
+        suggested, note = a_id is None, None
+        if suggested:
+            a_id = self._previous(b_id, b)
+        a = self._comparable(a_id) if a_id else None
+        if suggested and a is not None and not (self._auto_ready(a) and a['meta']['fingerprint'] == b['meta']['fingerprint']
+                                                 and _utc(a['meta']['finished_at']) < _utc(b['meta']['finished_at'])):
+            # The list said "same conditions" but the loaded run does not: never present it as the previous run.
+            a, note = None, 'changed_on_load'  # the run found as the previous one no longer matches once loaded
+        if suggested and a is None and note is None:
+            # not_ready: B is not complete, mixes planner versions, has cases without full records or no finish time;
+            # none: no earlier complete run with the same cases, conditions, seeds, planners, engine and runtime.
+            note = 'not_ready' if not self._auto_ready(b) else 'none'
+        result = run_compare.compare(a, b) if a else None
+        if result is not None:
+            for run in (a, b):
+                if run['status'] != 'complete':
+                    result['issues'].insert(0, f'{run["name"]} is {run["status"]}: only its completed cases are compared')
+        strip = ('cases',)
+        return {'a': {key: value for key, value in a.items() if key not in strip} if a else None,
+                'b': {key: value for key, value in b.items() if key not in strip}, 'suggested': suggested,
+                'note': note, 'result': result}
 
     def replay(self, run_id, case_id, a, b, seed):
         detail = self.case(run_id, case_id)

@@ -159,6 +159,12 @@ class Handler(BaseHTTPRequestHandler):
                 if 'case' in multi:
                     raise BadQuery('the overview covers every case; case is not accepted')
                 self._json(HTTPStatus.OK, explorer.overview(self._single(multi, 'run')))
+            elif url.path == '/api/compare/runs':
+                # Run B against run A (A omitted: the previous run of the same conditions). Saved results only.
+                if set(multi) - {'a', 'b'}:
+                    raise BadQuery('only a and b are accepted')
+                self._json(HTTPStatus.OK, explorer.compare_runs(self._single(multi, 'b'),
+                                                                self._single(multi, 'a') if 'a' in multi else None))
             elif url.path == '/api/compare/replay':
                 try:
                     seed = int(query.get('seed', ''))
