@@ -31,8 +31,8 @@ jobs:
           - os: ubuntu-latest
             python: '3.11'
     steps:
-      - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v6
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10
       - name: Install (locked)
         run: uv sync --locked --python ${{ matrix.python }} --extra dev
       - name: Test
@@ -44,11 +44,11 @@ jobs:
     runs-on: windows-latest
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v6
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10
       - name: Build (checks bundled sources against the checkout)
         run: uv run --locked --python 3.13 --extra exe python packaging/windows/build.py
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: RacePlan-windows-x64
           path: |
