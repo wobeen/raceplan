@@ -1,0 +1,17 @@
+planner,baseline,family,pairs,reach_wins,reach_losses,both_reached,delta_tracking_rmse_m_median,delta_tracking_rmse_m_pairs,delta_completion_time_s_median,delta_completion_time_s_pairs,delta_driving_min_sampled_clearance_m_median,delta_driving_min_sampled_clearance_m_pairs,reach_rate_delta
+dijkstra,astar,all,36,0,3,0,,0,,0,0.0,36,-0.08333333333333333
+dijkstra,astar,staggered_windows,12,0,3,0,,0,,0,0.0,12,-0.25
+dijkstra,astar,offset_islands,12,0,0,0,,0,,0,0.0,12,0.0
+dijkstra,astar,slalom_walls,12,0,0,0,,0,,0,0.0,12,0.0
+hybrid_astar,astar,all,36,12,0,3,-0.07264252881207253,3,-0.05000000000000071,3,0.0,36,0.3333333333333333
+hybrid_astar,astar,staggered_windows,12,6,0,3,-0.07264252881207253,3,-0.05000000000000071,3,0.0028060812440168035,12,0.5
+hybrid_astar,astar,offset_islands,12,6,0,0,,0,,0,0.003346836553810171,12,0.5
+hybrid_astar,astar,slalom_walls,12,0,0,0,,0,,0,0.0,12,0.0
+smoothed_low_clearance,astar,all,36,15,0,3,-0.07252787405813305,3,-0.05000000000000071,3,0.0,36,0.4166666666666667
+smoothed_low_clearance,astar,staggered_windows,12,6,0,3,-0.07252787405813305,3,-0.05000000000000071,3,0.013602873339907097,12,0.5
+smoothed_low_clearance,astar,offset_islands,12,3,0,0,,0,,0,0.0,12,0.25
+smoothed_low_clearance,astar,slalom_walls,12,6,0,0,,0,,0,0.05422722269701166,12,0.5
+smoothed_no_clearance,astar,all,36,0,0,3,-0.0725126746556116,3,-0.05000000000000071,3,0.0,36,0.0
+smoothed_no_clearance,astar,staggered_windows,12,0,0,3,-0.0725126746556116,3,-0.05000000000000071,3,0.0,12,0.0
+smoothed_no_clearance,astar,offset_islands,12,0,0,0,,0,,0,0.0,12,0.0
+smoothed_no_clearance,astar,slalom_walls,12,0,0,0,,0,,0,0.0,12,0.0

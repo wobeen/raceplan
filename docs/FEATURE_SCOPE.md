@@ -11,7 +11,7 @@
 | 핵심 | CSV·manifest·분석·PNG | 기본 안내의 단일 흐름으로 통합 |
 | 연구 보관 | Clearance A* | 성공률 개선 없음. 기본 기능·개발 우선순위에서 제외 |
 | 연구 보관 | 방향-state A*·가중치 0·급회전 제곱 비용 | 기존 후보는 validation 회귀·evaluation 일부 성공. 제곱 비용 후속 후보도 validation 도달률 회귀로 중단. 기본 플래너 채택 보류 |
-| 연구 보관 | A* 경로 후처리(clearance·곡률 평활화) | 공개 validation 개발 비교에서 목표0.30이 12/12 도달·회귀0. 새 held-out 평가 전까지 기본 채택 보류 |
+| 연구 보관 | A* 경로 후처리(clearance·곡률 평활화) | 개발 비교 목표0.30 선택 후 신규 6지도 held-out 180건에서 A* 대비 15승0패로 사전 판정 통과. 채택률6/12·곡률 거부가 남아 기본 채택은 보류 |
 | 연구 보관 | guard·회복 v1~v4·접근 감속 | Python API와 과거 실험에 유지. 기본 CLI는 비활성 |
 | 호환 도구 | compare / plot_comparison | 계획만 보는 기존 명령 유지. 기본 안내는 저장 결과 기반으로 통일 |
 | 연구 보관 | 날짜별 suite·runner·봉인 교정 | 재현·감사 목적으로 원래 경로 유지 |
@@ -39,6 +39,7 @@ README 두 언어판에서 중복 설명·과거 테스트 수·오래된 다음
 - [신규 split 평가와 query identity 정정](TURN_AWARE_HOLDOUT.md)
 - [급회전 제곱 비용 개발 비교](SHARP_TURN_DEVELOPMENT_20261105.md)
 - [A* 경로 후처리 개발 비교](SMOOTHING_DEVELOPMENT_20261123.md)
+- [A* 경로 후처리 신규 지도 held-out](SMOOTHING_HOLDOUT.md)
 - [회복 정책과 과거 결과](RECOVERY_20261013.md)
 - [이전 한국어 README](archive/README.before_cleanup_20261104.md)
 - [이전 영어 README](archive/README.en.before_cleanup_20261104.md)

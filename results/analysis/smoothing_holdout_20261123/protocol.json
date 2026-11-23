@@ -1,0 +1,272 @@
+{
+  "version": 1,
+  "suite": "smoothing_holdout_20261123",
+  "members": [
+    {
+      "family": "staggered_windows",
+      "variant": "a",
+      "query": 0,
+      "scenario": "inputs/staggered_windows/a/q0.yaml",
+      "map_fingerprint_v2": "4f6c45cf37224c5fc00a0e6070ef08c83a380bd105e7fbebdcfa7aadf108fd61",
+      "query_fingerprint_v2": "f0257fe2f1d9539524ee0c32ea6c1b6e6f376750788f69d3b8dde7759503e60f"
+    },
+    {
+      "family": "staggered_windows",
+      "variant": "a",
+      "query": 1,
+      "scenario": "inputs/staggered_windows/a/q1.yaml",
+      "map_fingerprint_v2": "4f6c45cf37224c5fc00a0e6070ef08c83a380bd105e7fbebdcfa7aadf108fd61",
+      "query_fingerprint_v2": "a22bea645d69523bde7781b5fdb3944117ed39a12323343a7b6a2138308dd167"
+    },
+    {
+      "family": "staggered_windows",
+      "variant": "b",
+      "query": 0,
+      "scenario": "inputs/staggered_windows/b/q0.yaml",
+      "map_fingerprint_v2": "9c2ed1f014094ce0e8d96008b43faeb845a83350a81a3fe9a6c625d0a5c8a5bc",
+      "query_fingerprint_v2": "9f2c80c39f90b4b68e4c6b1433e11713810de360b8ee6c74b9581fff8018dbca"
+    },
+    {
+      "family": "staggered_windows",
+      "variant": "b",
+      "query": 1,
+      "scenario": "inputs/staggered_windows/b/q1.yaml",
+      "map_fingerprint_v2": "9c2ed1f014094ce0e8d96008b43faeb845a83350a81a3fe9a6c625d0a5c8a5bc",
+      "query_fingerprint_v2": "48c8e8c9aeabc2cc2ad15dbd7448fd5a3811f786abd5179674bd690c05ea0237"
+    },
+    {
+      "family": "offset_islands",
+      "variant": "a",
+      "query": 0,
+      "scenario": "inputs/offset_islands/a/q0.yaml",
+      "map_fingerprint_v2": "3b6ff91e557d5862da96cf38842350388729950600f5d0bac3650fe01ffd1111",
+      "query_fingerprint_v2": "576bcf1dcfe171e6a82f87749ecbbaff9dcd6ec88faaeb620efc855db7013b39"
+    },
+    {
+      "family": "offset_islands",
+      "variant": "a",
+      "query": 1,
+      "scenario": "inputs/offset_islands/a/q1.yaml",
+      "map_fingerprint_v2": "3b6ff91e557d5862da96cf38842350388729950600f5d0bac3650fe01ffd1111",
+      "query_fingerprint_v2": "43bee3ca02e45d89d62f679faed9b21ec5f9c7956b5383c9b33302239041e914"
+    },
+    {
+      "family": "offset_islands",
+      "variant": "b",
+      "query": 0,
+      "scenario": "inputs/offset_islands/b/q0.yaml",
+      "map_fingerprint_v2": "c16348021f5aad2dd8e7066fb9bc87fcf272b1a18bf63f3a1e8a27ce4c137eb6",
+      "query_fingerprint_v2": "5ae47012e2bc8dc3fe182e0a34db0e53acde0ec2bd0b7070055a4fec5c8e083d"
+    },
+    {
+      "family": "offset_islands",
+      "variant": "b",
+      "query": 1,
+      "scenario": "inputs/offset_islands/b/q1.yaml",
+      "map_fingerprint_v2": "c16348021f5aad2dd8e7066fb9bc87fcf272b1a18bf63f3a1e8a27ce4c137eb6",
+      "query_fingerprint_v2": "7f360ef0c229fa068a02100122f30bbfe26a248904e468f76b0009ba1c5226c8"
+    },
+    {
+      "family": "slalom_walls",
+      "variant": "a",
+      "query": 0,
+      "scenario": "inputs/slalom_walls/a/q0.yaml",
+      "map_fingerprint_v2": "d3d5c545060564364c6342cf7c389f0e7f6e891704d472bae1e80c93c5641980",
+      "query_fingerprint_v2": "442e8c35776d67d9e9c8fa30758375c43b5f0bd9c1e0e579f2af554d42cd5886"
+    },
+    {
+      "family": "slalom_walls",
+      "variant": "a",
+      "query": 1,
+      "scenario": "inputs/slalom_walls/a/q1.yaml",
+      "map_fingerprint_v2": "d3d5c545060564364c6342cf7c389f0e7f6e891704d472bae1e80c93c5641980",
+      "query_fingerprint_v2": "20394c2ca2349054944fda3320f26dc2c58a210f6d4259aa8165390d4b0c0300"
+    },
+    {
+      "family": "slalom_walls",
+      "variant": "b",
+      "query": 0,
+      "scenario": "inputs/slalom_walls/b/q0.yaml",
+      "map_fingerprint_v2": "4a1056760cd1b2d41fb574cb0f6774f3d93c8d2e963aac8ff34a8447e1e644af",
+      "query_fingerprint_v2": "01d62d04598e03f6df6b138e6217a55b6f2479f327caf25272ed5e842a235bc8"
+    },
+    {
+      "family": "slalom_walls",
+      "variant": "b",
+      "query": 1,
+      "scenario": "inputs/slalom_walls/b/q1.yaml",
+      "map_fingerprint_v2": "4a1056760cd1b2d41fb574cb0f6774f3d93c8d2e963aac8ff34a8447e1e644af",
+      "query_fingerprint_v2": "77326fa733166337938a5da9159c2b92aecddd638240a77de3f8d55fc824392e"
+    }
+  ],
+  "families": [
+    "staggered_windows",
+    "offset_islands",
+    "slalom_walls"
+  ],
+  "seeds": [
+    31,
+    32,
+    33
+  ],
+  "planners": [
+    "dijkstra",
+    "astar",
+    "hybrid_astar",
+    "smoothed_low_clearance",
+    "smoothed_no_clearance"
+  ],
+  "candidate": "smoothed_low_clearance",
+  "ablation": "smoothed_no_clearance",
+  "candidate_config": {
+    "target_clearance_m": 0.3,
+    "footprint_margin_m": 0.02,
+    "spacing_m": 0.1,
+    "iterations": 100,
+    "smoothing_weight": 100.0,
+    "clearance_step": 0.5
+  },
+  "noise": {
+    "initial-position-std-m": 0.02,
+    "initial-yaw-std-rad": 0.02,
+    "steering-std-rad": 0.01,
+    "speed-measurement-std-mps": 0.02
+  },
+  "planning_timeout_s": 2.0,
+  "planning_calls_per_query_planner": 1,
+  "episodes": 180,
+  "inflation_radius_m": 0.0,
+  "vehicle": {
+    "wheelbase": 0.33,
+    "length": 0.58,
+    "width": 0.31,
+    "rear_axle_to_center": 0.1
+  },
+  "tracker": {
+    "lookahead_distance": 0.8,
+    "target_speed": 0.8,
+    "max_steering_angle": 0.45,
+    "speed_pid": {
+      "kp": 2.0,
+      "ki": 0.2,
+      "kd": 0.05,
+      "output_min": -3.0,
+      "output_max": 2.0,
+      "integral_limit": 2.0
+    },
+    "approach_distance": null,
+    "approach_min_speed": 0.15
+  },
+  "simulation": {
+    "dt": 0.05,
+    "max_time_s": 30.0,
+    "max_speed": 2.0,
+    "max_acceleration": 2.0,
+    "max_deceleration": 3.0,
+    "max_steering_angle": 0.45,
+    "goal_tolerance": 0.5,
+    "goal_yaw_tolerance": null
+  },
+  "hybrid": {
+    "xy_resolution": 0.5,
+    "yaw_bins": 36,
+    "goal_position_tolerance": 0.5,
+    "goal_yaw_tolerance": 0.35,
+    "primitives": {
+      "max_steering_angle": 0.45,
+      "steering_samples": 5,
+      "travel_distance": 0.5,
+      "sample_distance": 0.1,
+      "allow_reverse": false
+    },
+    "clearance_cost_weight": 0.0,
+    "steering_cost_weight": 0.0,
+    "max_expanded_nodes": null
+  },
+  "success": "collision-free position within 0.5 m; yaw descriptive",
+  "decision_rule": "held-out support iff candidate reach wins > losses vs A* over all pairs and no family has more losses than wins",
+  "execution_policy": "single evaluation run; no validation, selection, tuning, or resume",
+  "acceptance_audit": "post-run deterministic re-plan of candidate and ablation; descriptive only",
+  "source_sha256": {
+    "src/raceplan/__init__.py": "6399a7c82eaa7a34ec2cc8661819178423f9681912f510da10eab5d0991bc947",
+    "src/raceplan/analyze.py": "6b1b468b197b1c0a4cc73b9c2a434f09ece99532fe4f90064264eaddaf48e998",
+    "src/raceplan/common/__init__.py": "366badf2231b9ba754171a12fc8d397ca1a7b8155603a2726b26b138c58092e3",
+    "src/raceplan/common/grid.py": "71d9ee1eb086f1d62113f1985d5f7bcffab9c302aa98e14036b5c28d09d57d39",
+    "src/raceplan/common/inflation.py": "dea13a9ae59e9af464cab21158553bacbd516a04e1792a542fef08667a3e7eb3",
+    "src/raceplan/common/map_io.py": "af21b5d0b19e1f3566e491cccf49eadd63440b10cd6aaca8773dc1655145525b",
+    "src/raceplan/common/planning_space.py": "6bbe25eabda436f04654abdbd9ba86649df920ef459ba30672b81daada1091d5",
+    "src/raceplan/common/scenario.py": "74dbd9ecf1e2faa92e5c27562ba55168f7aa9681e20127d3294cdba98e352bfb",
+    "src/raceplan/common/types.py": "2790d5a61059b4fe64bd9e36ab4b8067cfaa751b631d21fdb95c3c6c806e50f4",
+    "src/raceplan/common/vehicle.py": "0e832950f4e7a4d35576d967884fe01a9f16a8aeb8d4ed663cad80b6faab615c",
+    "src/raceplan/compare.py": "41bc6be859c0648aa8313d58d22709f2e17c87a871f1aa4ed13bebb74b0a6be7",
+    "src/raceplan/controllers/__init__.py": "53554b8d61ce2d92413750ede8be02c6a35a51fc20e1735852f7d5425a2c953c",
+    "src/raceplan/controllers/pid.py": "6194677d84467a9ecf111b7be2f9fd8ce368a2b6143be38c325211b572b73aea",
+    "src/raceplan/controllers/pure_pursuit.py": "e0619192be507f3182b7aa27af2f7db19afccc69e7fa6b2091294cc8974b5980",
+    "src/raceplan/corridor_suite.py": "70caa94e19b59d229bc3fb47891e98f870f7be4acb87bdfbcc0f3e6c69e7fa3c",
+    "src/raceplan/custom_report.py": "ad9321862568088bcd230c54540ec3025cdffcde23791681b95647d287a5d1d0",
+    "src/raceplan/defaults.py": "2b738343efda5035f801933e6bc5a9d6d3a262e171226df5e34e45fb041e5c16",
+    "src/raceplan/experiment.py": "e78e3320ed95147ffdb0dbd2a370f8ec0d207443a6cb4cc7c729100912377997",
+    "src/raceplan/metrics.py": "90b534dbabdc1059285eb3f4687275a0fa11642060a13cd066dab18cc79a2bf3",
+    "src/raceplan/planners/__init__.py": "f63140211d3b873fc37ec08d05f3fc97f03403b4d5accd1e2583044218429d4c",
+    "src/raceplan/planners/_grid_search.py": "435e146b11dde092c5534d0c835b3be7efbccf4991dae4bd046a83c4e32f620d",
+    "src/raceplan/planners/astar.py": "26512ac76a14808373f72d3874d65402a01d144fd77c59d4e2fc45c863a32e01",
+    "src/raceplan/planners/base.py": "8c9cce2449a9c92643e86082649225017f9e4ad2de8ef9d8449c34756017883c",
+    "src/raceplan/planners/clearance_astar.py": "fda7b9db44499bfa3615f9a35925841ad1e91aebf30a6ae81d9b5c29fe2d64c7",
+    "src/raceplan/planners/custom.py": "655f98429f6547b424036e3bb85ce2a37111ead3a2a992a0ae7a34587b4a480a",
+    "src/raceplan/planners/dijkstra.py": "608ca8a90ee8b3218ac5f4cfbb54326e37da07cbf6766aaadcabab11aa25bccd",
+    "src/raceplan/planners/execution.py": "17d6e57f1dc74067f911b15e65d9576b21862cb95cedb2e17df33e7ae6d4e7e2",
+    "src/raceplan/planners/hybrid_astar.py": "3e46f81ac2c4d7f8fbd0e2c21d9da1365919f03d64e3308b55f53b1a108d5744",
+    "src/raceplan/planners/hybrid_primitives.py": "bb02da218f8b7ee79171893ede79d8183eb79d8da5882d61bf68200d121a398f",
+    "src/raceplan/planners/recovery_alternatives.py": "f2566015af2b870cd49ac413bf4ac8fa6d624a542c8ea17e8172560bb58e9fd1",
+    "src/raceplan/plot_comparison.py": "cc1d196435ca0ccdc0c718071b2cd9ad9e18bc8474b9abfd0fe1c4fb60704baf",
+    "src/raceplan/report.py": "811153716befbd71fdd3e55f169e63a88a416a47f8559f63ea753c6e48d15b31",
+    "src/raceplan/research_analytic.py": "f9e5cb869670277454418a54099940b6f4a4846396ce6f9b143a1d7238625c60",
+    "src/raceplan/research_design.py": "345f454a119a537e152b52eb69d537827e388211c9f50c98f8740a8bbc0b54bf",
+    "src/raceplan/research_engine.py": "3a6328c0b8cdf402fda0ebef9fa71ab966ff5d452b0e4ff2303435a02355101a",
+    "src/raceplan/research_features.py": "c955fdd7a9d8994958f674885865e9db8a07d10b12937d8ae0e98339a84ba027",
+    "src/raceplan/simulator/__init__.py": "7055da474faf6bf7fd002a492f5c5a0633a87f665c6670a13c3529c53a6fd586",
+    "src/raceplan/simulator/kinematic.py": "c5855495e4e2bf037607b7e4551a7bece34869f9a84098c007dd0b0fdc67da1e",
+    "src/raceplan/simulator/noise.py": "e18a4eb430525c03bff2caa2a7e4f415042fe8011ddaa376d866019832e3ba6f",
+    "src/raceplan/simulator/obstacle_guard.py": "14fc6556e6a7ea6c5a95680d71482dc4a9591e6a91fed1afdfa2cafff23ea614",
+    "src/raceplan/simulator/recovery.py": "8c8c0b20da89153bd47672eee90e5e5332daa919dcfe09f506dec76d59c7442c",
+    "src/raceplan/suite.py": "91fc3f1f03f39ff1e5df814a10d7a5eceb302c6e298dd21082ba204ca5afe83a",
+    "src/raceplan/workflow.py": "9ab1e2000b8e612202fdb6f1cd0358998798b0589bcf68446e7a4b47b289a5ce",
+    "examples/smoothed_astar_planner.py": "a7bb9fbd2f0180c46d5c4e7b9c1d2db80a5be9dfea9fa747a4b31ed35e311e0b",
+    "results/smoothing_holdout.py": "edc80108c9091848a6f40b60e897ed51a8545051c9200a9d7c41c477acfe9c44",
+    "results/turn_aware_query_identity_v2.py": "20b6cce2ccd9e430c297a1662fa8cb88e2ae80cb94b9e5a416d3785dba16f2bd"
+  },
+  "input_sha256": {
+    "design_snapshot.md": "099c382fdc1c9a3237672e2ba0b4ccb9908ff72a64e9dfa114b8cf8bf0eea684",
+    "inputs/offset_islands/a/geometry.json": "ae480ece65c227815ef323cf6b0472c9bc096deb5c94203968f466f62d3efbb7",
+    "inputs/offset_islands/a/map.pgm": "e27ade57e1c8f8297aa6ce31723e2b8e8855331a6820fd69d7a748cd648a00d6",
+    "inputs/offset_islands/a/map.yaml": "0f7936fa6e14a0eb842287e537efef347abec88f8bb352ead1382165b1271706",
+    "inputs/offset_islands/a/q0.yaml": "80112ff5fc3a2324d8621dfe1358b4bb9135a609f3b9ee7f501dcde790578702",
+    "inputs/offset_islands/a/q1.yaml": "546257f82a827d2cf7fb482a5c023eebc2adf089ad042f02ba35332a43c027b3",
+    "inputs/offset_islands/b/geometry.json": "8296663e2be4aaf998bafda0707d29677c3dc19a18eab3551dc6ea846da8168f",
+    "inputs/offset_islands/b/map.pgm": "169087b796a91c836fa3dae4fd7f59adaa91b07633ebcf937328ec3a0a1702ad",
+    "inputs/offset_islands/b/map.yaml": "0f7936fa6e14a0eb842287e537efef347abec88f8bb352ead1382165b1271706",
+    "inputs/offset_islands/b/q0.yaml": "5c47492a526739bc3a429b7d3e571b9f8d80e45c557d44e930011ffdf69d45a5",
+    "inputs/offset_islands/b/q1.yaml": "60ca66cd578d01839625ecb8a147f5a479d7d9af772da3d9b2146429b5e6f1e5",
+    "inputs/slalom_walls/a/geometry.json": "cab4c9a5b942cc06183721c643e8c0c226770a21a8f6c48a088e38475df45dd1",
+    "inputs/slalom_walls/a/map.pgm": "f796758d5389207fc76066d39ae8114d0a0dcdd228fb30cedaaecf90bc196c33",
+    "inputs/slalom_walls/a/map.yaml": "0f7936fa6e14a0eb842287e537efef347abec88f8bb352ead1382165b1271706",
+    "inputs/slalom_walls/a/q0.yaml": "e653b0f3abf15fcdb7738f8203c10d153ea3e3694f95e046c9aabe14c0db8b97",
+    "inputs/slalom_walls/a/q1.yaml": "2e753c568082c665c2f38f576b8cee6045aa52bcb5f40ad288134680bad4f6e1",
+    "inputs/slalom_walls/b/geometry.json": "0dc371d80cd03876c45a5b7860aec55c01d31617af0382edcfec8f7c4bfc7d0e",
+    "inputs/slalom_walls/b/map.pgm": "b59cc217cc5bc1cc77b0b034e27739c5643b394db642f0f39d181f9ea986a7f0",
+    "inputs/slalom_walls/b/map.yaml": "0f7936fa6e14a0eb842287e537efef347abec88f8bb352ead1382165b1271706",
+    "inputs/slalom_walls/b/q0.yaml": "6a3f3fcb01a4856141deeef6d47881c244cb5ea7a0e7c2f5ff7ac2a33023de5c",
+    "inputs/slalom_walls/b/q1.yaml": "7b4fe726783919695e2b2f17c3bc09f1882534846f8e5395b39a8e639dd9f346",
+    "inputs/staggered_windows/a/geometry.json": "70ba7f51db80ba81a3d4d20a4869282e918b9eb4e7649babd65c230376bd71cb",
+    "inputs/staggered_windows/a/map.pgm": "e6a484f68d3de7f734be3b54c906d0f6e9525c3b78fcc711cc3a8b2b9b713309",
+    "inputs/staggered_windows/a/map.yaml": "0f7936fa6e14a0eb842287e537efef347abec88f8bb352ead1382165b1271706",
+    "inputs/staggered_windows/a/q0.yaml": "dc03ac946a7c0e40406b954913693f0e9ccc6f68fe642edad01e350b3fc5f9cd",
+    "inputs/staggered_windows/a/q1.yaml": "a20ee86ba6317090ecfcb14a7507197f9357bf978bfc01c36a8d66af44038dfe",
+    "inputs/staggered_windows/b/geometry.json": "ee57f4d49d2c4fd4d3b5307486d9059acbdec53162ce7199bb12380b75fcd6d6",
+    "inputs/staggered_windows/b/map.pgm": "c2ac43c35e583f6a60317726f5ecbaae83ff7288869de49f7bb392145efd96f7",
+    "inputs/staggered_windows/b/map.yaml": "0f7936fa6e14a0eb842287e537efef347abec88f8bb352ead1382165b1271706",
+    "inputs/staggered_windows/b/q0.yaml": "ea87bc519062b5017b383c1832fe606783c30bcd0ab67bce9e9887c6ca347d62",
+    "inputs/staggered_windows/b/q1.yaml": "0abbee40d569a4a89b46417bb30f73075a06008991c42d2444f20327a5435839",
+    "novelty.json": "810c1d20dbd93dad7b6f6e0669f619d88f54b5e3e2790c508ad44a3e437f3607"
+  }
+}

@@ -1,6 +1,16 @@
 # 작업 인계 — 2026-11-23
 
-## 최신: A* 경로 후처리 개발 비교
+## 최신: A* 경로 후처리 신규 지도 held-out 완료
+
+`results/smoothing_holdout.py`로 새 6지도(3family, slalom_walls 신규)·12 query·seed31–33을
+v2 identity 신규성 검사와 함께 봉인한 뒤 5 planner 180 episode를 한 번 실행했다. 관련
+**5 passed**, 전체 **130 passed (10.68s)** 뒤 실행. 후보 `SmoothedLowClearance` 18/36,
+A* 3/36, Hybrid A* 15/36, ablation 3/36. A* 대비 15승0패, 모든 family net loss 없음으로
+사전 판정 "held-out 지지". 후처리 채택 6/12 query는 18/18 도달, 거부 6 query(곡률5·
+footprint1)는 A*와 같이 충돌했다. 다음 후보는 곡률 거부를 줄이는 별도 개발이며 이
+evaluation은 재사용하지 않는다. 상세 `docs/SMOOTHING_HOLDOUT.md`.
+
+## A* 경로 후처리 개발 비교
 
 사용자 "이전 작업 이어서" 요청으로 급회전 비교가 남긴 후처리 가설을 구현했다.
 `examples/smoothed_astar_planner.py`는 A* 경로를 clearance 반발 + implicit 2차 차분

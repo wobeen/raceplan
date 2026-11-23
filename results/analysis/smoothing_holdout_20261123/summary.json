@@ -1,0 +1,97 @@
+{
+  "outcomes": [
+    {
+      "planner": "dijkstra",
+      "episodes": 36,
+      "reached": 0,
+      "collisions": 36,
+      "timeouts": 0,
+      "planning_failures": 0,
+      "planning_calls": 12,
+      "smoothing_accepted": 0,
+      "success_median_tracking_rmse_m": null,
+      "success_median_completion_time_s": null,
+      "driven_median_min_clearance_m": 0.0,
+      "planning_time_ms_median": 10.358699946664274,
+      "planning_time_ms_p95": 17.259390006074682
+    },
+    {
+      "planner": "astar",
+      "episodes": 36,
+      "reached": 3,
+      "collisions": 33,
+      "timeouts": 0,
+      "planning_failures": 0,
+      "planning_calls": 12,
+      "smoothing_accepted": 0,
+      "success_median_tracking_rmse_m": 0.11233368564392648,
+      "success_median_completion_time_s": 10.850000000000001,
+      "driven_median_min_clearance_m": 0.0,
+      "planning_time_ms_median": 5.1783499657176435,
+      "planning_time_ms_p95": 13.379530038218943
+    },
+    {
+      "planner": "hybrid_astar",
+      "episodes": 36,
+      "reached": 15,
+      "collisions": 21,
+      "timeouts": 0,
+      "planning_failures": 0,
+      "planning_calls": 12,
+      "smoothing_accepted": 0,
+      "success_median_tracking_rmse_m": 0.042194114523406975,
+      "success_median_completion_time_s": 11.65,
+      "driven_median_min_clearance_m": 0.0,
+      "planning_time_ms_median": 176.1675999732688,
+      "planning_time_ms_p95": 487.8416449762881
+    },
+    {
+      "planner": "smoothed_low_clearance",
+      "episodes": 36,
+      "reached": 18,
+      "collisions": 18,
+      "timeouts": 0,
+      "planning_failures": 0,
+      "planning_calls": 12,
+      "smoothing_accepted": 6,
+      "success_median_tracking_rmse_m": 0.03590400138023213,
+      "success_median_completion_time_s": 10.975000000000001,
+      "driven_median_min_clearance_m": 0.008825477921753373,
+      "planning_time_ms_median": 93.13855005893856,
+      "planning_time_ms_p95": 157.25822002277707
+    },
+    {
+      "planner": "smoothed_no_clearance",
+      "episodes": 36,
+      "reached": 3,
+      "collisions": 33,
+      "timeouts": 0,
+      "planning_failures": 0,
+      "planning_calls": 12,
+      "smoothing_accepted": 1,
+      "success_median_tracking_rmse_m": 0.03665107193231903,
+      "success_median_completion_time_s": 10.8,
+      "driven_median_min_clearance_m": 0.0,
+      "planning_time_ms_median": 94.69479997642338,
+      "planning_time_ms_p95": 192.53673006314781
+    }
+  ],
+  "decision": {
+    "rule": "wins > losses overall and no family net loss vs A*",
+    "overall_wins": 15,
+    "overall_losses": 0,
+    "family_net": {
+      "staggered_windows": 6,
+      "offset_islands": 3,
+      "slalom_walls": 6
+    },
+    "held_out_supported": true
+  },
+  "versus_hybrid": {
+    "pairs": 36,
+    "candidate_only": 9,
+    "hybrid_only": 6,
+    "both": 9
+  },
+  "wall_time_s": 17.604736000066623
+}
