@@ -1,3 +1,17 @@
+# 작업 인계 — 2026-11-23
+
+## 최신: A* 경로 후처리 개발 비교
+
+사용자 "이전 작업 이어서" 요청으로 급회전 비교가 남긴 후처리 가설을 구현했다.
+`examples/smoothed_astar_planner.py`는 A* 경로를 clearance 반발 + implicit 2차 차분
+평활화로 다듬고, footprint 0.02m 여유와 곡률 1.4685/m 한계를 통과할 때만 채택하며
+아니면 A* 경로를 그대로 반환한다. 파라미터는 validation이 아닌 지도의 기하 검사로
+먼저 고정했다. 신규 테스트6개 포함 전체 **125 passed (12.80s)**, 공개 validation
+48 episode 1회 실행. 목표0.30이 12/12 도달·충돌0(A* 6/12), 승리6·패배0, 양쪽 도달
+RMSE 중앙값 −0.070m. 목표0.45는 곡률 초과, 평활화만은 footprint 거부로 A*와 같다.
+개발 선택일 뿐이며 다음 단계는 새 지도·query로 사전 봉인한 held-out 평가다.
+상세 `docs/SMOOTHING_DEVELOPMENT_20261123.md`, 집계 `results/analysis/smoothing_development_20261123/`.
+
 # 작업 인계 — 2026-11-05
 
 ## 현재 커밋 원칙과 다음 개발

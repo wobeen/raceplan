@@ -102,7 +102,7 @@ The manifest records settings, source hashes, map provenance, and environment.
 Summary, path, and trajectory CSVs preserve planning failures and driving outcomes.
 See [map conventions](maps/README.md) for map inputs.
 
-Run `.\.venv\Scripts\python.exe -m pytest -q` after installation. The last full verification passed 113 tests.
+Run `.\.venv\Scripts\python.exe -m pytest -q` after installation. The last full verification passed 125 tests.
 Experimental candidates and historical runners are indexed separately in
 [feature scope](docs/FEATURE_SCOPE.md) (Korean), [results](results/README.md), and
 [handoff](docs/HANDOFF.md). Earlier README content is retained under

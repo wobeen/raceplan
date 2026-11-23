@@ -1,0 +1,40 @@
+{
+  "kind": "development_selection_not_held_out_evaluation",
+  "source_split": "turn_aware_holdout_20261103/validation only",
+  "families": [
+    "offset_islands",
+    "staggered_windows"
+  ],
+  "queries_per_family": 2,
+  "seeds": [
+    11,
+    12,
+    13
+  ],
+  "planners": [
+    "astar",
+    "smoothed_astar",
+    "smoothed_low_clearance",
+    "smoothed_no_clearance"
+  ],
+  "noise": {
+    "initial-position-std-m": 0.02,
+    "initial-yaw-std-rad": 0.02,
+    "steering-std-rad": 0.01,
+    "speed-measurement-std-mps": 0.02
+  },
+  "episodes": 48,
+  "wall_time_s": 7.176876500016078,
+  "source_sha256": {
+    "examples\\smoothed_astar_planner.py": "a7bb9fbd2f0180c46d5c4e7b9c1d2db80a5be9dfea9fa747a4b31ed35e311e0b",
+    "results\\smoothing_development.py": "98f7468997f9056869dbac1317ff3db017c8f092af61b30b04b6b1b9ecbd53e8"
+  },
+  "input_sha256": {
+    "results\\analysis\\turn_aware_holdout_20261103\\inputs\\validation\\offset_islands\\q0.yaml": "94740854b19c4cb5cf3bf41739430b15c5d9208ef4ef174f186faac5131a869f",
+    "results\\analysis\\turn_aware_holdout_20261103\\inputs\\validation\\offset_islands\\q1.yaml": "e79ad045a7f086316158a704ebbe722ac4877bd0aca7ad830cb06e64309c857d",
+    "results\\analysis\\turn_aware_holdout_20261103\\inputs\\validation\\staggered_windows\\q0.yaml": "18db448f681ff3b03f2a8a1d12f2814ecc2398c92bd83844c0df74f87c826db7",
+    "results\\analysis\\turn_aware_holdout_20261103\\inputs\\validation\\staggered_windows\\q1.yaml": "6a8631658d2487295bb7f9c4a2f73e6736eff1678fc2ff00a15f032b3647974e"
+  },
+  "parameter_fixing": "demo, validation_open, corridor_width maps; geometry only, no driving",
+  "selection_rule": "prefer no reach-rate regression vs A*; then lower median successful RMSE and max discrete curvature; evaluation remains unused"
+}
