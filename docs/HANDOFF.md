@@ -5,10 +5,11 @@
 `results/smoothing_holdout.py`로 새 6지도(3family, slalom_walls 신규)·12 query·seed31–33을
 v2 identity 신규성 검사와 함께 봉인한 뒤 5 planner 180 episode를 한 번 실행했다. 관련
 **5 passed**, 전체 **130 passed (10.68s)** 뒤 실행. 후보 `SmoothedLowClearance` 18/36,
-A* 3/36, Hybrid A* 15/36, ablation 3/36. A* 대비 15승0패, 모든 family net loss 없음으로
-사전 판정 "held-out 지지". 후처리 채택 6/12 query는 18/18 도달, 거부 6 query(곡률5·
-footprint1)는 A*와 같이 충돌했다. 다음 후보는 곡률 거부를 줄이는 별도 개발이며 이
-evaluation은 재사용하지 않는다. 상세 `docs/SMOOTHING_HOLDOUT.md`.
+A* 3/36, Hybrid A* 15/36(우열 아님), ablation 3/36. A* 대비 15승0패로 사전 판정은 "지지"지만,
+query 단위로는 A* 실패 query 11개 중 5개 복구이고 무회귀 근거는 A* 성공 query 1개뿐이다
+(2026-11-24 Fable 5.2 정책 검토 P1-2). 채택 6/12 query는 18/18 도달, 거부 6 query(곡률5·
+footprint1)는 A*와 같이 충돌했다. 독립 검증 없이 커밋됐고 이 evaluation은 재사용하지
+않는다. 상세 `docs/SMOOTHING_HOLDOUT.md`.
 
 ## A* 경로 후처리 개발 비교
 
