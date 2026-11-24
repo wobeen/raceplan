@@ -156,3 +156,42 @@ $env:PYTHONPATH = (Resolve-Path src).Path
   (`untestable` 예상, 영향 작음).
 
 이 반영(코드 변경 포함)을 커밋한 것이 최종 사전 등록이며, 그 커밋을 `--prereg-commit`으로 넘긴다.
+P2-a의 감사 예외 처리, decision 필드 추가, 주석 수정은 2차 검토 뒤의 코드 변경이며 재검토를 받지
+않았다. 판정 계산식과 후보 동작은 바뀌지 않았다.
+
+## 단일 실행 결과 (2026-11-24)
+
+최종 사전 등록 `6f8456a`에서 추적 파일 diff 0을 확인했다. 실행 직전 `tests/test_leadin_rescue.py`
+**13 passed**였고, 이어서 runner를 한 번 실행했다(`--prereg-commit 6f8456a`, 실행 커밋 동일).
+360 episode, wall time 61.2s다. 감사 재계획 경로 80개(20 query × 후처리 planner 4개)가 저장 경로와 모두 pose 단위로 일치했고
+구제 timeout은 0건이다.
+
+**판정: 선택 없음(`none`).** 기존 후보가 거부한 query는 예상대로 7개, 필요 순증은 2개였다.
+무회귀 근거는 `untestable`이다(거부 query 중 A* 경로로 도달한 것이 0개).
+
+| planner | 도달 query/20 | 도달 episode/60 | 후처리 채택 query | 계획시간 median/P95(ms) |
+|---|---:|---:|---:|---:|
+| A* | 3 | 9 | – | 4.2 / 9.0 |
+| Hybrid A* | 10 | 29 | – | 144.6 / 514.0 |
+| 기존 `smoothed_low_clearance` | 12 | 36 | 13 | 107.9 / 151.5 |
+| `leadin_rescue_k3` | 12 | 36 | 16 | 128.5 / 759.9 |
+| `leadin_rescue_k6` | 12 | 36 | 16 | 130.2 / 1219.5 |
+| `leadin_straight`(ablation) | 12 | 36 | 13 | 128.0 / 501.8 |
+
+두 후보는 거부 7개 중 같은 3개(turn_aware evaluation staggered_windows q0, held-out
+offset_islands a q0·b q1)에서 검증을 통과한 lead-in 경로를 만들었다. 셋 다 첫 호는 길이
+0.6m, 곡률 ±1.317/m(한계의 90%)였다. 하지만 9개 episode 모두 출발 2.25–2.8s에 충돌했다.
+구제 경로의 footprint 여유는 0.030–0.048m로 기준 0.02m는 넘었다. 그러나 해당 episode의 추종
+RMSE가 0.034–0.047m로 이 여유와 같은 크기였다. 차량은 첫 장애물 모서리를 지나다
+닿았다. 직선 ablation은 구제 0건으로 기존 후보와 같았다. Hybrid A*는 거부 query 중
+staggered_windows b q0, offset_islands b q1에서 3/3 도달했다(보조 기술통계).
+
+**해석**: 경로 검증의 footprint 여유 0.02m가 고정 tracker의 실제 추종 오차보다 작아서,
+"검증 통과"가 "주행 가능"을 뜻하지 않았다. 출발 급회전 문제는 경로 기하에서는 풀렸지만
+주행 여유가 부족했다. 사전 규칙에 따라 이 입력에서 더 조정하지 않는다. 후속 가설을
+정한다면 "검증 여유를 추종 오차 이상으로 두는 것"이 될 것이다. 다만 그것은 새 스텝이고 새 승인이
+필요하다. 이 20 query는 그 가설의 개발 근거로 이미 노출됐다.
+
+산출물: 원본 `results/raw/leadin_rescue_development_20261124/`(ignore), 공유
+`results/analysis/leadin_rescue_development_20261124/`(protocol_start/protocol/decision/summary/
+queries/acceptance), 대표 PNG 2장 `results/figures/leadin_rescue_development_20261124/`.

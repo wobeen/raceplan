@@ -1,0 +1,61 @@
+{
+  "rule": "query reached iff >=2 of 3 seeds reached. Any acceptance-audit mismatch invalidates the run. Candidates can differ from the reference only on queries whose reference post-processing was rejected (raw A* fallback), so the effect denominator is that rejected set; undecidable if it has fewer than 4 queries. A candidate is eligible iff it loses no query reached by the reference or by A* and its net query gain over the reference is >= max(2, ceil(0.25 x rejected queries)). No-regression evidence is \"tested\" only if at least 2 rejected queries were reached by the reference fallback; otherwise a selection is labelled \"selected on gain only, regression untestable\". Among eligible candidates pick highest net gain, then more accepted queries, then lower planning-time P95, then fewer lead-in attempts (k3 before k6). The straight-only ablation is never selectable.",
+  "queries": 20,
+  "reference_rejected_queries": [
+    "smoothing_holdout_20261123__offset_islands__a__q0",
+    "smoothing_holdout_20261123__offset_islands__b__q0",
+    "smoothing_holdout_20261123__offset_islands__b__q1",
+    "smoothing_holdout_20261123__slalom_walls__a__q0",
+    "smoothing_holdout_20261123__slalom_walls__b__q1",
+    "smoothing_holdout_20261123__staggered_windows__b__q0",
+    "turn_aware_holdout_20261103__evaluation__staggered_windows__q0"
+  ],
+  "rejected_and_fallback_reached": [],
+  "required_net_gain": 2,
+  "no_regression_evidence": "untestable",
+  "reference_reached_queries": 12,
+  "astar_reached_queries": 3,
+  "hybrid_reached_queries": 10,
+  "audit_all_match": true,
+  "audit_mismatches": [],
+  "rescue_timeouts": {},
+  "candidates": [
+    {
+      "planner": "leadin_rescue_k3",
+      "queries_reached": 12,
+      "gains_vs_reference": [],
+      "losses_vs_reference": [],
+      "losses_vs_astar": [],
+      "net_gain_vs_reference": 0,
+      "accepted_queries": 16,
+      "planning_time_ms_p95": 759.9090149975383,
+      "eligible": false
+    },
+    {
+      "planner": "leadin_rescue_k6",
+      "queries_reached": 12,
+      "gains_vs_reference": [],
+      "losses_vs_reference": [],
+      "losses_vs_astar": [],
+      "net_gain_vs_reference": 0,
+      "accepted_queries": 16,
+      "planning_time_ms_p95": 1219.481890194584,
+      "eligible": false
+    },
+    {
+      "planner": "leadin_straight",
+      "queries_reached": 12,
+      "gains_vs_reference": [],
+      "losses_vs_reference": [],
+      "losses_vs_astar": [],
+      "net_gain_vs_reference": 0,
+      "accepted_queries": 13,
+      "planning_time_ms_p95": 501.77969500655314,
+      "eligible": false
+    }
+  ],
+  "verdict": "none",
+  "selected": null,
+  "selection_label": "",
+  "follow_up": "record negative result; do not tune further on these inputs"
+}
