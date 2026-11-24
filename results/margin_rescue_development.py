@@ -333,54 +333,57 @@ def run(output: Path, prereg_commit: str, seeds=DEV_SEEDS):
     }
     previous.write_json(output / 'protocol_start.json', protocol)
     started = perf_counter()
-    episodes, plans, audit_rows = [], [], []
-    for scenario in inputs:
-        case = f'{scenario.parent.name}__{scenario.stem}'
-        try:
+    stage = 'start'
+    try:
+        episodes, plans, audit_rows = [], [], []
+        for scenario in inputs:
+            stage = case = f'{scenario.parent.name}__{scenario.stem}'
             local, stored = run_case(output, scenario, case)
-        except BaseException as exc:
-            # Pre-registered: an interrupted run is recorded, never resumed or repeated.
-            previous.write_json(output / 'aborted.json', {
-                'case': case, 'error': f'{type(exc).__name__}: {exc}',
-                'follow_up': FOLLOW_UP['aborted'], 'wall_time_s': perf_counter() - started})
-            raise
-        episodes += [{'case': case, **row} for row in local]
-        seen = set()
-        for row in local:
-            if row['planner'] not in seen:
-                seen.add(row['planner'])
-                plans.append({'planner': row['planner'], 'planning_time_ms': row['planning_time_ms']})
-        audit_rows += audit(scenario, case, stored)
+            episodes += [{'case': case, **row} for row in local]
+            seen = set()
+            for row in local:
+                if row['planner'] not in seen:
+                    seen.add(row['planner'])
+                    plans.append({'planner': row['planner'],
+                                  'planning_time_ms': row['planning_time_ms']})
+            audit_rows += audit(scenario, case, stored)
 
-    planning_p95, summary_rows = {}, []
-    for planner in PLANNERS:
-        rows = [r for r in episodes if r['planner'] == planner]
-        times = [float(r['planning_time_ms']) for r in plans
-                 if r['planner'] == planner and r['planning_time_ms'] != '']
-        planning_p95[planner] = float(np.quantile(times, .95)) if times else None
-        counts = Counter(r['failure_class'] for r in rows)
-        summary_rows.append({
-            'planner': planner, 'episodes': len(rows), 'reached': counts['reached'],
-            'collisions': counts['driving_collision'] + counts['initial_collision'],
-            'timeouts': counts['timeout'],
-            'planning_failures': sum(v for k, v in counts.items() if k.startswith('planning_')),
-            'accepted_queries': sum(a['planner'] == planner and a['smoothing'] == 'accepted'
-                                    for a in audit_rows),
-            'planning_time_ms_median': float(np.median(times)) if times else None,
-            'planning_time_ms_p95': planning_p95[planner],
-        })
-    decision = decide(episodes, audit_rows, planning_p95)
-    counts = previous.query_outcomes(episodes)
-    query_rows = [{'case': case, **{p: counts[case, p] for p in PLANNERS}}
-                  for case in sorted({r['case'] for r in episodes})]
-    previous.write_csv(output / 'summary.csv', summary_rows)
-    previous.write_csv(output / 'queries.csv', query_rows)
-    previous.write_csv(output / 'acceptance.csv', audit_rows)
-    previous.write_csv(output / 'episodes.csv', episodes)
-    previous.write_json(output / 'protocol.json', protocol | {
-        'episodes': len(episodes), 'wall_time_s': perf_counter() - started,
-        'acceptance_audit_all_match': decision['audit_all_match']})
-    previous.write_json(output / 'decision.json', decision)
+        stage = 'aggregate'
+        planning_p95, summary_rows = {}, []
+        for planner in PLANNERS:
+            rows = [r for r in episodes if r['planner'] == planner]
+            times = [float(r['planning_time_ms']) for r in plans
+                     if r['planner'] == planner and r['planning_time_ms'] != '']
+            planning_p95[planner] = float(np.quantile(times, .95)) if times else None
+            counts = Counter(r['failure_class'] for r in rows)
+            summary_rows.append({
+                'planner': planner, 'episodes': len(rows), 'reached': counts['reached'],
+                'collisions': counts['driving_collision'] + counts['initial_collision'],
+                'timeouts': counts['timeout'],
+                'planning_failures': sum(v for k, v in counts.items() if k.startswith('planning_')),
+                'accepted_queries': sum(a['planner'] == planner and a['smoothing'] == 'accepted'
+                                        for a in audit_rows),
+                'planning_time_ms_median': float(np.median(times)) if times else None,
+                'planning_time_ms_p95': planning_p95[planner],
+            })
+        decision = decide(episodes, audit_rows, planning_p95)
+        counts = previous.query_outcomes(episodes)
+        query_rows = [{'case': case, **{p: counts[case, p] for p in PLANNERS}}
+                      for case in sorted({r['case'] for r in episodes})]
+        previous.write_csv(output / 'summary.csv', summary_rows)
+        previous.write_csv(output / 'queries.csv', query_rows)
+        previous.write_csv(output / 'acceptance.csv', audit_rows)
+        previous.write_csv(output / 'episodes.csv', episodes)
+        previous.write_json(output / 'protocol.json', protocol | {
+            'episodes': len(episodes), 'wall_time_s': perf_counter() - started,
+            'acceptance_audit_all_match': decision['audit_all_match']})
+        previous.write_json(output / 'decision.json', decision)
+    except BaseException as exc:
+        # Pre-registered: an interrupted run is recorded, never resumed, repeated, or re-judged.
+        previous.write_json(output / 'aborted.json', {
+            'stage': stage, 'error': f'{type(exc).__name__}: {exc}',
+            'follow_up': FOLLOW_UP['aborted'], 'wall_time_s': perf_counter() - started})
+        raise
     return summary_rows, decision
 
 
