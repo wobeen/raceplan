@@ -16,8 +16,12 @@ SPEC.loader.exec_module(suite)
 
 def test_new_maps_and_queries_differ_from_all_stored_history():
     history = suite.historical_inventory(ROOT / 'results/raw/smoothing_holdout_20261123')
-    old_maps = set(history['map_fingerprints_v2'].values())
-    old_queries = set(history['query_fingerprints_v2'].values())
+    # The shared copy of this split is committed after the run; it is not prior history.
+    own_copy = ('results', 'analysis', 'smoothing_holdout_20261123')
+    old_maps = {value for key, value in history['map_fingerprints_v2'].items()
+                if Path(key).parts[:3] != own_copy}
+    old_queries = {value for key, value in history['query_fingerprints_v2'].items()
+                   if Path(key).parts[:3] != own_copy}
     # The previous sealed split must be part of the inventory.
     scenario = suite.load_scenario(
         ROOT / 'results/analysis/turn_aware_holdout_20261103/inputs/evaluation/offset_islands/q0.yaml')
