@@ -1,0 +1,4 @@
+planner,baseline,pairs,reach_wins,reach_losses,both_reached,delta_tracking_rmse_m_median,delta_completion_time_s_median,delta_driving_clearance_m_median
+smoothed_astar,astar,12,0,0,6,-0.06912531555303328,0.0,0.036899708150531424
+smoothed_low_clearance,astar,12,6,0,6,-0.0698166723793157,0.0,0.007396316605450152
+smoothed_no_clearance,astar,12,0,0,6,-0.0700607069721817,0.0,0.0

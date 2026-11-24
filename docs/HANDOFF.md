@@ -1,3 +1,28 @@
+# 작업 인계 — 2026-11-23
+
+## 최신: A* 경로 후처리 신규 지도 held-out 완료
+
+`results/smoothing_holdout.py`로 새 6지도(3family, slalom_walls 신규)·12 query·seed31–33을
+v2 identity 신규성 검사와 함께 봉인한 뒤 5 planner 180 episode를 한 번 실행했다. 관련
+**5 passed**, 전체 **130 passed (10.68s)** 뒤 실행. 후보 `SmoothedLowClearance` 18/36,
+A* 3/36, Hybrid A* 15/36(우열 아님), ablation 3/36. A* 대비 15승0패로 사전 판정은 "지지"지만,
+query 단위로는 A* 실패 query 11개 중 5개 복구이고 무회귀 근거는 A* 성공 query 1개뿐이다
+(2026-11-24 Fable 5.2 정책 검토 P1-2). 채택 6/12 query는 18/18 도달, 거부 6 query(곡률5·
+footprint1)는 A*와 같이 충돌했다. 독립 검증 없이 커밋됐고 이 evaluation은 재사용하지
+않는다. 상세 `docs/SMOOTHING_HOLDOUT.md`.
+
+## A* 경로 후처리 개발 비교
+
+사용자 "이전 작업 이어서" 요청으로 급회전 비교가 남긴 후처리 가설을 구현했다.
+`examples/smoothed_astar_planner.py`는 A* 경로를 clearance 반발 + implicit 2차 차분
+평활화로 다듬고, footprint 0.02m 여유와 곡률 1.4685/m 한계를 통과할 때만 채택하며
+아니면 A* 경로를 그대로 반환한다. 파라미터는 validation이 아닌 지도의 기하 검사로
+먼저 고정했다. 신규 테스트6개 포함 전체 **125 passed (12.80s)**, 공개 validation
+48 episode 1회 실행. 목표0.30이 12/12 도달·충돌0(A* 6/12), 승리6·패배0, 양쪽 도달
+RMSE 중앙값 −0.070m. 목표0.45는 곡률 초과, 평활화만은 footprint 거부로 A*와 같다.
+개발 선택일 뿐이며 다음 단계는 새 지도·query로 사전 봉인한 held-out 평가다.
+상세 `docs/SMOOTHING_DEVELOPMENT_20261123.md`, 집계 `results/analysis/smoothing_development_20261123/`.
+
 # 작업 인계 — 2026-11-21
 
 ## 보완 2-3: 실행 간 비교 (브랜치 feature/gui-suite-all)

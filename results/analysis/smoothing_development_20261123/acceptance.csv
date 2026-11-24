@@ -1,0 +1,13 @@
+case,planner,status,smoothing,smoothing_reason,smoothed_max_curvature_per_m,smoothed_min_footprint_clearance_m
+offset_islands_q0,smoothed_astar,success,rejected,curvature,1.546984427559262,0.22659109026781507
+offset_islands_q0,smoothed_low_clearance,success,accepted,,1.3934141652537058,0.06251438451029653
+offset_islands_q0,smoothed_no_clearance,success,rejected,footprint_clearance,0.9587719471200777,0.0
+offset_islands_q1,smoothed_astar,success,accepted,,0.4799226418525561,0.28333781608408337
+offset_islands_q1,smoothed_low_clearance,success,accepted,,0.4879838766261654,0.14931196592128093
+offset_islands_q1,smoothed_no_clearance,success,accepted,,0.4920018470050136,0.11822397344734883
+staggered_windows_q0,smoothed_astar,success,accepted,,0.7011580397180105,0.25870370656189867
+staggered_windows_q0,smoothed_low_clearance,success,accepted,,0.5374801874208567,0.11457440393187793
+staggered_windows_q0,smoothed_no_clearance,success,accepted,,0.4920018469969107,0.06948057885901607
+staggered_windows_q1,smoothed_astar,success,rejected,curvature,1.537268134313075,0.22159728358295291
+staggered_windows_q1,smoothed_low_clearance,success,accepted,,1.363928493753034,0.0577842877252913
+staggered_windows_q1,smoothed_no_clearance,success,rejected,footprint_clearance,0.8945406945988582,0.0

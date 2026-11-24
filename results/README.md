@@ -37,6 +37,9 @@ manifest의 경로와 hash로 원본 일치를 확인한다. 실행이나 리포
 | turn_aware_20261103 | 방향 비용 후보 데모 개발 비교 |
 | turn_aware_holdout_20261103 | 신규 split 120건. 후보 일반 개선 근거 부족 |
 | turn_aware_holdout_20261103_correction_v2 | query 숫자형 identity 사후 정정 |
+| sharp_turn_development_20261105 | 공개 validation 60건. 급회전 제곱 비용도 도달률 회귀로 중단 |
+| smoothing_development_20261123 | 공개 validation 48건. A* 후처리 목표0.30 개발 선택 (held-out은 아래 행) |
+| smoothing_holdout_20261123 | 신규 6지도 봉인 평가 180건. 사전 판정 통과, query 단위 A* 실패 11개 중 5개 복구(무회귀 근거 1 query) |
 | recovery_* | 회복 버전별 비교. 기본 CLI와 별도 |
 | obstacle_guard_20261013 | 충돌 감소와 도달 악화 기록 |
 | corridor_width_* / research_* | 과거 통로·비용 후보 연구 |

@@ -1,0 +1,17 @@
+case,planner,reached,episodes,failure_classes
+offset_islands_q0,astar,0,3,driving_collision
+offset_islands_q0,smoothed_astar,0,3,driving_collision
+offset_islands_q0,smoothed_low_clearance,3,3,reached
+offset_islands_q0,smoothed_no_clearance,0,3,driving_collision
+offset_islands_q1,astar,3,3,reached
+offset_islands_q1,smoothed_astar,3,3,reached
+offset_islands_q1,smoothed_low_clearance,3,3,reached
+offset_islands_q1,smoothed_no_clearance,3,3,reached
+staggered_windows_q0,astar,3,3,reached
+staggered_windows_q0,smoothed_astar,3,3,reached
+staggered_windows_q0,smoothed_low_clearance,3,3,reached
+staggered_windows_q0,smoothed_no_clearance,3,3,reached
+staggered_windows_q1,astar,0,3,driving_collision
+staggered_windows_q1,smoothed_astar,0,3,driving_collision
+staggered_windows_q1,smoothed_low_clearance,3,3,reached
+staggered_windows_q1,smoothed_no_clearance,0,3,driving_collision

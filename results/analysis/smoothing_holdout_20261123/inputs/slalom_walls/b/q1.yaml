@@ -1,0 +1,13 @@
+goal:
+- 9.2
+- 1.6
+- 0
+map: map.yaml
+map_seed: null
+name: slalom_walls_b_q1
+simulation_seed: 31
+start:
+- 1.2
+- 5.6
+- 0
+timeout_s: 2.0
