@@ -3,11 +3,15 @@
 No test runs a planner on the development inputs; fixtures are synthetic grids.
 """
 import importlib.util
+import json
 from math import atan2, cos, sin
 from pathlib import Path
+import sys
 
 import numpy as np
+from PIL import Image
 import pytest
+import yaml
 
 from raceplan.common import OccupancyGrid, PlannerStatus, Pose2D
 from raceplan.defaults import baseline_vehicle
@@ -99,6 +103,15 @@ def test_invalid_configuration_and_timeout():
     assert load().plan(grid, start, goal, timeout_s=0).status is PlannerStatus.TIMEOUT
 
 
+def test_running_out_of_time_during_rescue_keeps_the_base_fallback(monkeypatch):
+    planner = load()
+    monkeypatch.setattr(sys.modules[type(planner).__module__], "smooth_rest", lambda *args: None)
+    grid, start, goal = wall_ahead()
+    result = planner.plan(grid, start, goal, timeout_s=30)
+    assert result.status is PlannerStatus.SUCCESS and result.metadata["rescue"] == "timeout"
+    assert result.path == AStarPlanner().plan(grid, start, goal).path
+
+
 def episodes(outcomes):
     """``outcomes[case][planner]`` = reached seed count (0-3)."""
     rows = []
@@ -116,36 +129,66 @@ def outcome(reference, k3, k6, ablation, astar=0):
             "leadin_rescue_k3": k3, "leadin_rescue_k6": k6, "leadin_straight": ablation}
 
 
-def decide(table, accepted=None, p95=None):
-    return runner.decide(episodes(table), accepted or {}, p95 or {
+def decide(table, rejected=(), accepted=None, p95=None, mismatch=False):
+    """Audit rows: the reference is rejected on ``rejected``; ``accepted`` counts per candidate."""
+    accepted = accepted or {}
+    audit = []
+    for case in table:
+        audit.append({"case": case, "planner": runner.REFERENCE, "matches_stored_path": True,
+                      "smoothing": "rejected" if case in rejected else "accepted"})
+    for planner, count in accepted.items():
+        audit += [{"case": f"extra{i}", "planner": planner, "smoothing": "accepted",
+                   "matches_stored_path": True} for i in range(count)]
+    if mismatch:
+        audit[0]["matches_stored_path"] = False
+    return runner.decide(episodes(table), audit, p95 or {
         "leadin_rescue_k3": 10.0, "leadin_rescue_k6": 20.0, "leadin_straight": 5.0})
 
 
-def test_decision_is_undecidable_without_a_reference_stratum():
-    table = {f"q{i}": outcome(3 if i < 4 else 0, 3, 3, 3) for i in range(10)}
-    assert decide(table)["verdict"] == "undecidable"
+def test_too_few_rejected_queries_or_an_audit_mismatch_blocks_any_selection():
+    table = {f"q{i}": outcome(3, 3, 3, 3) for i in range(5)}
+    table |= {f"r{i}": outcome(0, 3, 3, 3) for i in range(3)}
+    few = decide(table, rejected={"r0", "r1", "r2"})
+    assert few["verdict"] == "undecidable" and not any(r["eligible"] for r in few["candidates"])
+    table["r3"] = outcome(0, 3, 3, 3)
+    rejected = {"r0", "r1", "r2", "r3"}
+    assert decide(table, rejected=rejected)["verdict"] == "selected"
+    assert decide(table, rejected=rejected, mismatch=True)["verdict"] == "invalid_audit"
 
 
 def test_any_lost_query_makes_a_candidate_ineligible_and_ablation_is_never_selected():
     table = {f"q{i}": outcome(3, 3, 2 if i else 1, 3) for i in range(5)}
-    table |= {f"g{i}": outcome(0, 2, 3, 3) for i in range(3)}
-    result = decide(table)
+    table |= {f"g{i}": outcome(0, 2, 3, 3) for i in range(4)}
+    result = decide(table, rejected={"g0", "g1", "g2", "g3"})
     rows = {r["planner"]: r for r in result["candidates"]}
     assert rows["leadin_rescue_k6"]["losses_vs_reference"] == ["q0"]
     assert not rows["leadin_rescue_k6"]["eligible"] and not rows["leadin_straight"]["eligible"]
     assert result["selected"] == "leadin_rescue_k3"
 
 
-def test_net_gain_threshold_and_tie_breaks():
+def test_required_gain_scales_with_the_rejected_set_and_tie_breaks():
     base = {f"q{i}": outcome(3, 3, 3, 0) for i in range(5)}
-    one_gain = base | {"g0": outcome(0, 3, 3, 0)}
-    assert decide(one_gain)["verdict"] == "none"
-    two_gains = base | {"g0": outcome(0, 3, 3, 0), "g1": outcome(0, 3, 3, 0)}
-    assert decide(two_gains)["selected"] == "leadin_rescue_k3"
-    more_accepted = decide(two_gains, accepted={"leadin_rescue_k6": 9, "leadin_rescue_k3": 8})
+    rejected = {f"r{i}" for i in range(12)}
+    two = base | {f"r{i}": outcome(0, 3 if i < 2 else 0, 3 if i < 2 else 0, 0) for i in range(12)}
+    result = decide(two, rejected=rejected)
+    assert result["required_net_gain"] == 3 and result["verdict"] == "none"
+    three = base | {f"r{i}": outcome(0, 3 if i < 3 else 0, 3 if i < 3 else 0, 0) for i in range(12)}
+    assert decide(three, rejected=rejected)["selected"] == "leadin_rescue_k3"
+    more_accepted = decide(three, rejected=rejected,
+                           accepted={"leadin_rescue_k6": 2, "leadin_rescue_k3": 1})
     assert more_accepted["selected"] == "leadin_rescue_k6"
-    astar_loss = two_gains | {"a0": outcome(0, 0, 3, 0, astar=3)}
-    assert decide(astar_loss)["selected"] == "leadin_rescue_k6"
+    astar_loss = three | {"a0": outcome(0, 0, 3, 0, astar=3)}
+    assert decide(astar_loss, rejected=rejected)["selected"] == "leadin_rescue_k6"
+
+
+def test_regression_evidence_needs_rejected_queries_the_fallback_reaches():
+    table = {f"r{i}": outcome(3 if i < 2 else 0, 3, 3, 0) for i in range(6)}
+    tested = decide(table, rejected=set(table))
+    assert tested["no_regression_evidence"] == "tested" and tested["selection_label"] == ""
+    table["r1"] = outcome(0, 3, 3, 0)
+    untested = decide(table, rejected=set(table))
+    assert untested["no_regression_evidence"] == "untestable"
+    assert untested["selection_label"] == "selected on gain only, regression untestable"
 
 
 def test_runner_refuses_a_dirty_tracked_tree(monkeypatch):
@@ -156,7 +199,32 @@ def test_runner_refuses_a_dirty_tracked_tree(monkeypatch):
 
 def test_inputs_are_the_twenty_exposed_queries():
     assert len(runner.INPUTS) == len(set(runner.INPUTS)) == 20
+    assert len({runner.case_name(name) for name in runner.INPUTS}) == 20
     for name in runner.INPUTS:
         assert (ROOT / name).is_file()
         assert name.startswith((runner.TURN_AWARE, runner.SMOOTHING))
-    assert not any("/evaluation/" in name and "turn_aware" not in name for name in runner.INPUTS)
+
+
+def test_run_writes_protocol_audit_and_decision_on_a_synthetic_query(tmp_path, monkeypatch):
+    grid, start, goal = wall_ahead()
+    Image.fromarray(np.flipud(np.where(grid.occupied, 0, 255)).astype("uint8")).save(tmp_path / "map.pgm")
+    (tmp_path / "map.yaml").write_text(
+        "image: map.pgm\nresolution: 0.2\norigin: [0.0, 0.0, 0.0]\nsource: test\nlicense: CC0-1.0\n",
+        encoding="utf-8")
+    scenario = tmp_path / "q.yaml"
+    scenario.write_text(yaml.safe_dump({
+        "name": "synthetic", "map": "map.yaml", "start": [start.x, start.y, start.yaw],
+        "goal": [goal.x, goal.y, goal.yaw], "map_seed": None, "simulation_seed": 1,
+        "timeout_s": 5.0}), encoding="utf-8")
+    monkeypatch.setattr(runner, "repository_state", lambda _: {
+        "run_commit": "test", "tracked_tree_dirty": False, "prereg_commit": "test"})
+    output = tmp_path / "out"
+    summary, decision = runner.run(output, "test", inputs=[str(scenario)])
+    assert {row["planner"] for row in summary} == set(runner.PLANNERS)
+    assert all(row["episodes"] == 3 for row in summary)
+    assert decision["audit_all_match"] and decision["verdict"] == "undecidable"
+    assert decision["reference_rejected_queries"]
+    for name in ("protocol_start.json", "protocol.json", "decision.json", "acceptance.csv"):
+        assert (output / name).is_file()
+    protocol = json.loads((output / "protocol.json").read_text(encoding="utf-8"))
+    assert protocol["uv_lock_sha256"] and len(protocol["input_sha256"]) == 3

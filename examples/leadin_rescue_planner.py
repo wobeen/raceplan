@@ -13,7 +13,11 @@ back to the raw A* path does this planner try lead-ins:
    smoothed exactly like the base planner, then verified with the same
    footprint-margin and curvature checks.  The first verified path is returned.
 
-If no lead-in verifies, the base result (raw A* path) is returned.
+If no lead-in verifies, or the time budget runs out during rescue, the base
+result (raw A* path) is returned with ``rescue`` set to ``failed``/``timeout``.
+The A* continuation starts at the cell centre containing the arc end, up to
+0.141 m away; the junction is only accepted if the joined path passes the same
+verification, so the offset can lower the rescue rate but not admit a path.
 """
 from __future__ import annotations
 
@@ -139,8 +143,14 @@ class LeadInRescueK3(Planner):
             return PlannerResult(status, path, expanded, perf_counter() - started,
                                  {**metadata, **extra})
 
-        if first.status is not PlannerStatus.SUCCESS or first.metadata["smoothing"] == "accepted":
+        if first.status is not PlannerStatus.SUCCESS:
+            return result(first.status, first.path, first.expanded_nodes, rescue="base_failed")
+        if first.metadata["smoothing"] == "accepted":
             return result(first.status, first.path, first.expanded_nodes, rescue="not_needed")
+
+        def fallback(expanded, reason, **extra):
+            # The verified base result (raw A* path) stays valid when rescue fails or runs out of time.
+            return result(PlannerStatus.SUCCESS, first.path, expanded, rescue=reason, **extra)
 
         smoothing = self.base.config
         clearance = Clearance(grid)
@@ -153,7 +163,7 @@ class LeadInRescueK3(Planner):
         for curvature in curvatures:
             for length in self.config.lengths_m:
                 if deadline is not None and perf_counter() >= deadline:
-                    return result(PlannerStatus.TIMEOUT, None, expanded)
+                    return fallback(expanded, "timeout")
                 points, headings = arc_points(start, float(curvature), length, smoothing.spacing_m)
                 if any(clearance.footprint(Pose2D(x, y, h), vehicle) < smoothing.footprint_margin_m
                        for (x, y), h in zip(points, headings)):
@@ -177,7 +187,7 @@ class LeadInRescueK3(Planner):
             joined = np.vstack([points, tail[1:]])
             smoothed = smooth_rest(joined, len(points), grid, smoothing, clearance, deadline)
             if smoothed is None:
-                return result(PlannerStatus.TIMEOUT, None, expanded)
+                return fallback(expanded, "timeout")
             accepted, poses, max_curvature, footprint = verify(smoothed, start.yaw, smoothing,
                                                                clearance)
             if accepted:
@@ -187,8 +197,7 @@ class LeadInRescueK3(Planner):
                               lead_in_curvature_per_m=curvature, lead_in_length_m=length,
                               smoothed_max_curvature_per_m=max_curvature,
                               smoothed_min_footprint_clearance_m=footprint)
-        return result(PlannerStatus.SUCCESS, first.path, expanded, rescue="failed",
-                      lead_in_candidates=len(ranked))
+        return fallback(expanded, "failed", lead_in_candidates=len(ranked))
 
 
 class LeadInRescueK6(LeadInRescueK3):
