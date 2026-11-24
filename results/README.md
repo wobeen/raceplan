@@ -57,6 +57,7 @@ manifest의 경로와 hash로 원본 일치를 확인한다. 실행이나 리포
 | smoothing_development_20261123 | 공개 validation 48건. A* 후처리 목표0.30 개발 선택 (held-out은 아래 행) |
 | smoothing_holdout_20261123 | 신규 6지도 봉인 평가 180건. 사전 판정 통과, query 단위 A* 실패 11개 중 5개 복구(무회귀 근거 1 query) |
 | leadin_rescue_development_20261124 | 정책 v2 첫 개발 비교 360건. 구제 경로 3 query 모두 주행 충돌, 선택 없음 |
+| margin_rescue_development_20261125 | 정책 v2 두 번째 개발 비교 432건(절차 생성 seed 1000–1011). 여유 상향 선택 없음 |
 | recovery_* | 회복 버전별 비교. 기본 CLI와 별도 |
 | obstacle_guard_20261013 | 충돌 감소와 도달 악화 기록 |
 | corridor_width_* / research_* | 과거 통로·비용 후보 연구 |

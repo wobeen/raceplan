@@ -1,0 +1,109 @@
+{
+  "rule": "query reached iff >=2 of 3 seeds reached. Any acceptance-audit mismatch invalidates the run. Candidates differ from the reference only where the reference post-processing was rejected (raw A* fallback); that rejected set is the effect denominator and the run is undecidable if it has fewer than 4 queries. A candidate is eligible iff it loses no query reached by the reference or by A* and its net query gain over the reference is >= max(2, ceil(0.25 x rejected queries)). No-regression evidence is \"tested\" only if at least 2 rejected queries were reached by the reference fallback; otherwise a selection is labelled \"selected on gain only, regression untestable\". Among eligible candidates pick highest net gain, then more rescued-and-reached queries, then lower planning-time P95, then the smaller margin. The 0.02 m rescue (ablation) and Hybrid A* are reported, never selected.",
+  "queries": 24,
+  "reference_rejected_queries": [
+    "seed1000_staggered_windows__q0",
+    "seed1001_offset_islands__q0",
+    "seed1004_offset_islands__q1",
+    "seed1005_slalom_walls__q1",
+    "seed1007_offset_islands__q0",
+    "seed1007_offset_islands__q1",
+    "seed1008_slalom_walls__q1",
+    "seed1010_offset_islands__q1",
+    "seed1011_slalom_walls__q1"
+  ],
+  "rejected_and_fallback_reached": [],
+  "required_net_gain": 3,
+  "no_regression_evidence": "untestable",
+  "reference_reached_queries": 13,
+  "astar_reached_queries": 4,
+  "audit_all_match": true,
+  "audit_mismatches": [],
+  "rescue_timeouts": {},
+  "candidates": [
+    {
+      "planner": "margin_rescue_08",
+      "queries_reached": 14,
+      "gains_vs_reference": [
+        "seed1010_offset_islands__q1"
+      ],
+      "losses_vs_reference": [],
+      "losses_vs_astar": [],
+      "net_gain_vs_reference": 1,
+      "rescued_queries": [
+        "seed1010_offset_islands__q1"
+      ],
+      "rescued_and_reached": [
+        "seed1010_offset_islands__q1"
+      ],
+      "planning_time_ms_p95": 1514.6742300363255,
+      "eligible": false
+    },
+    {
+      "planner": "margin_rescue_11",
+      "queries_reached": 13,
+      "gains_vs_reference": [],
+      "losses_vs_reference": [],
+      "losses_vs_astar": [],
+      "net_gain_vs_reference": 0,
+      "rescued_queries": [],
+      "rescued_and_reached": [],
+      "planning_time_ms_p95": 1567.3953349003568,
+      "eligible": false
+    },
+    {
+      "planner": "leadin_rescue_k3",
+      "queries_reached": 16,
+      "gains_vs_reference": [
+        "seed1000_staggered_windows__q0",
+        "seed1007_offset_islands__q0",
+        "seed1010_offset_islands__q1"
+      ],
+      "losses_vs_reference": [],
+      "losses_vs_astar": [],
+      "net_gain_vs_reference": 3,
+      "rescued_queries": [
+        "seed1000_staggered_windows__q0",
+        "seed1007_offset_islands__q0",
+        "seed1007_offset_islands__q1",
+        "seed1010_offset_islands__q1"
+      ],
+      "rescued_and_reached": [
+        "seed1000_staggered_windows__q0",
+        "seed1007_offset_islands__q0",
+        "seed1010_offset_islands__q1"
+      ],
+      "planning_time_ms_p95": 1337.9290650831533,
+      "eligible": false
+    },
+    {
+      "planner": "hybrid_astar",
+      "queries_reached": 6,
+      "gains_vs_reference": [
+        "seed1007_offset_islands__q0"
+      ],
+      "losses_vs_reference": [
+        "seed1001_offset_islands__q1",
+        "seed1002_slalom_walls__q0",
+        "seed1003_staggered_windows__q0",
+        "seed1005_slalom_walls__q0",
+        "seed1006_staggered_windows__q0",
+        "seed1008_slalom_walls__q0",
+        "seed1009_staggered_windows__q0",
+        "seed1011_slalom_walls__q0"
+      ],
+      "losses_vs_astar": [
+        "seed1011_slalom_walls__q0"
+      ],
+      "net_gain_vs_reference": -7,
+      "rescued_queries": [],
+      "rescued_and_reached": [],
+      "planning_time_ms_p95": 991.2490348797289,
+      "eligible": false
+    }
+  ],
+  "verdict": "none",
+  "selected": null,
+  "selection_label": "",
+  "follow_up": "record negative result; do not tune further on these inputs"
+}

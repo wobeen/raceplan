@@ -1,0 +1,161 @@
+{
+  "members": [
+    {
+      "seed": 1000,
+      "family": "staggered_windows",
+      "map_sha256": "c0fe7b071c39a3745c2d0d8e6d441ec4a9acc8c1792cb699177a01aae478ca04",
+      "max_iou": 0.6181818181818182,
+      "max_iou_with": "results/analysis/smoothing_holdout_20261123/inputs/staggered_windows/b/map.yaml",
+      "exact_map_duplicate": false,
+      "exact_query_duplicate": false,
+      "endpoint_footprint_clearance_m": [
+        0.610000000000003,
+        0.610000000000003
+      ]
+    },
+    {
+      "seed": 1001,
+      "family": "offset_islands",
+      "map_sha256": "856fb02e58c9e41f89388223bfd17ea1a891918df542b20446b1c31d9e517ded",
+      "max_iou": 0.7706855791962175,
+      "max_iou_with": "results/analysis/smoothing_holdout_20261123/inputs/offset_islands/a/map.yaml",
+      "exact_map_duplicate": false,
+      "exact_query_duplicate": false,
+      "endpoint_footprint_clearance_m": [
+        0.6100000000000001,
+        0.610000000000003
+      ]
+    },
+    {
+      "seed": 1002,
+      "family": "slalom_walls",
+      "map_sha256": "8c5be0b343c5ee47e02392906ee2c65087066c335e9b6769c4295026488b565f",
+      "max_iou": 0.6012461059190031,
+      "max_iou_with": "results/analysis/smoothing_holdout_20261123/inputs/slalom_walls/a/map.yaml",
+      "exact_map_duplicate": false,
+      "exact_query_duplicate": false,
+      "endpoint_footprint_clearance_m": [
+        0.610000000000003,
+        0.610000000000003
+      ]
+    },
+    {
+      "seed": 1003,
+      "family": "staggered_windows",
+      "map_sha256": "965194dcbc12c8f702d910c5975a63afb8f9fc6138b6c63f599b4343be45a422",
+      "max_iou": 0.569060773480663,
+      "max_iou_with": "generated seed 1002",
+      "exact_map_duplicate": false,
+      "exact_query_duplicate": false,
+      "endpoint_footprint_clearance_m": [
+        0.610000000000003,
+        0.610000000000003
+      ]
+    },
+    {
+      "seed": 1004,
+      "family": "offset_islands",
+      "map_sha256": "37f0aa8e81b1366bfe68990e4dc4512e6da61ed932e2d0801f20b9b663bbb1a0",
+      "max_iou": 0.7423167848699763,
+      "max_iou_with": "results/analysis/smoothing_holdout_20261123/inputs/offset_islands/a/map.yaml",
+      "exact_map_duplicate": false,
+      "exact_query_duplicate": false,
+      "endpoint_footprint_clearance_m": [
+        0.6100000000000001,
+        0.21000000000000085
+      ]
+    },
+    {
+      "seed": 1005,
+      "family": "slalom_walls",
+      "map_sha256": "12c9a73d4e327ea3891255f4bdf5f2b6182d133ad26f04e62009d6b145fdf478",
+      "max_iou": 0.5950920245398773,
+      "max_iou_with": "results/analysis/smoothing_holdout_20261123/inputs/slalom_walls/b/map.yaml",
+      "exact_map_duplicate": false,
+      "exact_query_duplicate": false,
+      "endpoint_footprint_clearance_m": [
+        0.610000000000003,
+        0.610000000000003
+      ]
+    },
+    {
+      "seed": 1006,
+      "family": "staggered_windows",
+      "map_sha256": "f3bc5340b20ecfd51a0eff549c1fc8402d5080516e757321ba52f7193ddd81f6",
+      "max_iou": 0.7492260061919505,
+      "max_iou_with": "generated seed 1002",
+      "exact_map_duplicate": false,
+      "exact_query_duplicate": false,
+      "endpoint_footprint_clearance_m": [
+        0.610000000000003,
+        0.610000000000003
+      ]
+    },
+    {
+      "seed": 1007,
+      "family": "offset_islands",
+      "map_sha256": "fb5bb2ead66e9ab6d58d145d63493a6813e1285cfb170b61f2cf25885a6111a3",
+      "max_iou": 0.8341232227488151,
+      "max_iou_with": "results/analysis/smoothing_holdout_20261123/inputs/offset_islands/b/map.yaml",
+      "exact_map_duplicate": false,
+      "exact_query_duplicate": false,
+      "endpoint_footprint_clearance_m": [
+        0.41000000000000014,
+        0.610000000000003
+      ]
+    },
+    {
+      "seed": 1008,
+      "family": "slalom_walls",
+      "map_sha256": "86dd5801ebcd25b8dc7369203e3285f413488cc9f72d59445c3f961393562bab",
+      "max_iou": 0.85,
+      "max_iou_with": "generated seed 1005",
+      "exact_map_duplicate": false,
+      "exact_query_duplicate": false,
+      "endpoint_footprint_clearance_m": [
+        0.610000000000003,
+        0.610000000000003
+      ]
+    },
+    {
+      "seed": 1009,
+      "family": "staggered_windows",
+      "map_sha256": "720749f2fa0ecc9ba4e05fac736c136974fa8397516de7f3100c4b053dae1843",
+      "max_iou": 0.76875,
+      "max_iou_with": "results/analysis/smoothing_holdout_20261123/inputs/slalom_walls/a/map.yaml",
+      "exact_map_duplicate": false,
+      "exact_query_duplicate": false,
+      "endpoint_footprint_clearance_m": [
+        0.610000000000003,
+        0.610000000000003
+      ]
+    },
+    {
+      "seed": 1010,
+      "family": "offset_islands",
+      "map_sha256": "778d3d0dc9f712b65dcf13c7a7cc7142078611ebf1c46970b64d5d4c8b43d2a0",
+      "max_iou": 0.7850678733031674,
+      "max_iou_with": "results/analysis/smoothing_holdout_20261123/inputs/offset_islands/a/map.yaml",
+      "exact_map_duplicate": false,
+      "exact_query_duplicate": false,
+      "endpoint_footprint_clearance_m": [
+        0.610000000000003,
+        0.41000000000000014
+      ]
+    },
+    {
+      "seed": 1011,
+      "family": "slalom_walls",
+      "map_sha256": "99d394cf0446117cf5864af51bab8cfd69f1a83cb63cea870448212c9c9107de",
+      "max_iou": 0.8169014084507042,
+      "max_iou_with": "generated seed 1008",
+      "exact_map_duplicate": false,
+      "exact_query_duplicate": false,
+      "endpoint_footprint_clearance_m": [
+        0.610000000000003,
+        0.610000000000003
+      ]
+    }
+  ],
+  "near_duplicate_iou": 0.9
+}
