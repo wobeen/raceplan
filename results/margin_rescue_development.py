@@ -23,8 +23,8 @@ from PIL import Image
 import yaml
 
 from raceplan.analyze import main as analyze
-from raceplan.common import (OccupancyGrid, Pose2D, footprint_in_collision, load_occupancy_map,
-                             load_scenario)
+from raceplan.common import OccupancyGrid, Pose2D, load_occupancy_map, load_scenario
+from raceplan.metrics import Clearance
 from raceplan.defaults import baseline_vehicle
 from raceplan.experiment import main as experiment
 from raceplan.planners.custom import load_custom_planner
@@ -54,32 +54,37 @@ TIMEOUT = 2.0
 SEEDS = (11, 12, 13)
 NOISE = previous.NOISE
 CUSTOM = [(BASE_PLUGIN, 'SmoothedLowClearance'), (LEADIN_PLUGIN, 'LeadInRescueK3'),
-          (MARGIN_PLUGIN, 'MarginRescue08'), (MARGIN_PLUGIN, 'MarginRescue11'),
-          (MARGIN_PLUGIN, 'MarginOnly08')]
+          (MARGIN_PLUGIN, 'MarginRescue08'), (MARGIN_PLUGIN, 'MarginRescue11')]
 REFERENCE = 'smoothed_low_clearance'
-PREVIOUS = 'leadin_rescue_k3'
+ABLATION = 'leadin_rescue_k3'   # same rescue with the old 0.02 m margin
 CANDIDATES = ('margin_rescue_08', 'margin_rescue_11')
-ABLATION = 'margin_only_08'
-PLANNERS = ('astar', 'hybrid_astar', REFERENCE, PREVIOUS, *CANDIDATES, ABLATION)
-MIN_REFERENCE_STRATUM = 6
+PLANNERS = ('astar', 'hybrid_astar', REFERENCE, ABLATION, *CANDIDATES)
+MIN_REJECTED = 4
 MIN_GAIN = 2
-MIN_GAIN_FRACTION = 0.10
+MIN_GAIN_FRACTION = 0.25
+MIN_REGRESSION_STRATUM = 2
 NEAR_DUPLICATE_IOU = 0.9
+MIN_ENDPOINT_CLEARANCE_M = 0.15
 DECISION_RULE = (
     'query reached iff >=2 of 3 seeds reached. Any acceptance-audit mismatch invalidates the '
-    f'run. Undecidable if the reference reaches fewer than {MIN_REFERENCE_STRATUM} queries. '
-    'A candidate is eligible iff it loses no query reached by the reference or by A* and '
-    f'its net query gain over the reference is >= max({MIN_GAIN}, ceil({MIN_GAIN_FRACTION} x '
-    'queries)). Among eligible candidates pick highest net gain, then more accepted queries, '
-    'then lower planning-time P95, then the smaller margin. The previous lead-in candidate, '
-    'Hybrid A*, and the margin-only ablation are reported but never selectable.'
+    'run. Candidates differ from the reference only where the reference post-processing was '
+    'rejected (raw A* fallback); that rejected set is the effect denominator and the run is '
+    f'undecidable if it has fewer than {MIN_REJECTED} queries. A candidate is eligible iff it '
+    'loses no query reached by the reference or by A* and its net query gain over the '
+    f'reference is >= max({MIN_GAIN}, ceil({MIN_GAIN_FRACTION} x rejected queries)). '
+    f'No-regression evidence is "tested" only if at least {MIN_REGRESSION_STRATUM} rejected '
+    'queries were reached by the reference fallback; otherwise a selection is labelled '
+    '"selected on gain only, regression untestable". Among eligible candidates pick highest '
+    'net gain, then more rescued-and-reached queries, then lower planning-time P95, then the '
+    'smaller margin. The 0.02 m rescue (ablation) and Hybrid A* are reported, never selected.'
 )
 FOLLOW_UP = {
     'selected': f'stop; a held-out on generator seeds >= {HELD_OUT_SEED_START} needs explicit '
-                'user approval',
+                'user approval and must include rejected queries the reference fallback reaches',
     'none': 'record negative result; do not tune further on these inputs',
     'undecidable': 'record; no selection; no rerun in this step',
     'invalid_audit': 'record only; no rerun in this step; nondeterminism is a new step',
+    'aborted': 'record only; no rerun in this step',
 }
 
 
@@ -144,19 +149,24 @@ def generate(seed: int):
     rectangles = [(0, 0, 10.4, 0.2), (0, 7.0, 10.4, 7.2), (0, 0, 0.2, 7.2),
                   (10.2, 0, 10.4, 7.2)] + interior(family, rng)
     grid = OccupancyGrid(rasterize(rectangles), RESOLUTION)
+    clearance = Clearance(grid)
     queries = []
     for low_to_high in (True, False):
         for _ in range(50):
             low, high = snap(rng.uniform(1.4, 1.8), 0.1), snap(rng.uniform(5.4, 5.8), 0.1)
             start_y, goal_y = (low, high) if low_to_high else (high, low)
             start, goal = Pose2D(1.2, start_y, 0.0), Pose2D(9.2, goal_y, 0.0)
-            if not any(footprint_in_collision(grid, pose, baseline_vehicle())
-                       for pose in (start, goal)):
+            if all(clearance.footprint(pose, baseline_vehicle()) >= MIN_ENDPOINT_CLEARANCE_M
+                   for pose in (start, goal)):
                 queries.append((start, goal))
                 break
         else:
-            raise ValueError(f'seed {seed}: no collision-free query')
+            raise ValueError(f'seed {seed}: no query with {MIN_ENDPOINT_CLEARANCE_M} m endpoint clearance')
     return family, grid, queries, rectangles
+
+
+def iou(first: OccupancyGrid, second: OccupancyGrid) -> float:
+    return float((first.occupied & second.occupied).sum() / (first.occupied | second.occupied).sum())
 
 
 def committed_inventory():
@@ -178,23 +188,31 @@ def committed_inventory():
 
 
 def novelty(generated, inventory):
-    """Exact map/query duplicates and near-duplicate maps (IoU of occupied cells)."""
+    """Exact map/query duplicates and near-duplicate maps (occupied-cell IoU), against the
+    committed inventory and within the generated set."""
     grids, queries = inventory
-    report, seen = [], set()
+    inventory_hashes = {identity.grid_fingerprint_v2(grid) for grid in grids.values()}
+    report, earlier = [], {}
     for seed, (family, grid, pairs, _) in generated.items():
         fingerprint = identity.grid_fingerprint_v2(grid)
-        best = max((float((grid.occupied & other.occupied).sum()
-                          / (grid.occupied | other.occupied).sum()), name)
-                   for name, other in grids.items()
-                   if other.occupied.shape == grid.occupied.shape) if grids else (0.0, '')
-        query_hashes = [identity.query_fingerprint_v2(grid, s, g) for s, g in pairs]
-        report.append({'seed': seed, 'family': family, 'map_sha256': fingerprint,
-                       'max_iou': best[0], 'max_iou_with': best[1],
-                       'exact_map_duplicate': fingerprint in seen or any(
-                           identity.grid_fingerprint_v2(other) == fingerprint
-                           for other in grids.values()),
-                       'exact_query_duplicate': any(q in queries for q in query_hashes)})
-        seen.add(fingerprint)
+        candidates = [(iou(grid, other), name) for name, other in grids.items()
+                      if other.occupied.shape == grid.occupied.shape]
+        candidates += [(iou(grid, other), f'generated seed {other_seed}')
+                       for other_seed, other in earlier.items()]
+        best = max(candidates, default=(0.0, ''))
+        clearance = Clearance(grid)
+        report.append({
+            'seed': seed, 'family': family, 'map_sha256': fingerprint,
+            'max_iou': best[0], 'max_iou_with': best[1],
+            'exact_map_duplicate': fingerprint in inventory_hashes or any(
+                identity.grid_fingerprint_v2(other) == fingerprint for other in earlier.values()),
+            'exact_query_duplicate': any(identity.query_fingerprint_v2(grid, s, g) in queries
+                                         for s, g in pairs),
+            'endpoint_footprint_clearance_m': [
+                min(clearance.footprint(pose, baseline_vehicle()) for pose in pair)
+                for pair in pairs],
+        })
+        earlier[seed] = grid
     bad = [r for r in report if r['exact_map_duplicate'] or r['exact_query_duplicate']
            or r['max_iou'] >= NEAR_DUPLICATE_IOU]
     return report, bad
@@ -230,23 +248,27 @@ def decide(episodes, audit_rows, planning_p95):
     cases = sorted({row['case'] for row in episodes})
     reached = {(case, planner): counts[case, planner] >= 2
                for case in cases for planner in PLANNERS}
+    audit = {(row['case'], row['planner']): row for row in audit_rows}
+    rejected = [c for c in cases if audit.get((c, REFERENCE), {}).get('smoothing') == 'rejected']
+    regression_stratum = [c for c in rejected if reached[c, REFERENCE]]
     reference_reached = [c for c in cases if reached[c, REFERENCE]]
     astar_reached = [c for c in cases if reached[c, 'astar']]
-    required = max(MIN_GAIN, ceil(MIN_GAIN_FRACTION * len(cases)))
+    required = max(MIN_GAIN, ceil(MIN_GAIN_FRACTION * len(rejected)))
     audit_ok = bool(audit_rows) and all(row['matches_stored_path'] for row in audit_rows)
-    decidable = audit_ok and len(reference_reached) >= MIN_REFERENCE_STRATUM
+    decidable = audit_ok and len(rejected) >= MIN_REJECTED
     rows = []
-    for planner in (*CANDIDATES, ABLATION, PREVIOUS, 'hybrid_astar'):
+    for planner in (*CANDIDATES, ABLATION, 'hybrid_astar'):
         losses_reference = [c for c in reference_reached if not reached[c, planner]]
         losses_astar = [c for c in astar_reached if not reached[c, planner]]
         gains = [c for c in cases if reached[c, planner] and not reached[c, REFERENCE]]
+        rescued = [c for c in cases if audit.get((c, planner), {}).get('rescue') == 'lead_in']
         net = len(gains) - len(losses_reference)
         rows.append({
             'planner': planner, 'queries_reached': sum(reached[c, planner] for c in cases),
             'gains_vs_reference': gains, 'losses_vs_reference': losses_reference,
             'losses_vs_astar': losses_astar, 'net_gain_vs_reference': net,
-            'accepted_queries': sum(row['planner'] == planner and row['smoothing'] == 'accepted'
-                                    for row in audit_rows),
+            'rescued_queries': rescued,
+            'rescued_and_reached': [c for c in rescued if reached[c, planner]],
             'planning_time_ms_p95': planning_p95.get(planner),
             'eligible': (decidable and planner in CANDIDATES and not losses_reference
                          and not losses_astar and net >= required),
@@ -257,19 +279,25 @@ def decide(episodes, audit_rows, planning_p95):
         verdict, selected = 'undecidable', None
     else:
         eligible = sorted((r for r in rows if r['eligible']), key=lambda r: (
-            -r['net_gain_vs_reference'], -r['accepted_queries'],
+            -r['net_gain_vs_reference'], -len(r['rescued_and_reached']),
             r['planning_time_ms_p95'] if r['planning_time_ms_p95'] is not None else float('inf'),
             CANDIDATES.index(r['planner'])))
         verdict, selected = ('selected', eligible[0]['planner']) if eligible else ('none', None)
+    evidence = 'tested' if len(regression_stratum) >= MIN_REGRESSION_STRATUM else 'untestable'
     return {'rule': DECISION_RULE, 'queries': len(cases),
+            'reference_rejected_queries': rejected,
+            'rejected_and_fallback_reached': regression_stratum,
+            'required_net_gain': required, 'no_regression_evidence': evidence,
             'reference_reached_queries': len(reference_reached),
-            'astar_reached_queries': len(astar_reached), 'required_net_gain': required,
+            'astar_reached_queries': len(astar_reached),
             'audit_all_match': audit_ok,
             'audit_mismatches': [f"{r['case']}/{r['planner']}" for r in audit_rows
                                  if not r['matches_stored_path']],
             'rescue_timeouts': dict(Counter(r['planner'] for r in audit_rows
                                             if r.get('rescue') == 'timeout')),
             'candidates': rows, 'verdict': verdict, 'selected': selected,
+            'selection_label': ('selected on gain only, regression untestable'
+                                if verdict == 'selected' and evidence == 'untestable' else ''),
             'follow_up': FOLLOW_UP[verdict]}
 
 
@@ -308,28 +336,20 @@ def run(output: Path, prereg_commit: str, seeds=DEV_SEEDS):
     episodes, plans, audit_rows = [], [], []
     for scenario in inputs:
         case = f'{scenario.parent.name}__{scenario.stem}'
-        target = output / 'batches' / case
-        target.mkdir(parents=True)
-        summary = target / 'comparison.csv'
-        command = [str(scenario), '--output', str(summary), '--planners', 'astar', 'hybrid_astar',
-                   '--simulation-seeds', *map(str, SEEDS)]
-        for plugin, classname in CUSTOM:
-            command += ['--custom-planner', f'{plugin}:{classname}']
-        for setting, value in NOISE.items():
-            command += ['--' + setting, str(value)]
-        experiment(command)
-        analyze([str(summary), '--baseline', 'astar', '--output-dir', str(target / 'analysis')])
-        local = previous.read_csv(target / 'analysis/episodes.csv')
+        try:
+            local, stored = run_case(output, scenario, case)
+        except BaseException as exc:
+            # Pre-registered: an interrupted run is recorded, never resumed or repeated.
+            previous.write_json(output / 'aborted.json', {
+                'case': case, 'error': f'{type(exc).__name__}: {exc}',
+                'follow_up': FOLLOW_UP['aborted'], 'wall_time_s': perf_counter() - started})
+            raise
         episodes += [{'case': case, **row} for row in local]
         seen = set()
         for row in local:
             if row['planner'] not in seen:
                 seen.add(row['planner'])
                 plans.append({'planner': row['planner'], 'planning_time_ms': row['planning_time_ms']})
-        stored = {}
-        for row in previous.read_csv(target / 'comparison_paths.csv'):
-            stored.setdefault(row['plan_id'], []).append(
-                (float(row['x_m']), float(row['y_m']), float(row['yaw_rad'])))
         audit_rows += audit(scenario, case, stored)
 
     planning_p95, summary_rows = {}, []
@@ -362,6 +382,26 @@ def run(output: Path, prereg_commit: str, seeds=DEV_SEEDS):
         'acceptance_audit_all_match': decision['audit_all_match']})
     previous.write_json(output / 'decision.json', decision)
     return summary_rows, decision
+
+
+def run_case(output: Path, scenario: Path, case: str):
+    """Experiment and analysis for one query; returns episode rows and stored paths."""
+    target = output / 'batches' / case
+    target.mkdir(parents=True)
+    summary = target / 'comparison.csv'
+    command = [str(scenario), '--output', str(summary), '--planners', 'astar', 'hybrid_astar',
+               '--simulation-seeds', *map(str, SEEDS)]
+    for plugin, classname in CUSTOM:
+        command += ['--custom-planner', f'{plugin}:{classname}']
+    for setting, value in NOISE.items():
+        command += ['--' + setting, str(value)]
+    experiment(command)
+    analyze([str(summary), '--baseline', 'astar', '--output-dir', str(target / 'analysis')])
+    stored = {}
+    for row in previous.read_csv(target / 'comparison_paths.csv'):
+        stored.setdefault(row['plan_id'], []).append(
+            (float(row['x_m']), float(row['y_m']), float(row['yaw_rad'])))
+    return previous.read_csv(target / 'analysis/episodes.csv'), stored
 
 
 def audit(scenario: Path, case: str, stored):
