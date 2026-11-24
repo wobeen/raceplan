@@ -149,7 +149,7 @@ class LeadInRescueK3(Planner):
             return result(first.status, first.path, first.expanded_nodes, rescue="not_needed")
 
         def fallback(expanded, reason, **extra):
-            # The verified base result (raw A* path) stays valid when rescue fails or runs out of time.
+            # Keep the base planner's own fallback (raw A* path, not post-processing verified).
             return result(PlannerStatus.SUCCESS, first.path, expanded, rescue=reason, **extra)
 
         smoothing = self.base.config

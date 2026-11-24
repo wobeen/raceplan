@@ -70,8 +70,8 @@ FOLLOW_UP = {
     'selected': 'stop; a new held-out under policy v2 needs explicit user approval and must '
                 'include rejected queries that the reference fallback reaches',
     'none': 'record negative result; do not tune further on these inputs',
-    'undecidable': 'record; no selection',
-    'invalid_audit': 'record; investigate nondeterminism before any interpretation',
+    'undecidable': 'record; no selection; no rerun in this step',
+    'invalid_audit': 'record only; no rerun in this step; nondeterminism is a new step',
 }
 
 
@@ -169,7 +169,12 @@ def decide(episodes, audit_rows, planning_p95):
             'reference_reached_queries': len(reference_reached),
             'astar_reached_queries': len(astar_reached),
             'hybrid_reached_queries': sum(reached[c, 'hybrid_astar'] for c in cases),
-            'audit_all_match': audit_ok, 'candidates': rows, 'verdict': verdict,
+            'audit_all_match': audit_ok,
+            'audit_mismatches': [f"{row['case']}/{row['planner']}" for row in audit_rows
+                                 if not row['matches_stored_path']],
+            'rescue_timeouts': dict(Counter(row['planner'] for row in audit_rows
+                                            if row.get('rescue') == 'timeout')),
+            'candidates': rows, 'verdict': verdict,
             'selected': selected,
             'selection_label': ('selected on gain only, regression untestable'
                                 if verdict == 'selected' and evidence == 'untestable' else ''),
@@ -183,7 +188,17 @@ def acceptance_audit(scenario_path: Path, case: str, stored_paths):
     rows = []
     for plugin, classname in CUSTOM:
         planner = load_custom_planner(f'{plugin}:{classname}')[0]
-        result = planner.plan(grid, scenario.start, scenario.goal, timeout_s=scenario.timeout_s)
+        try:
+            result = planner.plan(grid, scenario.start, scenario.goal,
+                                  timeout_s=scenario.timeout_s)
+        except Exception as exc:  # the experiment records these as planning_error rows
+            rows.append({'case': case, 'planner': planner.name, 'status': 'planning_error',
+                         'smoothing': '', 'smoothing_reason': type(exc).__name__, 'rescue': '',
+                         'lead_in_curvature_per_m': '', 'lead_in_length_m': '',
+                         'smoothed_max_curvature_per_m': '',
+                         'smoothed_min_footprint_clearance_m': '',
+                         'matches_stored_path': stored_paths.get(planner.name, []) == []})
+            continue
         replanned = ([(p.x, p.y, p.yaw) for p in result.path.poses] if result.path else [])
         rows.append({
             'case': case, 'planner': planner.name, 'status': result.status.value,
