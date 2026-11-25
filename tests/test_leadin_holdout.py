@@ -1,6 +1,6 @@
 """Held-out runner: generator, novelty, stratified selection, verdict, and records.
 
-Tests generate pool maps but never plan or drive on pool seeds (2000-2059); the
+Tests generate pool maps but never plan or drive on pool seeds (2000-2999); the
 runner smoke uses seeds 1997/1998, outside the pool and development ranges.
 """
 import importlib.util
@@ -28,7 +28,9 @@ def test_generator_is_deterministic_and_refuses_development_seeds():
 
 
 def test_pool_keeps_twenty_novel_maps_per_family_in_seed_order():
-    pool, report, skipped = runner.build_pool(runner.POOL_SEEDS, runner.inventory_with_development())
+    pool, report, skipped, last = runner.build_pool(runner.POOL_SEEDS,
+                                                    runner.inventory_with_development())
+    assert last == max(pool) and last < 2200
     families = [family for family, *_ in pool.values()]
     assert {f: families.count(f) for f in runner.development.FAMILIES} == {
         f: runner.PER_FAMILY for f in runner.development.FAMILIES}
@@ -74,7 +76,8 @@ def row(reference, candidate, astar=0, hybrid=0):
             runner.CANDIDATE: candidate}
 
 
-def decide(table, stratum, differ=None, mismatch=False, p95=300.0):
+def decide(table, stratum, differ=None, mismatch=False, p95=300.0, claimed=None):
+    """Audit rows follow ``stratum``; ``claimed`` is the stratum handed to the verdict."""
     audit = []
     for case in table:
         same = json.dumps([[0, 0, 0]])
@@ -87,7 +90,7 @@ def decide(table, stratum, differ=None, mismatch=False, p95=300.0):
                       "path_digest": "different" if case == differ else same})
     if mismatch:
         audit[0]["matches_stored_path"] = False
-    return runner.decide(episodes(table), audit, stratum, {runner.CANDIDATE: p95})
+    return runner.decide(episodes(table), audit, claimed or stratum, {runner.CANDIDATE: p95})
 
 
 def held_out(gains):
@@ -107,6 +110,15 @@ def test_verdicts_follow_the_registered_rule():
     assert decide(lost, stratum)["verdict"] == "not_supported"
     assert decide(table, stratum, mismatch=True)["verdict"] == "invalid_audit"
     assert decide(table, stratum, differ="a1")["verdict"] == "invalid_audit"
+    relabelled = dict(stratum, r0="accepted")
+    assert decide(table, stratum, claimed=relabelled)["verdict"] == "invalid_audit"
+    assert result["verdict_label"] == "supported on net gain only; no-regression untested"
+    tested = dict(table, r14=row(3, 3), r15=row(3, 3))
+    assert decide(tested, stratum)["no_regression_evidence"] == "tested"
+    astar_only = dict(table, a7=row(0, 0, astar=3))
+    lost_astar = decide(astar_only, stratum)
+    assert lost_astar["losses_vs_astar_by_stratum"]["accepted"] == ["a7"]
+    assert lost_astar["verdict"] == "not_supported"
     few = {c: v for c, v in table.items() if c.startswith("a") or c in {"r0", "r1"}}
     assert decide(few, {c: stratum[c] for c in few})["verdict"] == "undecidable"
 
@@ -115,7 +127,8 @@ def test_promotion_checklist_is_reported_not_decided():
     table, stratum = held_out(8)
     checks = decide(table, stratum, p95=1400.0)["promotion_checklist"]
     assert checks["queries_at_least_24"] and not checks["astar_success_query_share_at_least_30pct"]
-    assert checks["reach_rate_gain_at_least_25pp"] and not checks["planning_p95_at_most_25pct_of_timeout"]
+    assert checks["reach_rate_gain_vs_reference_at_least_25pp"]
+    assert not checks["planning_p95_at_most_25pct_of_timeout"]
     assert not checks["post_processing_acceptance_at_least_75pct"]
 
 
@@ -132,7 +145,7 @@ def test_run_writes_classification_protocol_and_decision(tmp_path, monkeypatch):
     assert {r["planner"] for r in summary} == set(runner.PLANNERS)
     classification_rows = (output / "classification.csv").read_text(encoding="utf-8").splitlines()
     assert len(classification_rows) == 1 + 2 * len(runner.SMOKE_SEEDS)
-    assert decision["verdict"] in {"undecidable", "invalid_audit"}
+    assert decision["verdict"] == "undecidable"
     assert decision["accepted_paths_identical"]
     for name in ("novelty.json", "protocol_start.json", "protocol.json", "decision.json"):
         assert (output / name).is_file()

@@ -188,11 +188,14 @@ def decide(episodes, audit_rows, stratum, planning_p95):
     gains = [c for c in cases if reached[c, CANDIDATE] and not reached[c, REFERENCE]]
     net = len(gains) - len(losses_reference)
     required = max(MIN_GAIN, ceil(MIN_GAIN_FRACTION * len(rejected)))
-    accepted_identical = all(audit.get((c, CANDIDATE), {}).get('path_digest')
-                             == audit.get((c, REFERENCE), {}).get('path_digest')
-                             for c in accepted)
+    accepted_identical = all(
+        (c, CANDIDATE) in audit and (c, REFERENCE) in audit
+        and audit[c, CANDIDATE]['path_digest'] == audit[c, REFERENCE]['path_digest']
+        for c in accepted)
+    stratum_consistent = all(audit.get((c, REFERENCE), {}).get('smoothing') == stratum.get(c)
+                             for c in cases)
     audit_ok = (bool(audit_rows) and all(r['matches_stored_path'] for r in audit_rows)
-                and accepted_identical)
+                and accepted_identical and stratum_consistent)
     if not audit_ok:
         verdict = 'invalid_audit'
     elif len(rejected) < MIN_REJECTED:
@@ -201,6 +204,9 @@ def decide(episodes, audit_rows, stratum, planning_p95):
         verdict = 'supported'
     else:
         verdict = 'not_supported'
+    evidence = 'tested' if len(regression_stratum) >= MIN_REGRESSION_STRATUM else 'untestable'
+    astar_gain = (sum(reached[c, CANDIDATE] and not reached[c, 'astar'] for c in cases)
+                  - len(losses_astar))
     hybrid_net = (sum(reached[c, CANDIDATE] and not reached[c, 'hybrid_astar'] for c in cases)
                   - sum(reached[c, 'hybrid_astar'] and not reached[c, CANDIDATE] for c in cases))
     post_processed = sum(audit.get((c, CANDIDATE), {}).get('smoothing') == 'accepted'
@@ -211,7 +217,8 @@ def decide(episodes, audit_rows, stratum, planning_p95):
         'astar_success_query_share_at_least_30pct': (len(astar_reached) / len(cases) >= 0.30
                                                      if cases else False),
         'no_loss_on_astar_success_queries': not losses_astar,
-        'reach_rate_gain_at_least_25pp': (net / len(cases) >= 0.25 if cases else False),
+        'reach_rate_gain_vs_reference_at_least_25pp': (net / len(cases) >= 0.25 if cases else False),
+        'reach_rate_gain_vs_astar_at_least_25pp': (astar_gain / len(cases) >= 0.25 if cases else False),
         'hybrid_query_net_non_negative': hybrid_net >= 0,
         'post_processing_acceptance_at_least_75pct': (post_processed / len(cases) >= 0.75
                                                       if cases else False),
@@ -220,22 +227,28 @@ def decide(episodes, audit_rows, stratum, planning_p95):
     }
     return {'rule': DECISION_RULE, 'queries': len(cases), 'rejected_queries': rejected,
             'accepted_queries': accepted, 'rejected_and_fallback_reached': regression_stratum,
-            'no_regression_evidence': ('tested' if len(regression_stratum) >= MIN_REGRESSION_STRATUM
-                                       else 'untestable'),
+            'no_regression_evidence': evidence,
+            'verdict_label': ('supported on net gain only; no-regression untested'
+                              if verdict == 'supported' and evidence == 'untestable' else ''),
             'reference_reached_queries': len(reference_reached),
             'astar_reached_queries': len(astar_reached),
             'hybrid_reached_queries': sum(reached[c, 'hybrid_astar'] for c in cases),
             'candidate_reached_queries': sum(reached[c, CANDIDATE] for c in cases),
             'gains_vs_reference': gains, 'losses_vs_reference': losses_reference,
-            'losses_vs_astar': losses_astar, 'net_gain_vs_reference': net,
+            'losses_vs_astar': losses_astar,
+            'losses_vs_astar_by_stratum': {s: [c for c in losses_astar if stratum.get(c) == s]
+                                           for s in ('accepted', 'rejected')},
+            'net_gain_vs_reference': net, 'net_gain_vs_astar': astar_gain,
             'required_net_gain': required, 'hybrid_query_net': hybrid_net,
             'rescued_queries': [c for c in cases
                                 if audit.get((c, CANDIDATE), {}).get('rescue') == 'lead_in'],
             'audit_all_match': audit_ok, 'accepted_paths_identical': accepted_identical,
+            'stratum_matches_audit': stratum_consistent,
             'audit_mismatches': [f"{r['case']}/{r['planner']}" for r in audit_rows
                                  if not r['matches_stored_path']],
             'rescue_timeouts': sum(r.get('rescue') == 'timeout' for r in audit_rows),
             'promotion_checklist': promotion,
+            'counts_toward_promotion': verdict == 'supported' and all(promotion.values()),
             'verdict': verdict, 'follow_up': FOLLOW_UP[verdict]}
 
 
@@ -309,7 +322,7 @@ def build_pool(seeds, inventory, per_family=PER_FAMILY):
         counts[family] += 1
         if all(counts[f] >= per_family for f in development.FAMILIES):
             break
-    return kept, report, skipped
+    return kept, report, skipped, seed
 
 
 def run(output: Path, prereg_commit: str, pool_seeds=POOL_SEEDS, per_family=PER_FAMILY):
@@ -318,43 +331,47 @@ def run(output: Path, prereg_commit: str, pool_seeds=POOL_SEEDS, per_family=PER_
     if set(pool_seeds) & set(DEVELOPMENT_GENERATED):
         raise ValueError('pool overlaps development seeds')
     state = previous.repository_state(prereg_commit)
-    pool, report, skipped = build_pool(pool_seeds, inventory_with_development(), per_family)
+    pool, report, skipped, last_scanned = build_pool(pool_seeds, inventory_with_development(),
+                                                     per_family)
     output.mkdir(parents=True)
     previous.write_json(output / 'novelty.json', {
         'members': report, 'skipped_near_or_exact_duplicates': skipped,
-        'near_duplicate_iou': development.NEAR_DUPLICATE_IOU, 'per_family': per_family})
+        'near_duplicate_iou': development.NEAR_DUPLICATE_IOU, 'per_family': per_family,
+        'scanned_seeds': [min(pool_seeds), last_scanned]})
     started = perf_counter()
-    classification = classify(pool)
-    selected = select(classification)
-    previous.write_csv(output / 'classification.csv', classification)
-    inputs = write_inputs(output / 'inputs', pool, selected)
-    stratum = {f"{p.parent.name}__{p.stem}": row['reference'] for p, row in zip(inputs, selected)}
-    sources = sorted((ROOT / 'src/raceplan').rglob('*.py')) + [
-        BASE_PLUGIN, LEADIN_PLUGIN, Path(__file__).resolve(),
-        ROOT / 'results/margin_rescue_development.py',
-        ROOT / 'results/leadin_rescue_development.py',
-        ROOT / 'results/turn_aware_query_identity_v2.py']
-    protocol = {
-        'kind': 'held_out_evaluation', 'policy': 'research policy v2',
-        **state, 'uv_lock_sha256': previous.digest(ROOT / 'uv.lock'),
-        'python': sys.version.split()[0], 'platform': platform.platform(),
-        'raceplan_import_path': Path(sys.modules['raceplan'].__file__).resolve().parent.as_posix(),
-        'pool_seeds_scanned': [min(pool_seeds), max(pool_seeds)], 'pool_kept': sorted(pool),
-        'development_generated_seeds': list(DEVELOPMENT_GENERATED),
-        'smoke_seeds': list(SMOKE_SEEDS),
-        'selection': {'target_rejected': TARGET_REJECTED, 'target_accepted': TARGET_ACCEPTED,
-                      'selected': [f"{r['seed']}/q{r['query']}:{r['reference']}" for r in selected],
-                      'pool_counts': dict(Counter(r['reference'] for r in classification))},
-        'simulation_seeds': list(SIMULATION_SEEDS), 'noise': NOISE, 'planners': list(PLANNERS),
-        'reference': REFERENCE, 'candidate': CANDIDATE, 'decision_rule': DECISION_RULE,
-        'follow_up': FOLLOW_UP,
-        'source_sha256': {previous.rel(p): previous.digest(p) for p in sources},
-        'input_sha256': {path.relative_to(output).as_posix(): previous.digest(path)
-                         for path in sorted((output / 'inputs').rglob('*')) if path.is_file()},
-    }
-    previous.write_json(output / 'protocol_start.json', protocol)
-    stage = 'start'
+    stage = 'classify'
     try:
+        classification = classify(pool)
+        selected = select(classification)
+        previous.write_csv(output / 'classification.csv', classification)
+        inputs = write_inputs(output / 'inputs', pool, selected)
+        stratum = {f"{p.parent.name}__{p.stem}": row['reference']
+                   for p, row in zip(inputs, selected)}
+        sources = sorted((ROOT / 'src/raceplan').rglob('*.py')) + [
+            BASE_PLUGIN, LEADIN_PLUGIN, Path(__file__).resolve(),
+            ROOT / 'results/margin_rescue_development.py',
+            ROOT / 'results/leadin_rescue_development.py',
+            ROOT / 'results/turn_aware_query_identity_v2.py']
+        protocol = {
+            'kind': 'held_out_evaluation', 'policy': 'research policy v2',
+            **state, 'uv_lock_sha256': previous.digest(ROOT / 'uv.lock'),
+            'python': sys.version.split()[0], 'platform': platform.platform(),
+            'raceplan_import_path': Path(sys.modules['raceplan'].__file__).resolve().parent.as_posix(),
+            'scanned_seeds_consumed': [min(pool_seeds), last_scanned], 'pool_kept': sorted(pool),
+            'development_generated_seeds': list(DEVELOPMENT_GENERATED),
+            'smoke_seeds': list(SMOKE_SEEDS),
+            'selection': {'target_rejected': TARGET_REJECTED, 'target_accepted': TARGET_ACCEPTED,
+                          'selected': [f"{r['seed']}/q{r['query']}:{r['reference']}"
+                                       for r in selected],
+                          'pool_counts': dict(Counter(r['reference'] for r in classification))},
+            'simulation_seeds': list(SIMULATION_SEEDS), 'noise': NOISE,
+            'planners': list(PLANNERS), 'reference': REFERENCE, 'candidate': CANDIDATE,
+            'decision_rule': DECISION_RULE, 'follow_up': FOLLOW_UP,
+            'source_sha256': {previous.rel(p): previous.digest(p) for p in sources},
+            'input_sha256': {path.relative_to(output).as_posix(): previous.digest(path)
+                             for path in sorted((output / 'inputs').rglob('*')) if path.is_file()},
+        }
+        previous.write_json(output / 'protocol_start.json', protocol)
         episodes, plans, audit_rows = [], [], []
         for scenario in inputs:
             stage = case = f'{scenario.parent.name}__{scenario.stem}'
