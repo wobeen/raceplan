@@ -11,7 +11,7 @@
 | 핵심 | CSV·manifest·분석·PNG | 기본 안내의 단일 흐름으로 통합 |
 | 연구 보관 | Clearance A* | 성공률 개선 없음. 기본 기능·개발 우선순위에서 제외 |
 | 연구 보관 | 방향-state A*·가중치 0·급회전 제곱 비용 | 기존 후보는 validation 회귀·evaluation 일부 성공. 제곱 비용 후속 후보도 validation 도달률 회귀로 중단. 기본 플래너 채택 보류 |
-| 연구 보관 | A* 경로 후처리(clearance·곡률 평활화) | 개발 비교 목표0.30 선택 후 신규 6지도 held-out에서 사전 판정 통과(15승0패). query 단위로는 A* 실패 11개 중 5개 복구, 무회귀 근거 1 query. 채택률6/12·곡률 거부가 남아 기본 채택 보류. 정책 v2 개발 비교: 출발 lead-in 구제 선택 없음, 구제 검증 여유 상향 선택 없음(사후: 여유 0.02m 구제가 새 입력에서 +3 query, 선택 아님) |
+| 연구 보관 | A* 경로 후처리(clearance·곡률 평활화) | 개발 비교 목표0.30 선택 후 신규 6지도 held-out에서 사전 판정 통과(15승0패). query 단위로는 A* 실패 11개 중 5개 복구, 무회귀 근거 1 query. 채택률6/12·곡률 거부가 남아 기본 채택 보류. 정책 v2: lead-in 구제·여유 상향 개발 비교 선택 없음, `leadin_rescue_k3` held-out(seed 2000–2107) 불지지(순증 +2 < 4, 손실 0) |
 | 연구 보관 | guard·회복 v1~v4·접근 감속 | Python API와 과거 실험에 유지. 기본 CLI는 비활성 |
 | 호환 도구 | compare / plot_comparison | 계획만 보는 기존 명령 유지. 기본 안내는 저장 결과 기반으로 통일 |
 | 연구 보관 | 날짜별 suite·runner·봉인 교정 | 재현·감사 목적으로 원래 경로 유지 |
@@ -68,6 +68,7 @@ README 두 언어판에서 중복 설명·과거 테스트 수·오래된 다음
 - [A* 경로 후처리 신규 지도 held-out](SMOOTHING_HOLDOUT.md)
 - [출발 lead-in 구제 개발 비교 (정책 v2)](LEADIN_RESCUE_DEVELOPMENT.md)
 - [구제 경로 검증 여유 상향 개발 비교 (정책 v2)](MARGIN_RESCUE_DEVELOPMENT.md)
+- [`leadin_rescue_k3` held-out (정책 v2)](LEADIN_HOLDOUT.md)
 - [회복 정책과 과거 결과](RECOVERY_20261013.md)
 - [이전 한국어 README](archive/README.before_cleanup_20261104.md)
 - [이전 영어 README](archive/README.en.before_cleanup_20261104.md)

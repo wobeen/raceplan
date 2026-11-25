@@ -115,3 +115,57 @@ P2는 실행 전에 반영했다.
     `seal.json` 미작성(protocol·hash 기록과 사전 등록 커밋으로 대신), 출력 폴더 기준 input hash.
 
 2차 반영 코드는 재검토를 받지 않았다. 이 반영을 커밋한 것이 최종 사전 등록이다.
+
+## 단일 실행 결과 (2026-11-25)
+
+최종 사전 등록 `55d48b8`에서 추적 파일 diff 0과 `tests/test_leadin_holdout.py` **7 passed**를 확인했다.
+이어서 runner를 한 번 실행했다(실행 커밋 동일, wall time 45.5s, 288 episode).
+
+- 풀은 seed 2000–2107을 훑어 신규 지도 60개를 채웠다. 근사·exact 중복으로 22개 seed를 건너뛰었으며, 이
+  범위 전체가 소진됐다.
+- 기준 후처리의 계획 분류는 채택 85, 거부 34, unavailable 1 query였다. 그중 거부 16개(seed 2001–2046)와
+  채택 8개(seed 2000–2004)를 골랐다.
+- 감사: 재계획 경로 48개가 모두 일치했다. 채택 query의 경로 동일, 층화 라벨 일치를 확인했고 구제
+  timeout은 0건이었다.
+
+**판정: 불지지(`not_supported`).** 후보는 기준 대비 순증 **+2**로, 필요 순증 4에 못 미쳤다. 손실은
+기준 대비와 A* 대비 모두 0이었다. 무회귀 근거는 `untestable`이다(거부 ∧ fallback 도달 0개).
+
+| planner | 도달 query/24 | 도달 episode/72 | 계획시간 median/P95(ms) |
+|---|---:|---:|---:|
+| A* | 2 | 6 | 3.5 / 7.2 |
+| Hybrid A* | 7 | 21 | 153.1 / 382.6 |
+| 기준 `smoothed_low_clearance` | 7 | 21 | 79.4 / 125.4 |
+| 후보 `leadin_rescue_k3` | 9 | 27 | 356.9 / 501.6 |
+
+기전은 다음과 같다.
+
+- 후보는 거부 16개 중 5개에서 검증을 통과한 구제 경로를 만들었다. 그중 2개만 도달했다
+  (seed2009 staggered_windows q0, seed2016 offset_islands q0).
+- 도달한 두 경로의 footprint 여유는 0.081m와 0.020m였다.
+- 충돌한 세 경로(seed2006 staggered_windows q1, seed2016 offset_islands q1, seed2031 offset_islands
+  q0)의 여유는 0.030–0.050m였다. 추종 RMSE는 0.030–0.051m, 최대 추종 오차는 0.043–0.086m였고, 출발
+  1.5–2.9s에 첫 장애물 모서리에서 충돌했다.
+- 구제하지 못한 11개는 곡률 거부 8, footprint 거부 3이었다.
+- 개발 비교의 구제 후 도달 3/4가 이번에는 2/5였다. 경로 여유가 도달을 가르지 않는다는 점은 개발 비교와
+  같았다(0.020m로도 도달했다).
+
+보조 지표(판정과 무관):
+
+- Hybrid A* 대비 query net은 +2다(후보 9, Hybrid 7). 거부 층에서 Hybrid만 도달한 query가 3개 있다.
+- 승격 체크리스트에서 충족한 항목은 24 query, A* 성공 query 무손실, A* 대비 순증 +25%p(+7/24), Hybrid
+  net ≥ 0이다.
+- 미충족 항목은 A* 성공 비율 30%(2/24), 기준 대비 순증 +25%p(+2/24), 후처리 채택 75%, 계획시간 P95
+  ≤ 0.5s(501.6ms)다. 따라서 `counts_toward_promotion`은 False다.
+
+**해석**: 개발 입력에서 본 +3 query는 예약 seed에서 사전 기준(+4/16)을 넘지 못했다. 후보는 기존 후처리가
+거부한 query 일부를 손실 없이 되살리지만 그 규모가 작다(16개 중 2개). 구제 경로의 대부분은 출발 직후 첫
+모서리를 지나다 충돌한다. 사전 규칙대로 `leadin_rescue_k3`는 연구 보관을 유지하며, 이 입력과 소진된
+seed 범위로 추가 조정하지 않는다.
+
+산출물:
+
+- 원본: `results/raw/leadin_holdout_20261125/`(ignore, 생성 입력 포함)
+- 공유본: `results/analysis/leadin_holdout_20261125/`(novelty, classification, protocol_start, protocol,
+  decision, summary, queries, acceptance)
+- 대표 PNG 2장: `results/figures/leadin_holdout_20261125/`(도달 seed2009, 구제 후 충돌 seed2006)

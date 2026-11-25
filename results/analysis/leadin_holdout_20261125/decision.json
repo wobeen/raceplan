@@ -1,0 +1,78 @@
+{
+  "rule": "query reached iff >=2 of 3 seeds reached. Any acceptance-audit mismatch, or any accepted query where the candidate path differs from the reference path, invalidates the run. Undecidable if fewer than 8 selected queries are reference-rejected. Held-out supported iff the candidate loses no query reached by the reference or by A* and its net query gain over the reference is >= max(2, ceil(0.25 x rejected queries)). No-regression evidence is \"tested\" only if at least 2 rejected queries are reached by the reference fallback.",
+  "queries": 24,
+  "rejected_queries": [
+    "seed2001_offset_islands__q0",
+    "seed2006_staggered_windows__q1",
+    "seed2008_slalom_walls__q0",
+    "seed2009_staggered_windows__q0",
+    "seed2012_staggered_windows__q1",
+    "seed2013_offset_islands__q1",
+    "seed2016_offset_islands__q0",
+    "seed2016_offset_islands__q1",
+    "seed2019_offset_islands__q0",
+    "seed2023_slalom_walls__q1",
+    "seed2024_staggered_windows__q0",
+    "seed2025_offset_islands__q1",
+    "seed2031_offset_islands__q0",
+    "seed2035_slalom_walls__q1",
+    "seed2041_slalom_walls__q0",
+    "seed2046_offset_islands__q0"
+  ],
+  "accepted_queries": [
+    "seed2000_staggered_windows__q0",
+    "seed2000_staggered_windows__q1",
+    "seed2001_offset_islands__q1",
+    "seed2002_slalom_walls__q0",
+    "seed2002_slalom_walls__q1",
+    "seed2003_staggered_windows__q0",
+    "seed2003_staggered_windows__q1",
+    "seed2004_offset_islands__q0"
+  ],
+  "rejected_and_fallback_reached": [],
+  "no_regression_evidence": "untestable",
+  "verdict_label": "",
+  "reference_reached_queries": 7,
+  "astar_reached_queries": 2,
+  "hybrid_reached_queries": 7,
+  "candidate_reached_queries": 9,
+  "gains_vs_reference": [
+    "seed2009_staggered_windows__q0",
+    "seed2016_offset_islands__q0"
+  ],
+  "losses_vs_reference": [],
+  "losses_vs_astar": [],
+  "losses_vs_astar_by_stratum": {
+    "accepted": [],
+    "rejected": []
+  },
+  "net_gain_vs_reference": 2,
+  "net_gain_vs_astar": 7,
+  "required_net_gain": 4,
+  "hybrid_query_net": 2,
+  "rescued_queries": [
+    "seed2006_staggered_windows__q1",
+    "seed2009_staggered_windows__q0",
+    "seed2016_offset_islands__q0",
+    "seed2016_offset_islands__q1",
+    "seed2031_offset_islands__q0"
+  ],
+  "audit_all_match": true,
+  "accepted_paths_identical": true,
+  "stratum_matches_audit": true,
+  "audit_mismatches": [],
+  "rescue_timeouts": 0,
+  "promotion_checklist": {
+    "queries_at_least_24": true,
+    "astar_success_query_share_at_least_30pct": false,
+    "no_loss_on_astar_success_queries": true,
+    "reach_rate_gain_vs_reference_at_least_25pp": false,
+    "reach_rate_gain_vs_astar_at_least_25pp": true,
+    "hybrid_query_net_non_negative": true,
+    "post_processing_acceptance_at_least_75pct": false,
+    "planning_p95_at_most_25pct_of_timeout": false
+  },
+  "counts_toward_promotion": false,
+  "verdict": "not_supported",
+  "follow_up": "record negative held-out; candidate stays research archive"
+}

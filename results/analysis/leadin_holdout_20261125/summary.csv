@@ -1,0 +1,5 @@
+planner,episodes,reached,collisions,timeouts,planning_failures,planning_time_ms_median,planning_time_ms_p95
+astar,72,6,66,0,0,3.4912499831989408,7.188319950364529
+hybrid_astar,72,21,51,0,0,153.0552499461919,382.5707699405029
+smoothed_low_clearance,72,21,51,0,0,79.43359995260835,125.37041491596028
+leadin_rescue_k3,72,27,45,0,0,356.91729991231114,501.5780751011334
