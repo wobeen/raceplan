@@ -129,8 +129,14 @@ The manifest records settings, source hashes, map provenance, and environment.
 Summary, path, and trajectory CSVs preserve planning failures and driving outcomes.
 See [map conventions](maps/README.md) for map inputs.
 
-Run `.\.venv\Scripts\python.exe -m pytest -q` after installation. The last full verification passed 204 tests.
+Run `.\.venv\Scripts\python.exe -m pytest -q` after installation. The last full verification passed 234 tests.
+
+Research candidates such as A* path post-processing and start lead-in rescue live in `examples/`
+as user planners. They did not meet the promotion criteria in held-out evaluation and are not
+default planners. Candidate development and evaluation follow pre-registration, independent
+review, a single run, then a separate results commit ([research procedure](docs/COMMIT_PLAN.md),
+[promotion criteria](docs/FEATURE_SCOPE.md), both Korean).
 Experimental candidates and historical runners are indexed separately in
 [feature scope](docs/FEATURE_SCOPE.md) (Korean), [results](results/README.md), and
-[handoff](docs/HANDOFF.md). Earlier README content is retained under
-[docs/archive](docs/archive/README.en.before_cleanup_20261104.md).
+[handoff](docs/HANDOFF.md), which also lists the current state and next steps. Earlier README
+content is retained under [docs/archive](docs/archive/README.en.before_cleanup_20261104.md).

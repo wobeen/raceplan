@@ -141,10 +141,14 @@ Dijkstra/A*는 점의 격자 연결성, Hybrid A*는 회전한 차량 footprint�
 ## 개발과 연구 자료
 
 테스트는 설치 후 `.\.venv\Scripts\python.exe -m pytest -q`로 실행합니다.
-마지막 전체 검증은 204개 테스트가 통과했습니다.
+마지막 전체 검증은 234개 테스트가 통과했습니다.
 
 효과가 확인되지 않은 후보와 버전별 실험은 기본 사용 안내에서 제외했습니다.
+A* 경로 후처리와 출발 lead-in 구제 같은 사용자 플래너 후보는 `examples/`에 연구용으로 두었습니다.
+held-out 평가에서 승격 기준을 넘지 못해 기본 플래너가 아닙니다.
+후보 개발·평가는 사전 등록 → 독립 검토 → 1회 실행 → 결과 커밋 순서를 따릅니다
+([연구 절차](docs/COMMIT_PLAN.md), [승격 기준](docs/FEATURE_SCOPE.md)).
 연구 기능의 상태·보존 이유·이전 문서 위치는 [기능 범위](docs/FEATURE_SCOPE.md),
 저장된 실험 결과는 [결과 폴더](results/README.md),
-최신 작업 상태는 [HANDOFF](docs/HANDOFF.md)를 참고하세요.
+최신 작업 상태와 다음 작업 후보는 [HANDOFF](docs/HANDOFF.md)를 참고하세요.
 
