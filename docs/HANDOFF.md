@@ -2,15 +2,16 @@
 
 ## 현재 상태와 다음 작업
 
-사용자 지시(2026-11-26): "여기까지 저장하고 다음 뭘할지도 기록해둬". 모든 작업은 커밋되어 있고
-push는 하지 않았다.
+사용자 지시(2026-11-26): "여기까지 저장하고 다음 뭘할지도 기록해둬". 모든 작업은 커밋되어 있다.
+2026-11-28 사용자 지시 "push해"로 `main`(`82f334b..01f7d2f`)과 `research/policy-v2-curvature`를
+origin에 올렸다.
 
 **브랜치 상태**
 
-- 작업 브랜치 `research/policy-v2-curvature`(HEAD `bda792a`)는 로컬 main보다 12커밋 앞서 있다.
-  정책 v2 문서, 연구 3스텝(lead-in 개발, 여유 상향 개발, `leadin_rescue_k3` held-out)이 들어 있다.
-- 로컬 `main`은 `origin/main`보다 7커밋 앞서 있다. 급회전·A* 후처리 연구 병합 `01f7d2f`까지이며
-  push하지 않았다.
+- 작업 브랜치 `research/policy-v2-curvature`는 main보다 앞서 있다. 정책 v2 문서, 연구 3스텝(lead-in 개발,
+  여유 상향 개발, `leadin_rescue_k3` held-out), README 갱신이 들어 있으며 origin과 같다.
+- `main`은 급회전·A* 후처리 연구 병합 `01f7d2f`까지이고 origin과 같다. main에는 CI workflow가 없어
+  push로 CI가 돌지 않았다.
 - 다른 미결정 브랜치(GUI 작업 쪽 기록): `feature/seed-maps`(seed 지도 엔진, main 미병합)가 있고,
   `LICENSE` 보유자도 아직 정하지 않았다.
 
@@ -44,7 +45,7 @@ push는 하지 않았다.
    - ablation을 선택 불가로 등록해 둔 덕분에 사후 선택을 막았다.
    - 반영한다면 연구 문서(`docs/*_DEVELOPMENT*.md`, `docs/LEADIN_HOLDOUT.md`)와 함께 main에 병합하고,
      FEATURE_SCOPE·COMMIT_PLAN·results/README의 "시험 브랜치" 표기를 지운다.
-3. **push 여부**: 로컬 main(7커밋)과 이 브랜치를 원격에 올릴지 정한다.
+3. **push**: 완료(2026-11-28). 이후 커밋은 요청 시 push한다.
 4. **남은 기술 부채(작음)**:
    - held-out runner의 생성기 복제 코드에 동일성 테스트가 없다.
    - `seal.json`을 만들지 않았다(protocol hash와 사전 등록 커밋으로 대신).
